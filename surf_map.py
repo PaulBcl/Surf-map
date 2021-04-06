@@ -25,7 +25,7 @@ st.title('Surfmap')
 base_position = [48.8434864, 2.3859893]
 
 #Sidebar
-label_address = "Renseignez votre adresse/ville"
+label_address = "Renseignez votre ville"
 address = st.sidebar.text_input(label_address, value = '',
                                 max_chars = None, key = None, type = 'default', help = None)
 
@@ -34,8 +34,8 @@ url_database = "surfmap_config/surfspots.xlsx"
 dfSpots = pd.read_excel(url_database)
 
 def main():
-    st.write("Bienvenue dans l'application Surfmap!")
-    st.write("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre adresse/ville !")
+    st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
+    st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
 
     explication_expander = st.beta_expander("Guide d'utilisation")
     with explication_expander:
@@ -44,8 +44,12 @@ def main():
         st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix maximum par aller, (ii) le temps de parcours acceptable, (iii) le pays de recherche et (iv) les conditions de spot recherchées !")
         st.warning("Les choix par conditions de surf ne sont pas encore disponibles et le seront dans la prochaine release")
 
-    couleur_radio_expander = st.beta_expander("Choisir le code couleur (optionnel)")
+    couleur_radio_expander = st.beta_expander("Légende de la carte")
     with couleur_radio_expander:
+        #st.markdown("_Légende :_")
+        st.markdown(":triangular_flag_on_post: représente un spot de surf")
+        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
+        #st.markdown("_Choisir le code couleur (optionnel) :_")
         label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (distance par défaut)"
         list_radio_choix_couleur = ["Distance", "Prix"]
         checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
@@ -61,8 +65,16 @@ def main():
     session = SessionState.get(run_id = 0)
 
     #if checkbox:
+    label_sidebar_profil = "Profil"
+    sidebar_profil = st.sidebar.beta_expander(label_sidebar_profil)
+    with sidebar_profil:
+        st.markdown("Quel type de surfer es-tu ?")
+        st.warning("Work in progress")
+
     label_sidebar_options = "Options avancées"
-    with st.sidebar.beta_expander(label_sidebar_options):
+    sidebar_options = st.sidebar.beta_expander(label_sidebar_options)
+    with sidebar_options:
+        st.markdown("Choix des options pour l'affichage des spots")
         label_raz = "Remise à zéro"
         col1, col2, col3 = st.beta_columns([1, 2, 1])
         with col1:
@@ -172,7 +184,8 @@ def main():
 
     folium_static(m)
 
-    st.markdown(":copyright: Paul Bâcle 04/2021")
+    st.markdown(":copyright: 2021 Paul Bâcle")
+    st.markdown("- - -")
 
 ###
 
