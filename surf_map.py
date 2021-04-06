@@ -184,8 +184,6 @@ def main():
     st.markdown(":copyright: 2021 Paul Bâcle")
     st.markdown("- - -")
 
-###
-
 main()
 
 #Tracer
