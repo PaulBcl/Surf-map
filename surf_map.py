@@ -165,9 +165,9 @@ def main():
                     colorIcon = surfmap_config.color_rating_prix(spot_infos['prix'])
                 else:
                     colorIcon = surfmap_config.color_rating_distance(spot_infos['drivingTime'])
-                popupSpot = folium.Popup('Spot : ' + nomSpot + ', distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km, temps de trajet : '
-                                         + str(round(spot_infos['drivingTime'], 1)) + ' h, prix (aller): '
-                                         + str(round(spot_infos['prix'], 2)) + ' €',
+
+                popupText = '💑 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €'
+                popupSpot = folium.Popup(popupText,
                                          max_width = '220')
                 marker = folium.Marker(location = spot_infos['gps'],
                                        popup = popupSpot,
