@@ -29,12 +29,17 @@ gmaps_api_key = "AIzaSyCsatj1b8xHi625WNn2ex5UwtXrePOSRVM"
 key_michelin = 'RESTGP20210404231529119266955396'
 gmaps.configure(api_key = gmaps_api_key)
 
-# In[85]:
-
-
+#Variables
 consommation_moyenne = 6.5
 prix_essence = 1.5
 
+#data
+url_database = "surfmap_config/surfspots.xlsx"
+
+@st.cache
+def load_data():
+    dfSpots = pd.read_excel(url_database)
+    return dfSpots
 
 # ## Fonctions Gmaps
 

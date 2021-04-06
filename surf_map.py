@@ -24,14 +24,11 @@ from surfmap_config import surfmap_config
 st.title('Surfmap')
 base_position = [48.8434864, 2.3859893]
 
-#Sidebar
+#Sidebar & data
 label_address = "Renseignez votre ville"
 address = st.sidebar.text_input(label_address, value = '',
                                 max_chars = None, key = None, type = 'default', help = None)
-
-#dfSpots = surfmap_config.dfSpots
-url_database = "surfmap_config/surfspots.xlsx"
-dfSpots = pd.read_excel(url_database)
+dfSpots = surfmap_config.load_data()
 
 def main():
     st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
@@ -68,7 +65,7 @@ def main():
     label_sidebar_profil = "Profil"
     sidebar_profil = st.sidebar.beta_expander(label_sidebar_profil)
     with sidebar_profil:
-        st.markdown("Quel type de surfer es-tu ?")
+        #st.markdown("Quel type de surfer es-tu ?")
         st.warning("Work in progress")
 
     label_sidebar_options = "Options avancées"
