@@ -1,4 +1,4 @@
-mkdir -p ~/.streamlit/
+mkdir -p ~/documents/code/surf/streamlit/.streamlit/
 
 echo "\
 [general]\n\
