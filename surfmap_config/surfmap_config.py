@@ -19,12 +19,6 @@ import json
 from tqdm import tqdm, tqdm_notebook
 import streamlit as st
 
-
-# ## Attributs Google Maps
-
-# In[107]:
-
-
 gmaps_api_key = "AIzaSyCsatj1b8xHi625WNn2ex5UwtXrePOSRVM"
 key_michelin = 'RESTGP20210404231529119266955396'
 gmaps.configure(api_key = gmaps_api_key)
@@ -36,7 +30,7 @@ prix_essence = 1.5
 #data
 url_database = "surfmap_config/surfspots.xlsx"
 
-@st.cache
+@st.cache(suppress_st_warning = True)
 def load_data():
     dfSpots = pd.read_excel(url_database)
     return dfSpots
@@ -308,10 +302,17 @@ Permet de récupérer les informations de route associées à des surfspots pour
 def get_surfspot_data(start_address, dfSpots,
                       gmaps_api_key = 'None', key_michelin = 'None',
                       consommation_moyenne = 6.5, prix_essence = 1.5):
+    #On affiche la barre de chargement
+    placeholder_progress_bar = st.empty()
+    progress_bar = placeholder_progress_bar.progress(0)
+    nb_percent_complete = int(100/len(dfSpots))
+    iteration = 0
+
     #On prends la liste des spots à requêter
     liste_surf_spots = dfSpots['nomSpot'].tolist()
     result = dict()
     for spot in liste_surf_spots:
+        iteration += 1
         try:
             villeSpot = dfSpots[dfSpots['nomSpot'] == spot]['villeSpot'].tolist()[0]
             paysSpot = dfSpots[dfSpots['nomSpot'] == spot]['paysSpot'].tolist()[0]
@@ -336,6 +337,10 @@ def get_surfspot_data(start_address, dfSpots,
             print('Impossible de requêter via API (Google) le spot ' + str(spot))
             print(e)
             pass
+        progress_bar.progress(nb_percent_complete*iteration + 1)
+
+    placeholder_progress_bar.empty()
+
     return result
 
 """

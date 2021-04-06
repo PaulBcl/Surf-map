@@ -118,6 +118,7 @@ def main():
 
     if address != '':
         if validation_button or option_prix >= 0 or option_distance_h >= 0:
+
             dict_data_from_address = surfmap_config.get_surfspot_data(address, dfSpots,
                                                                       surfmap_config.gmaps_api_key, surfmap_config.key_michelin)
             dfData = pd.DataFrame.from_dict(dict_data_from_address, orient = 'index').reset_index()
