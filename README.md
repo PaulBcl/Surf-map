@@ -1,4 +1,4 @@
 # Surf-map
-Application permettant de rechercher les meilleurs spots de surf à partir d'une destination
+Application permettant de rechercher les meilleurs spots de surf 🌊 à partir d'une destination
 
-Copyright Paul Bâcle 2021
+:copyright: 2021 Paul Bâcle
