@@ -177,7 +177,7 @@ def main():
     else:
         m = folium.Map(location = base_position,
                        zoom_start = 6)
-        st.warning('Aucune adresse de sélectionné')
+        st.warning('Aucune adresse sélectionnée')
 
     folium_static(m)
 
