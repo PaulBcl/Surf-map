@@ -48,7 +48,7 @@ def main():
         st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
         #st.markdown("_Choisir le code couleur (optionnel) :_")
         label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (distance par défaut)"
-        list_radio_choix_couleur = ["Distance", "Prix"]
+        list_radio_choix_couleur = ["🕔 Distance", "💸 Prix"]
         checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
 
     st.write("\n")
@@ -67,6 +67,10 @@ def main():
     with sidebar_profil:
         #st.markdown("Quel type de surfer es-tu ?")
         st.warning("Work in progress")
+        label_transport = "Moyen(s) de transport(s) favori(s)"
+        list_transport = ["🚗 Voiture", "🚝 Train", "🚲 Vélo", "⛵ Bateau"]
+        multiselect_transport = st.multiselect(label_transport, list_transport,
+                                          default = list_transport[0])
 
     label_sidebar_options = "Options avancées"
     sidebar_options = st.sidebar.beta_expander(label_sidebar_options)
@@ -96,9 +100,9 @@ def main():
                                       help = "En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
 
         label_choix_pays = "Choix des pays"
-        list_pays = ["France", "Espagne", "Italie"]
+        list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
         multiselect_pays = st.multiselect(label_choix_pays, list_pays,
-                                          default = "France",
+                                          default = list_pays[0],
                                           key = session.run_id)
 
     st.sidebar.write("\n")
@@ -148,6 +152,7 @@ def main():
                 dfData = dfData[dfData['drivingTime'] <= option_distance_h]
                 is_option_distance_h_ok = True
 
+            multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
             dfData = dfData[dfData['paysSpot'].isin(multiselect_pays)]
 
             for nomSpot in dfData['nomSpot'].tolist():
@@ -155,7 +160,7 @@ def main():
                 #if option_prix > 0 or option_distance_h > 0:
                 #    colorIcon = surfmap_config.color_rating_criteria(is_option_prix_ok, is_option_distance_h_ok)
                 #else:
-                if checkbox_choix_couleur == "Prix":
+                if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
                     colorIcon = surfmap_config.color_rating_prix(spot_infos['prix'])
                 else:
                     colorIcon = surfmap_config.color_rating_distance(spot_infos['drivingTime'])
@@ -181,8 +186,9 @@ def main():
 
     folium_static(m)
 
-    st.markdown(":copyright: 2021 Paul Bâcle")
     st.markdown("- - -")
+
+    st.markdown(":copyright: 2021 Paul Bâcle")
 
 main()
 
