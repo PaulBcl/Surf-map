@@ -309,6 +309,7 @@ def get_surfspot_data(start_address, dfSpots,
     for spot in liste_surf_spots:
         try:
             villeSpot = dfSpots[dfSpots['nomSpot'] == spot]['villeSpot'].tolist()[0]
+            paysSpot = dfSpots[dfSpots['nomSpot'] == spot]['paysSpot'].tolist()[0]
         except:
             print('Impossible de trouver le spot ' + spot + ' dans la table de référencement')
             pass
@@ -317,6 +318,7 @@ def get_surfspot_data(start_address, dfSpots,
                                          gmaps_api_key, key_michelin,
                                          consommation_moyenne, prix_essence)
             result[spot]['prix'] = result[spot]['tollCost'] + result[spot]['gazPrice']
+            result[spot]['paysSpot'] = paysSpot
         except:
             print('Impossible de requêter via API (Michelin) le spot ' + str(spot))
             pass

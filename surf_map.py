@@ -6,8 +6,6 @@ import gmaps
 import gmaps.datasets
 import pandas as pd
 import logging
-import urllib.request as ulib
-import time
 from datetime import datetime
 import json
 #Carte
@@ -20,14 +18,13 @@ from streamlit_folium import folium_static #https://github.com/randyzwitch/strea
 #from st_annotated_text import annotated_text #https://github.com/tvst/st-annotated-text
 #Config perso
 from surfmap_config import surfmap_config
-
-
+#documents d'upload : https://github.com/MaartenGr/streamlit_guide
+#source : https://towardsdatascience.com/quickly-build-and-deploy-an-application-with-streamlit-988ca08c7e83
 
 st.title('Surfmap')
 base_position = [48.8434864, 2.3859893]
 
 #Sidebar
-st.sidebar.write("Les champs ci-dessous vous permettent de définir votre recherche")
 label_address = "Renseignez votre adresse/ville"
 address = st.sidebar.text_input(label_address, value = '',
                                 max_chars = None, key = None, type = 'default', help = None)
@@ -37,9 +34,15 @@ url_database = "surfmap_config/surfspots.xlsx"
 dfSpots = pd.read_excel(url_database)
 
 def main():
-
     st.write("Bienvenue dans l'application Surfmap!")
-    st.write("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre adresse/ville de base à partir (i) du prix, (ii) de la distance et (iii) des conditions de surf.")
+    st.write("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre adresse/ville !")
+
+    explication_expander = st.beta_expander("Guide d'utilisation")
+    with explication_expander:
+        st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
+        st.write("La carte qui s'affiche ci-dessous indique votre position (en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
+        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix maximum par aller, (ii) le temps de parcours acceptable, (iii) le pays de recherche et (iv) les conditions de spot recherchées !")
+        st.warning("Les choix par conditions de surf ne sont pas encore disponibles et le seront dans la prochaine release")
 
     couleur_radio_expander = st.beta_expander("Choisir le code couleur (optionnel)")
     with couleur_radio_expander:
@@ -82,6 +85,12 @@ def main():
                                       min_value = 0, max_value = 15,
                                       key = session.run_id,
                                       help = "En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
+
+        label_choix_pays = "Choix des pays"
+        list_pays = ["France", "Espagne", "Italie"]
+        multiselect_pays = st.multiselect(label_choix_pays, list_pays,
+                                          default = "France",
+                                          key = session.run_id)
 
     st.sidebar.write("\n")
     #On met le boutton servant à chercher les résultats
@@ -130,6 +139,8 @@ def main():
                 dfData = dfData[dfData['drivingTime'] <= option_distance_h]
                 is_option_distance_h_ok = True
 
+            dfData = dfData[dfData['paysSpot'].isin(multiselect_pays)]
+
             for nomSpot in dfData['nomSpot'].tolist():
                 spot_infos = dict_data_from_address[nomSpot]
                 #if option_prix > 0 or option_distance_h > 0:
@@ -139,10 +150,12 @@ def main():
                     colorIcon = surfmap_config.color_rating_prix(spot_infos['prix'])
                 else:
                     colorIcon = surfmap_config.color_rating_distance(spot_infos['drivingTime'])
+                popupSpot = folium.Popup('Spot : ' + nomSpot + ', distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km, temps de trajet : '
+                                         + str(round(spot_infos['drivingTime'], 1)) + ' h, prix (aller): '
+                                         + str(round(spot_infos['prix'], 2)) + ' €',
+                                         max_width = '220')
                 marker = folium.Marker(location = spot_infos['gps'],
-                                       popup = 'Spot : ' + nomSpot + ', dist : ' + str(spot_infos['drivingDist']) + ' km, temps : '
-                                                           + str(spot_infos['drivingTime']) + ' h, prix : '
-                                                           + str(spot_infos['tollCost'] + spot_infos['gazPrice']) + ' €, note : ',
+                                       popup = popupSpot,
                                        icon = folium.Icon(color = colorIcon, icon = ''))
                 marker.add_to(m)
 
@@ -158,6 +171,8 @@ def main():
         st.warning('Aucune adresse de sélectionné')
 
     folium_static(m)
+
+    st.markdown(":copyright: Paul Bâcle 04/2021")
 
 ###
 
