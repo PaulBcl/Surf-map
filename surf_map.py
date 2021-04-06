@@ -139,8 +139,10 @@ def main():
             marker_cluster = MarkerCluster().add_to(m)
             minimap = MiniMap(toggle_display = True)
             draw = Draw()
+            popupHome = folium.Popup("💑 Maison",
+                                     max_width = '150')
             folium.Marker(location = [geocode_address['latitude'], geocode_address['longitude']],
-                          popup = 'Maison',
+                          popup = popupHome,
                           icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
             minimap.add_to(m)
             draw.add_to(m)
@@ -166,7 +168,7 @@ def main():
                 else:
                     colorIcon = surfmap_config.color_rating_distance(spot_infos['drivingTime'])
 
-                popupText = '💑 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €'
+                popupText = '🌊 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €'
                 popupSpot = folium.Popup(popupText,
                                          max_width = '220')
                 marker = folium.Marker(location = spot_infos['gps'],
