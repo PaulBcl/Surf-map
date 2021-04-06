@@ -10,9 +10,9 @@ headless = true
 port = $PORT
 enableCORS = false
 [theme]
-primaryColor = #3c5880
-backgroundColor = #fafafc
-secondaryBackgroundColor = #e6ecf5
-textColor = #262730
+primaryColor = '#3c5880'
+backgroundColor = '#fafafc'
+secondaryBackgroundColor = '#e6ecf5'
+textColor = '#262730'
 font = sans-serif
 " > ~/.streamlit/config.toml
