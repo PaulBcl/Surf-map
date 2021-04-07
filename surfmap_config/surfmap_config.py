@@ -267,31 +267,6 @@ def get_road_info(start_address, arrival_address,
 
 
 # ## Données
-
-# In[101]:
-
-
-"""
-Etant donné que les noms des spots diffèrent entre les différentes API,
-il faut créer une table de correspondance pour les différents spots afin de pouvoir requêter
-avec la bonne information les différents services
-
-dataSpots = [
-    ('La Torche', 'Plomeur', 'Pointdela-Torche'),
-    ('Siouville / Dielette left', 'Siouville', 'Siouville'),
-    ('Anael', 'Saint-Pabu', 'Anael'),
-    ('Anse de Vauville', 'Beaumont-Hague', 'Ansede-Vauville'),
-    ('Etretat', 'Etretat', 'Etretat'),
-    ('Le Havre', 'Le Havre', 'Le-Havre-Beach'),
-    ('Les Dunes', "Les Sables-d'Olone", 'Les-Dunes'),
-    ('Saint Gilles Croix de Vie', 'Saint Gilles Croix de Vie', 'Saint-Gilles-Croixde-Vie'),
-    ('Bud bud', 'Longevilles-sur-mer', 'Bud-bud'),
-]
-
-#On met en forme les données sous la forme d'un dataFrame
-dfSpots = pd.DataFrame(dataSpots, columns = ['nomSpot', 'villeSpot', 'nomSurfForecast'])
-"""
-
 """
 Permet de récupérer les informations de route associées à des surfspots pour les afficher sur la carte
 @output: un dictionnaire des coordonnées GPS (longitude, lagitude) exploitable par Folium pour afficher les données
@@ -316,6 +291,7 @@ def get_surfspot_data(start_address, dfSpots,
         try:
             villeSpot = dfSpots[dfSpots['nomSpot'] == spot]['villeSpot'].tolist()[0]
             paysSpot = dfSpots[dfSpots['nomSpot'] == spot]['paysSpot'].tolist()[0]
+            nomSurfForecast = dfSpots[dfSpots['nomSpot'] == spot]['nomSurfForecast'].tolist()[0]
         except:
             print('Impossible de trouver le spot ' + spot + ' dans la table de référencement')
             pass
@@ -325,6 +301,7 @@ def get_surfspot_data(start_address, dfSpots,
                                          consommation_moyenne, prix_essence)
             result[spot]['prix'] = result[spot]['tollCost'] + result[spot]['gazPrice']
             result[spot]['paysSpot'] = paysSpot
+            result[spot]['nomSurfForecast'] = nomSurfForecast
         except:
             print('Impossible de requêter via API (Michelin) le spot ' + str(spot))
             pass
@@ -357,6 +334,16 @@ def color_rating_distance(distance_h):
         return 'orange'
     if distance_h < 8:
         return 'red'
+
+def color_rating_forecast(forecast):
+    if forecast >=5:
+        return 'green'
+    if (forecast >= 3.5) and (forecast < 5):
+        return 'orange'
+    if (forecast >= 1) and (forecast < 3.5):
+        return 'red'
+    else:
+        return 'lightgray'
 
 def color_rating_prix(prix):
     if prix >=100:

@@ -18,6 +18,7 @@ from streamlit_folium import folium_static #https://github.com/randyzwitch/strea
 #from st_annotated_text import annotated_text #https://github.com/tvst/st-annotated-text
 #Config perso
 from surfmap_config import surfmap_config
+from surfmap_config import forecast_config
 #documents d'upload : https://github.com/MaartenGr/streamlit_guide
 #source : https://towardsdatascience.com/quickly-build-and-deploy-an-application-with-streamlit-988ca08c7e83
 
@@ -28,18 +29,21 @@ base_position = [48.8434864, 2.3859893]
 label_address = "Renseignez votre ville"
 address = st.sidebar.text_input(label_address, value = '',
                                 max_chars = None, key = None, type = 'default', help = None)
+
 dfSpots = surfmap_config.load_data()
+dayList = forecast_config.get_dayList_forecast()
 
 def main():
     st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
     st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
 
+    st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
+
     explication_expander = st.beta_expander("Guide d'utilisation")
     with explication_expander:
         st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
-        st.write("La carte qui s'affiche ci-dessous indique votre position (en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
-        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix maximum par aller, (ii) le temps de parcours acceptable, (iii) le pays de recherche et (iv) les conditions de spot recherchées !")
-        st.warning("Les choix par conditions de surf ne sont pas encore disponibles et le seront dans la prochaine release")
+        st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
+        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
 
     couleur_radio_expander = st.beta_expander("Légende de la carte")
     with couleur_radio_expander:
@@ -47,8 +51,8 @@ def main():
         st.markdown(":triangular_flag_on_post: représente un spot de surf")
         st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
         #st.markdown("_Choisir le code couleur (optionnel) :_")
-        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (distance par défaut)"
-        list_radio_choix_couleur = ["🕔 Distance", "💸 Prix"]
+        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (forecast par défaut)"
+        list_radio_choix_couleur = ["🏄‍♂️ Forecast", "🏁 Distance", "💸 Prix"]
         checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
 
     st.write("\n")
@@ -75,7 +79,7 @@ def main():
     label_sidebar_options = "Options avancées"
     sidebar_options = st.sidebar.beta_expander(label_sidebar_options)
     with sidebar_options:
-        st.markdown("Choix des options pour l'affichage des spots")
+        #st.markdown("Choix des options pour l'affichage des spots")
         label_raz = "Remise à zéro"
         col1, col2, col3 = st.beta_columns([1, 2, 1])
         with col1:
@@ -90,6 +94,14 @@ def main():
             option_prix = 0
             option_distance_h = 0
 
+        label_daily_forecast = "Jour souhaité pour l'affichage du forecast"
+        selectbox_daily_forecast = st.selectbox(label_daily_forecast, dayList)
+
+        option_forecast = st.slider("Conditions minimum souhaitées (/10)",
+                                min_value = 0, max_value = 10,
+                                key = session.run_id,
+                                help = "En définissant le forecast à 0, tous les résultats s'affichent")
+
         option_prix = st.slider("Prix maximum souhaité (€, pour un aller)",
                                 min_value = 0, max_value = 200,
                                 key = session.run_id,
@@ -99,7 +111,7 @@ def main():
                                       key = session.run_id,
                                       help = "En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
 
-        label_choix_pays = "Choix des pays"
+        label_choix_pays = "Choix des pays pour les spots à afficher"
         list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
         multiselect_pays = st.multiselect(label_choix_pays, list_pays,
                                           default = list_pays[0],
@@ -117,7 +129,7 @@ def main():
         pass
 
     if address != '':
-        if validation_button or option_prix >= 0 or option_distance_h >= 0:
+        if validation_button or option_prix >= 0 or option_distance_h >= 0 or option_forecast >= 0:
 
             dict_data_from_address = surfmap_config.get_surfspot_data(address, dfSpots,
                                                                       surfmap_config.gmaps_api_key, surfmap_config.key_michelin)
@@ -127,6 +139,7 @@ def main():
             dfData['longitude'] = [x[-1] for x in dfData['gps']]
 
             geocode_address = surfmap_config.get_google_results(address, api_key = surfmap_config.gmaps_api_key, return_full_response = True)
+
             if len(dfData) > 0:
                 geocode_gps = [(geocode_address['latitude'] + min(dfData['latitude']))/2,
                                (geocode_address['longitude'] + min(dfData['longitude']))/2]
@@ -134,7 +147,7 @@ def main():
                 geocode_gps = [geocode_address['latitude'], geocode_address['longitude']]
             #Display maps
             m = folium.Map(location = geocode_gps,
-                           zoom_start = 6)
+                           zoom_start = 5)
             #Petits ajouts
             marker_cluster = MarkerCluster().add_to(m)
             minimap = MiniMap(toggle_display = True)
@@ -147,6 +160,9 @@ def main():
             minimap.add_to(m)
             draw.add_to(m)
 
+            #Ajout des données de forecast
+            dfData['forecast'] = [forecast_config.get_infos_surf_report(spot, dayList).get(selectbox_daily_forecast) for spot in dfData['nomSurfForecast']]
+
             if option_prix > 0:
                 dfData = dfData[dfData['prix'] <= option_prix]
                 is_option_prix_ok = True
@@ -155,20 +171,26 @@ def main():
                 dfData = dfData[dfData['drivingTime'] <= option_distance_h]
                 is_option_distance_h_ok = True
 
+            if option_forecast > 0:
+                dfData = dfData[dfData['forecast'] >= option_forecast]
+
             multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
             dfData = dfData[dfData['paysSpot'].isin(multiselect_pays)]
 
             for nomSpot in dfData['nomSpot'].tolist():
                 spot_infos = dict_data_from_address[nomSpot]
+                spot_forecast = dfData[dfData['nomSpot'] == nomSpot]['forecast'].tolist()[0]
                 #if option_prix > 0 or option_distance_h > 0:
                 #    colorIcon = surfmap_config.color_rating_criteria(is_option_prix_ok, is_option_distance_h_ok)
                 #else:
                 if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
                     colorIcon = surfmap_config.color_rating_prix(spot_infos['prix'])
+                elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
+                    colorIcon = surfmap_config.color_rating_forecast(spot_forecast)
                 else:
                     colorIcon = surfmap_config.color_rating_distance(spot_infos['drivingTime'])
 
-                popupText = '🌊 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €'
+                popupText = '🌊 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €<br>🏄‍♂️ Forecast (' + selectbox_daily_forecast + ') : ' + str(spot_forecast) + " /10"
                 popupSpot = folium.Popup(popupText,
                                          max_width = '220')
                 marker = folium.Marker(location = spot_infos['gps'],
