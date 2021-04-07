@@ -161,7 +161,8 @@ def main():
             draw.add_to(m)
 
             #Ajout des données de forecast
-            dfData['forecast'] = [forecast_config.get_infos_surf_report(spot, dayList).get(selectbox_daily_forecast) for spot in dfData['nomSurfForecast']]
+            forecast_data = forecast_config.load_forecast_data(dfData['nomSurfForecast'].tolist(), dayList)
+            dfData['forecast'] = [forecast_data[spot].get(selectbox_daily_forecast) for spot in dfData['nomSurfForecast']]
 
             if option_prix > 0:
                 dfData = dfData[dfData['prix'] <= option_prix]

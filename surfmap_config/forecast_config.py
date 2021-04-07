@@ -51,7 +51,6 @@ def get_infos_surf_report(nomSurfForecast, dayList):
     @param nomSurfForecast : nom du spot sur surf_forecast
     @dayList : jours sur lesquels chercher le forecast, au format liste
     """
-
     dict_data_spot = dict()
 
     try:
@@ -81,4 +80,30 @@ def get_infos_surf_report(nomSurfForecast, dayList):
         print(e)
         print("Pas d'informations surf-report sur " + str(nomSurfForecast))
         dict_data_spot['No day'] = 0.0
+
     return dict_data_spot
+
+@st.cache(suppress_st_warning = True)
+def load_forecast_data(spot_list, dayList):
+    """
+    Fait tourner la fonction get_infos_surf_report sur la liste des spots choisis
+
+    @param spot_list : liste des spots à requêter
+    @dayList : jours sur lesquels chercher le forecast, au format liste
+    """
+    #On affiche la barre de chargement
+    placeholder_progress_bar = st.empty()
+    progress_bar = placeholder_progress_bar.progress(0)
+    nb_percent_complete = int(100/len(spot_list))
+    iteration = 0
+
+    dict_data_forecast_spot = dict()
+
+    for spot in spot_list:
+        iteration += 1
+        forecast_spot = get_infos_surf_report(spot, dayList)
+        dict_data_forecast_spot[spot] = forecast_spot
+        progress_bar.progress(nb_percent_complete*iteration + 1)
+
+    placeholder_progress_bar.empty()
+    return dict_data_forecast_spot
