@@ -51,8 +51,8 @@ def main():
         st.markdown(":triangular_flag_on_post: représente un spot de surf")
         st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
         #st.markdown("_Choisir le code couleur (optionnel) :_")
-        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (forecast par défaut)"
-        list_radio_choix_couleur = ["🏄‍♂️ Forecast", "🏁 Distance", "💸 Prix"]
+        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
+        list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
         checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
 
     st.write("\n")
@@ -94,13 +94,13 @@ def main():
             option_prix = 0
             option_distance_h = 0
 
-        label_daily_forecast = "Jour souhaité pour l'affichage du forecast"
+        label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
         selectbox_daily_forecast = st.selectbox(label_daily_forecast, dayList)
 
         option_forecast = st.slider("Conditions minimum souhaitées (/10)",
                                 min_value = 0, max_value = 10,
                                 key = session.run_id,
-                                help = "En définissant le forecast à 0, tous les résultats s'affichent")
+                                help = "En définissant les prévisions à 0, tous les résultats s'affichent")
 
         option_prix = st.slider("Prix maximum souhaité (€, pour un aller)",
                                 min_value = 0, max_value = 200,
@@ -191,7 +191,7 @@ def main():
                 else:
                     colorIcon = surfmap_config.color_rating_distance(spot_infos['drivingTime'])
 
-                popupText = '🌊 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €<br>🏄‍♂️ Forecast (' + selectbox_daily_forecast + ') : ' + str(spot_forecast) + " /10"
+                popupText = '🌊 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €<br>🏄‍♂️ Prévisions (' + selectbox_daily_forecast + ') : ' + str(spot_forecast) + " /10"
                 popupSpot = folium.Popup(popupText,
                                          max_width = '220')
                 marker = folium.Marker(location = spot_infos['gps'],
