@@ -20,7 +20,7 @@ from tqdm import tqdm, tqdm_notebook
 import streamlit as st
 
 gmaps_api_key = "AIzaSyCsatj1b8xHi625WNn2ex5UwtXrePOSRVM"
-key_michelin = 'RESTGP20210404231529119266955396'
+key_michelin = 'RESTGP20210819193407386580980130'
 gmaps.configure(api_key = gmaps_api_key)
 
 #Variables

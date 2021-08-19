@@ -100,10 +100,13 @@ def load_forecast_data(spot_list, dayList):
     dict_data_forecast_spot = dict()
 
     for spot in spot_list:
-        iteration += 1
-        forecast_spot = get_infos_surf_report(spot, dayList)
-        dict_data_forecast_spot[spot] = forecast_spot
-        progress_bar.progress(nb_percent_complete*iteration + 1)
+        try:
+            iteration += 1
+            forecast_spot = get_infos_surf_report(spot, dayList)
+            dict_data_forecast_spot[spot] = forecast_spot
+            progress_bar.progress(nb_percent_complete*iteration + 1)
+        except:
+            print("Erreur avec le spot " + spot)
 
     placeholder_progress_bar.empty()
     return dict_data_forecast_spot
