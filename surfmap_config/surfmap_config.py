@@ -19,7 +19,7 @@ import json
 from tqdm import tqdm, tqdm_notebook
 import streamlit as st
 
-gmaps_api_key = "AIzaSyCsatj1b8xHi625WNn2ex5UwtXrePOSRVM"
+gmaps_api_key = "AIzaSyDTV8ZFD4o9W1eD0a24AWp1ofrCGJiO2zM"
 key_michelin = 'RESTGP20210819193407386580980130'
 gmaps.configure(api_key = gmaps_api_key)
 

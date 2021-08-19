@@ -138,11 +138,11 @@ def main():
             dfData['latitude'] = [x[0] for x in dfData['gps']]
             dfData['longitude'] = [x[-1] for x in dfData['gps']]
 
-            print(geocode_address)
+            #print(geocode_address)
             geocode_address = surfmap_config.get_google_results(address, api_key = surfmap_config.gmaps_api_key, return_full_response = True)
 
             if len(dfData) > 0:
-                print(geocode_address)
+                #print(geocode_address)
                 geocode_gps = [(geocode_address['latitude'] + min(dfData['latitude']))/2,
                                (geocode_address['longitude'] + min(dfData['longitude']))/2]
             else:
