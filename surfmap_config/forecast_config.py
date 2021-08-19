@@ -32,6 +32,7 @@ def get_dayList_forecast():
     @param N/A doit être appelée en daily
     """
     soupContentPage = get_surfSpot_url("La-Ciotat")
+    #print(soupContentPage)
     resultDays = soupContentPage.find_all("tr", {"class": "forecast-table__row forecast-table-days"})[0].find_all("div", {"class": "forecast-table-days__content"})
     table = soupContentPage.find_all("tbody", {"class": "forecast-table__basic"})
     dayList = []

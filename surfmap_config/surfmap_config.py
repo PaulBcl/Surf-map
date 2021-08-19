@@ -19,7 +19,7 @@ import json
 from tqdm import tqdm, tqdm_notebook
 import streamlit as st
 
-gmaps_api_key = "AIzaSyDTV8ZFD4o9W1eD0a24AWp1ofrCGJiO2zM"
+gmaps_api_key = "AIzaSyDXZ_lrQYU0oRjPKjh4AnZrRw_agxH5_VY"
 key_michelin = 'RESTGP20210819193407386580980130'
 gmaps.configure(api_key = gmaps_api_key)
 
@@ -243,7 +243,7 @@ Utilise l'appel à l'API michelin pour pouvoir récupérer les informations de r
 """
 def get_road_info(start_address, arrival_address,
                   gmaps_api_key = 'None', key_michelin = 'None',
-                  consommation_moyenne = 6.5, prix_essence = 1.5):
+                  consommation_moyenne = 6.5, prix_essence = 1.7):
     result = dict()
     try:
         #On fait appel à l'API Michelin
@@ -251,7 +251,7 @@ def get_road_info(start_address, arrival_address,
 
         #On met en forme
         michelin_result = get_michelin_results(url_request)
-
+        #print(michelin_result)
         #On extrait les résultats
         result['drivingDist'] = float(michelin_result['response']['iti'][0]['header'][0]['summaries'][0]['summary'][0]['drivingDist'][0]['_text'])/1000
         result['drivingTime'] = round(float(michelin_result['response']['iti'][0]['header'][0]['summaries'][0]['summary'][0]['drivingTime'][0]['_text'])/3600, 2)
@@ -262,7 +262,7 @@ def get_road_info(start_address, arrival_address,
         result['gazPrice'] = round(volume_essence * prix_essence, 2)
     except Exception as e:
         print("Impossible de récupérer les informations de la route")
-        print(e)
+        #print(e)
     return result
 
 
@@ -302,7 +302,8 @@ def get_surfspot_data(start_address, dfSpots,
             result[spot]['prix'] = result[spot]['tollCost'] + result[spot]['gazPrice']
             result[spot]['paysSpot'] = paysSpot
             result[spot]['nomSurfForecast'] = nomSurfForecast
-        except:
+        except Exception as e:
+            print(e)
             print('Impossible de requêter via API (Michelin) le spot ' + str(spot))
             pass
         try:
