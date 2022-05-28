@@ -19,8 +19,14 @@ import json
 from tqdm import tqdm, tqdm_notebook
 import streamlit as st
 
-gmaps_api_key = "AIzaSyDXZ_lrQYU0oRjPKjh4AnZrRw_agxH5_VY"
-key_michelin = 'RESTGP20210819193407386580980130'
+#Asynchronous run on api
+#from https://pawelmhm.github.io/asyncio/python/aiohttp/2016/04/22/asyncio-aiohttp.html
+import asyncio
+from aiohttp import ClientSession
+#import ray
+
+gmaps_api_key = "AIzaSyCUV_lu8Fq10PySnL2j_00YEGWJXLfg70Q"
+key_michelin = 'RESTGP20220527094740336483884311' #initiée le 27/05/2022, valable jusqu'au 11/07/2022
 gmaps.configure(api_key = gmaps_api_key)
 
 #Variables
@@ -40,7 +46,7 @@ def load_data():
 # In[36]:
 
 @st.cache(suppress_st_warning = True)
-def get_google_results(address, api_key = None, return_full_response = False):
+def get_google_results(address, key_api_gmaps, return_full_response = False):
     """
     Get geocode results from Google Maps Geocoding API.
 
@@ -56,8 +62,8 @@ def get_google_results(address, api_key = None, return_full_response = False):
     try:
         # Set up your Geocoding url
         geocode_url = "https://maps.googleapis.com/maps/api/geocode/json?address={}".format(address)
-        if api_key is not None:
-            geocode_url = geocode_url + "&key={}".format(api_key)
+        if key_api_gmaps is not None:
+            geocode_url = geocode_url + "&key={}".format(key_api_gmaps)
         # Ping google for the reuslts:
         results = requests.get(geocode_url)
         # Results will be in JSON format - convert to dict using requests functionality
@@ -102,13 +108,13 @@ def get_google_results(address, api_key = None, return_full_response = False):
 # In[37]:
 
 
-def get_google_distance(address1, address2, api_key = None):
+def get_google_distance(address1, address2, key_api_gmaps):
     """
     Get distance between 2 positition from Google Maps Geocoding API.
 
     @param address1 List containing longitude & latitude of the address #1
     @param address2 List containing longitude & latitude of the address #2
-    @param api_key: String API key if present from google.
+    @param key_api_gmaps: String API key if present from google.
     """
     try:
         now = datetime.now()
@@ -128,22 +134,41 @@ Get geocode (comme get_google_results) à partir de toutes les adresses d'un df 
 @output : dataframe contenant les geocoding
 
 @param df_to_search : Dataframe contenant les adresses sur lesquelles faire tourner la fonction de geocoding
-@param gmaps_api_key : API key Google Maps
+@param key_api_gmaps : API key Google Maps
 """
-def google_results(df_to_search, gmaps_api_key = 'None'):
+
+"""
+#TO TRY _ ASYNC
+async def google_results(df_to_search, gmaps_api_key = 'None'):
+    df_google_results = []
+    tasks = []
+    async with ClientSession() as session:
+        for address in df_to_search:
+            try:
+                geocode_result = asyncio.ensure_future(get_google_results(address, api_key = gmaps_api_key,
+                                                        return_full_response = True))
+                #df_google_results.append(geocode_result)
+                tasks.append(task)
+
+            except Exception as e:
+                logger.exception(e)
+                logger.error("Major error while searching Google results with {}".format(address))
+
+        df_google_results = await asyncio.gather(*tasks)
+
+    return df_google_results"""
+
+def google_results(df_to_search, key_api_gmaps):
     df_google_results = []
     for address in df_to_search:
         try:
-            geocode_result = get_google_results(address, api_key = gmaps_api_key,
+            geocode_result = get_google_results(address, key_api_gmaps,
                                                 return_full_response = True)
             df_google_results.append(geocode_result)
         except Exception as e:
             logger.exception(e)
             logger.error("Major error while searching Google results with {}".format(address))
     return df_google_results
-
-
-# In[39]:
 
 
 """
@@ -154,6 +179,7 @@ Retourne la liste des positions GPS des adresses recherchées (lecture des json 
 """
 # A partir d'une liste de résultats Google (fonction google_results),
 # retourne la liste des positions GPS des adresses recherchées
+
 def df_geocoding(df_adresses):
     try:
         df_geocoded = []
@@ -167,7 +193,6 @@ def df_geocoding(df_adresses):
 
 # ## Mappy/Michelin
 
-# In[94]:
 
 
 """
@@ -176,15 +201,15 @@ Récupère les coordonnées GPS de deux destinations grâce à l'API Google API
 
 @param start_address : adresse de départ
 @param arrival_address : adresse d'arrivée
-@param gmaps_api_key : API key Google Maps
+@param key_api_gmaps : API key Google Maps
 """
-def url_builder(start_address, arrival_address, gmaps_api_key, key_michelin):
+def url_builder(start_address, arrival_address, key_api_gmaps, key_api_michelin):
     try:
-        results_debut = get_google_results(start_address, api_key = gmaps_api_key)
-        results_fin = get_google_results(arrival_address, api_key = gmaps_api_key)
+        results_debut = get_google_results(start_address, key_api_gmaps)
+        results_fin = get_google_results(arrival_address, key_api_gmaps)
         lon_debut, lat_debut = str(results_debut['longitude']), str(results_debut['latitude'])
         lon_fin, lat_fin = str(results_fin['longitude']), str(results_fin['latitude'])
-        url = 'https://secure-apir.viamichelin.com/apir/1/route.xml/fra?steps=1:e:' + lon_debut + ':' + lat_debut + ';1:e:' + lon_fin + ':' + lat_fin + '&authkey=' + key_michelin
+        url = 'https://secure-apir.viamichelin.com/apir/1/route.xml/fra?steps=1:e:' + lon_debut + ':' + lat_debut + ';1:e:' + lon_fin + ':' + lat_fin + '&authkey=' + key_api_michelin
     except Exception as e:
         print("Couldn't build the URL to request Michelin API")
     return url
@@ -232,9 +257,6 @@ def get_michelin_results(url, header = None):
 
 # ### Création de fonction standard de requêtage de données
 
-# In[100]:
-
-
 """
 Utilise l'appel à l'API michelin pour pouvoir récupérer les informations de route
 @output: json de l'API Michelin
@@ -242,12 +264,12 @@ Utilise l'appel à l'API michelin pour pouvoir récupérer les informations de r
 @param michelin_results : json résultat d'un appel à l'API Michelin entre une adresse A et une adresse B
 """
 def get_road_info(start_address, arrival_address,
-                  gmaps_api_key = 'None', key_michelin = 'None',
+                  key_api_gmaps, key_api_michelin,
                   consommation_moyenne = 6.5, prix_essence = 1.7):
     result = dict()
     try:
         #On fait appel à l'API Michelin
-        url_request = url_builder(start_address, arrival_address, gmaps_api_key, key_michelin)
+        url_request = url_builder(start_address, arrival_address, key_api_gmaps, key_api_michelin)
 
         #On met en forme
         michelin_result = get_michelin_results(url_request)
@@ -265,17 +287,62 @@ def get_road_info(start_address, arrival_address,
         #print(e)
     return result
 
+# ## Fonction appelant les autres fonctions pour peupler le dictionnaire de données ci-dessous
+
+@st.cache(suppress_st_warning = True)
+def get_surfspot_data(start_address, spot, dfSpots,
+                      key_api_gmaps, key_api_michelin,
+                      consommation_moyenne = 6.5, prix_essence = 1.5):
+
+    #print("Appel de la fonction get_surfspot_data pour le spot : " + str(spot))
+
+    try:
+        villeSpot = dfSpots[dfSpots['nomSpot'] == spot]['villeSpot'].tolist()[0]
+        paysSpot = dfSpots[dfSpots['nomSpot'] == spot]['paysSpot'].tolist()[0]
+        nomSurfForecast = dfSpots[dfSpots['nomSpot'] == spot]['nomSurfForecast'].tolist()[0]
+    except:
+        print('Impossible de trouver le spot ' + spot + ' dans la table de référencement')
+        pass
+    try:
+        result_spot = get_road_info(start_address, villeSpot,
+                                     key_api_gmaps, key_api_michelin,
+                                     consommation_moyenne, prix_essence)
+        result_spot['prix'] = result_spot['tollCost'] + result_spot['gazPrice']
+        result_spot['paysSpot'] = paysSpot
+        result_spot['nomSurfForecast'] = nomSurfForecast
+    except Exception as e:
+        print(e)
+        print('Impossible de requêter via API (Michelin) le spot ' + str(spot))
+        pass
+
+    try:
+        google_result = get_google_results(villeSpot, key_api_gmaps)
+        lon_spot = google_result['longitude']
+        lat_spot = google_result['latitude']
+        result_spot['gps'] = [lat_spot, lon_spot]
+    except Exception as e:
+        print('Impossible de requêter via API (Google) le spot ' + str(spot))
+        print(e)
+        result_spot['gps'] = [0, 0]
+        pass
+
+    #print("Pour le spot " + str(spot) + ", le résultat result_spot est : ")
+    #print(result_spot)
+
+    return result_spot
+
 
 # ## Données
+
 """
 Permet de récupérer les informations de route associées à des surfspots pour les afficher sur la carte
 @output: un dictionnaire des coordonnées GPS (longitude, lagitude) exploitable par Folium pour afficher les données
 
 @param dfSpots : tableau contenant nom des spots, ville des spots et nom du spot sur surf-forecast.com
 """
-@st.cache(suppress_st_warning = True)
-def get_surfspot_data(start_address, dfSpots,
-                      gmaps_api_key = 'None', key_michelin = 'None',
+#@st.cache(suppress_st_warning = True)
+def load_surfspot_data(start_address, dfSpots,
+                      key_api_gmaps, key_api_michelin,
                       consommation_moyenne = 6.5, prix_essence = 1.5):
     #On affiche la barre de chargement
     placeholder_progress_bar = st.empty()
@@ -285,41 +352,23 @@ def get_surfspot_data(start_address, dfSpots,
 
     #On prends la liste des spots à requêter
     liste_surf_spots = dfSpots['nomSpot'].tolist()
+
     result = dict()
+
     for spot in liste_surf_spots:
         iteration += 1
-        try:
-            villeSpot = dfSpots[dfSpots['nomSpot'] == spot]['villeSpot'].tolist()[0]
-            paysSpot = dfSpots[dfSpots['nomSpot'] == spot]['paysSpot'].tolist()[0]
-            nomSurfForecast = dfSpots[dfSpots['nomSpot'] == spot]['nomSurfForecast'].tolist()[0]
-        except:
-            print('Impossible de trouver le spot ' + spot + ' dans la table de référencement')
-            pass
-        try:
-            result[spot] = get_road_info(start_address, villeSpot,
-                                         gmaps_api_key, key_michelin,
-                                         consommation_moyenne, prix_essence)
-            result[spot]['prix'] = result[spot]['tollCost'] + result[spot]['gazPrice']
-            result[spot]['paysSpot'] = paysSpot
-            result[spot]['nomSurfForecast'] = nomSurfForecast
-        except Exception as e:
-            print(e)
-            print('Impossible de requêter via API (Michelin) le spot ' + str(spot))
-            pass
-        try:
-            google_result = get_google_results(villeSpot, api_key = gmaps_api_key)
-            lon_spot = google_result['longitude']
-            lat_spot = google_result['latitude']
-            result[spot]['gps'] = [lat_spot, lon_spot]
-        except Exception as e:
-            print('Impossible de requêter via API (Google) le spot ' + str(spot))
-            print(e)
-            pass
+
+        result[spot] = get_surfspot_data(start_address, spot, dfSpots,
+                              key_api_gmaps, key_api_michelin,
+                              consommation_moyenne = 6.5, prix_essence = 1.5)
+
         progress_bar.progress(nb_percent_complete*iteration + 1)
 
     placeholder_progress_bar.empty()
 
+    #print(result)
     return result
+
 
 """
 return the color following selected criteria

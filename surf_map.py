@@ -8,6 +8,13 @@ import pandas as pd
 import logging
 from datetime import datetime
 import json
+
+#Asynchronous run on api
+#from https://pawelmhm.github.io/asyncio/python/aiohttp/2016/04/22/asyncio-aiohttp.html
+import asyncio
+from aiohttp import ClientSession
+#import ray
+
 #Carte
 import folium
 from folium.plugins import MarkerCluster, MiniMap, Draw, Fullscreen
@@ -33,19 +40,23 @@ address = st.sidebar.text_input(label_address, value = '',
 dfSpots = surfmap_config.load_data()
 dayList = forecast_config.get_dayList_forecast()
 
+
 def main():
+
+    #ray.init(ignore_reinit_error = True)
+
     st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
     st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
 
     st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
 
-    explication_expander = st.beta_expander("Guide d'utilisation")
+    explication_expander = st.expander("Guide d'utilisation")
     with explication_expander:
         st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
         st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
         st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
 
-    couleur_radio_expander = st.beta_expander("Légende de la carte")
+    couleur_radio_expander = st.expander("Légende de la carte")
     with couleur_radio_expander:
         #st.markdown("_Légende :_")
         st.markdown(":triangular_flag_on_post: représente un spot de surf")
@@ -67,7 +78,7 @@ def main():
 
     #if checkbox:
     label_sidebar_profil = "Profil"
-    sidebar_profil = st.sidebar.beta_expander(label_sidebar_profil)
+    sidebar_profil = st.sidebar.expander(label_sidebar_profil)
     with sidebar_profil:
         #st.markdown("Quel type de surfer es-tu ?")
         st.warning("Work in progress")
@@ -77,11 +88,11 @@ def main():
                                           default = list_transport[0])
 
     label_sidebar_options = "Options avancées"
-    sidebar_options = st.sidebar.beta_expander(label_sidebar_options)
+    sidebar_options = st.sidebar.expander(label_sidebar_options)
     with sidebar_options:
         #st.markdown("Choix des options pour l'affichage des spots")
         label_raz = "Remise à zéro"
-        col1, col2, col3 = st.beta_columns([1, 2, 1])
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col1:
             pass
         with col2:
@@ -120,7 +131,7 @@ def main():
     st.sidebar.write("\n")
     #On met le boutton servant à chercher les résultats
     label_button = "Soumettre l'adresse"
-    col1, col2, col3 = st.sidebar.beta_columns([1, 3.5, 1])
+    col1, col2, col3 = st.sidebar.columns([1, 3.5, 1])
     with col1:
         pass
     with col2:
@@ -131,16 +142,24 @@ def main():
     if address != '':
         if validation_button or option_prix >= 0 or option_distance_h >= 0 or option_forecast >= 0:
 
-            dict_data_from_address = surfmap_config.get_surfspot_data(address, dfSpots,
+            dict_data_from_address = surfmap_config.load_surfspot_data(address, dfSpots,
                                                                       surfmap_config.gmaps_api_key, surfmap_config.key_michelin)
             dfData = pd.DataFrame.from_dict(dict_data_from_address, orient = 'index').reset_index()
             dfData.rename(columns = {'index': 'nomSpot'}, inplace = True)
             dfData['latitude'] = [x[0] for x in dfData['gps']]
             dfData['longitude'] = [x[-1] for x in dfData['gps']]
 
-            geocode_address = surfmap_config.get_google_results(address, api_key = surfmap_config.gmaps_api_key, return_full_response = True)
-            #print(geocode_address)
+            #geocode_address = surfmap_config.get_google_results(address, api_key = surfmap_config.gmaps_api_key, return_full_response = True)
 
+            #loop = asyncio.get_event_loop()
+            #loop = asyncio.new_event_loop()
+            #asyncio.set_event_loop(loop)
+            #geocode_address = asyncio.ensure_future(surfmap_config.google_results(address, api_key = surfmap_config.gmaps_api_key, return_full_response = True))
+            geocode_address = surfmap_config.get_google_results(address, surfmap_config.gmaps_api_key, return_full_response = True)
+            #loop.run_until_complete(future)
+
+            #print(geocode_address)
+            #print("hello")
             if len(dfData) > 0:
                 #print(geocode_address)
                 geocode_gps = [(geocode_address['latitude'] + min(dfData['latitude']))/2,
@@ -216,7 +235,7 @@ def main():
 
     st.markdown("- - -")
 
-    st.markdown(":copyright: 2021 Paul Bâcle")
+    st.markdown(":copyright: 2021-2022 Paul Bâcle")
 
 main()
 

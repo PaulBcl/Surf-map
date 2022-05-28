@@ -15,6 +15,12 @@ result:
 >>> session_state.user_name
 'Mary'
 """
+
+
+
+#OLD report_thread - ne fonctionne plus avec l'upgrade streamlit >=1.4. https://discuss.streamlit.io/t/modulenotfounderror-no-module-named-streamlit-report-thread/20983/14
+#remplacé par ci-après get_script_run_ctx
+
 try:
     import streamlit.ReportThread as ReportThread
     from streamlit.server.Server import Server
@@ -22,6 +28,21 @@ except Exception:
     # Streamlit >= 0.65.0
     import streamlit.report_thread as ReportThread
     from streamlit.server.server import Server
+
+"""
+#a essayer plus tard quand upgrade de streamlit mais génère encore des erreurs " 'AppSession' object has no attribute 'enqueue'"
+try:
+    from streamlit.scriptrunner import get_script_run_ctx
+except ModuleNotFoundError:
+    # streamlit < 1.8
+    try:
+        from streamlit.script_run_context import get_script_run_ctx  # type: ignore
+    except ModuleNotFoundError:
+        # streamlit < 1.4
+        from streamlit.report_thread import (  # type: ignore
+            get_report_ctx as get_script_run_ctx,
+        )
+from streamlit.server.server import Server"""
 
 
 class SessionState(object):
@@ -67,7 +88,7 @@ def get(**kwargs):
     """
     # Hack to get the session object from Streamlit.
 
-    ctx = ReportThread.get_report_ctx()
+    ctx = ReportThread.get_report_ctx() #à remplacer par ctx = get_script_run_ctx() si upgrade de streamlit
 
     this_session = None
 
