@@ -26,6 +26,9 @@ from streamlit_folium import folium_static #https://github.com/randyzwitch/strea
 #Config perso
 from surfmap_config import surfmap_config
 from surfmap_config import forecast_config
+from surfmap_config import displaymap_config
+from surfmap_config import research_config
+from surfmap_config import api_config
 #documents d'upload : https://github.com/MaartenGr/streamlit_guide
 #source : https://towardsdatascience.com/quickly-build-and-deploy-an-application-with-streamlit-988ca08c7e83
 
@@ -37,13 +40,15 @@ label_address = "Renseignez votre ville"
 address = st.sidebar.text_input(label_address, value = '',
                                 max_chars = None, key = None, type = 'default', help = None)
 
-dfSpots = surfmap_config.load_data()
+#On peuple la base de données
+url_database = "surfmap_config/surfspots.xlsx"
+dfSpots = surfmap_config.load_spots(url_database)
 dayList = forecast_config.get_dayList_forecast()
 
 
 def main():
 
-    #ray.init(ignore_reinit_error = True)
+    dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key) #on pourra déplacer au sein du main pour n'initier le peuplement de la base de données que lors du premier appel de la BDD
 
     st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
     st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
@@ -142,32 +147,39 @@ def main():
     if address != '':
         if validation_button or option_prix >= 0 or option_distance_h >= 0 or option_forecast >= 0:
 
-            dict_data_from_address = surfmap_config.load_surfspot_data(address, dfSpots,
-                                                                      surfmap_config.gmaps_api_key, surfmap_config.key_michelin)
-            dfData = pd.DataFrame.from_dict(dict_data_from_address, orient = 'index').reset_index()
-            dfData.rename(columns = {'index': 'nomSpot'}, inplace = True)
-            dfData['latitude'] = [x[0] for x in dfData['gps']]
-            dfData['longitude'] = [x[-1] for x in dfData['gps']]
+            #dict_data_from_address = surfmap_config.load_surfspot_data(address, dfSpots,
+            #                                                          surfmap_config.gmaps_api_key, surfmap_config.key_michelin)
+            #dfData = pd.DataFrame.from_dict(dict_data_from_address, orient = 'index').reset_index()
+            #dfData.rename(columns = {'index': 'nomSpot'}, inplace = True)
+            #dfData['latitude'] = [x[0] for x in dfData['gps']]
+            #dfData['longitude'] = [x[-1] for x in dfData['gps']]
 
-            #geocode_address = surfmap_config.get_google_results(address, api_key = surfmap_config.gmaps_api_key, return_full_response = True)
+            #geocode_address = surfmap_config.get_google_results(address, surfmap_config.gmaps_api_key, return_full_response = True)
 
-            #loop = asyncio.get_event_loop()
-            #loop = asyncio.new_event_loop()
-            #asyncio.set_event_loop(loop)
-            #geocode_address = asyncio.ensure_future(surfmap_config.google_results(address, api_key = surfmap_config.gmaps_api_key, return_full_response = True))
-            geocode_address = surfmap_config.get_google_results(address, surfmap_config.gmaps_api_key, return_full_response = True)
-            #loop.run_until_complete(future)
+            #Insérer ici la boucle sur le dataset global (i.e. vérification présence ville requêtée) + filtrage pour affichage dataframe
+            # et remplacer ci-dessous "dfData" par "dfDataDisplay"
 
-            #print(geocode_address)
-            #print("hello")
-            if len(dfData) > 0:
-                #print(geocode_address)
-                geocode_gps = [(geocode_address['latitude'] + min(dfData['latitude']))/2,
-                               (geocode_address['longitude'] + min(dfData['longitude']))/2]
-            else:
-                geocode_gps = [geocode_address['latitude'], geocode_address['longitude']]
+            #On commence par regarder si la ville recherchée a déjà été requêtée
+            if address in dfData['villeOrigine'].tolist():
+                dfDataDisplay = dfData[dfData['villeOrigine'] == address]
+            else: #cas où la ville n'a jamais été requêtée
+                dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_config.gmaps_api_key, api_config.key_michelin)
+                dfData = pd.concat([dfData, dfSearchVille]) #appel à la fonction de merging de research_config
+                dfDataDisplay = dfData[dfData['villeOrigine'] == address]
+
+            dfDataDisplay.rename(columns = {'index': 'nomSpot'}, inplace = True)
+
+            #if len(dfDataDisplay) > 0:
+
+            #    geocode_gps = [(dfDataDisplay['gpsVilleOrigine'][0][0] + min(dfData['latitude']))/2,
+            #                    (dfDataDisplay['gpsVilleOrigine'][0][1] + min(dfData['longitude']))/2]
+
+            #else:
+
+            gpsHome = [dfDataDisplay['gpsVilleOrigine'][0][0], dfDataDisplay['gpsVilleOrigine'][0][1]]
+
             #Display maps
-            m = folium.Map(location = geocode_gps,
+            m = folium.Map(location = gpsHome,
                            zoom_start = 5)
             #Petits ajouts
             marker_cluster = MarkerCluster().add_to(m)
@@ -175,54 +187,60 @@ def main():
             draw = Draw()
             popupHome = folium.Popup("💑 Maison",
                                      max_width = '150')
-            folium.Marker(location = [geocode_address['latitude'], geocode_address['longitude']],
+            folium.Marker(location = [dfDataDisplay['gpsVilleOrigine'][0][0], dfDataDisplay['gpsVilleOrigine'][0][1]],
                           popup = popupHome,
                           icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
             minimap.add_to(m)
             draw.add_to(m)
 
             #Ajout des données de forecast
-            forecast_data = forecast_config.load_forecast_data(dfData['nomSurfForecast'].tolist(), dayList)
-            dfData['forecast'] = [forecast_data[spot].get(selectbox_daily_forecast) for spot in dfData['nomSurfForecast']]
+            forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
+            dfDataDisplay['forecast'] = [forecast_data[spot].get(selectbox_daily_forecast) for spot in dfDataDisplay['nomSurfForecast']]
 
             if option_prix > 0:
-                dfData = dfData[dfData['prix'] <= option_prix]
+                dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'] <= option_prix]
                 is_option_prix_ok = True
 
             if option_distance_h > 0:
-                dfData = dfData[dfData['drivingTime'] <= option_distance_h]
+                dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'] <= option_distance_h]
                 is_option_distance_h_ok = True
 
             if option_forecast > 0:
-                dfData = dfData[dfData['forecast'] >= option_forecast]
+                dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'] >= option_forecast]
 
             multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
-            dfData = dfData[dfData['paysSpot'].isin(multiselect_pays)]
+            dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)]
 
-            for nomSpot in dfData['nomSpot'].tolist():
-                spot_infos = dict_data_from_address[nomSpot]
-                spot_forecast = dfData[dfData['nomSpot'] == nomSpot]['forecast'].tolist()[0]
-                #if option_prix > 0 or option_distance_h > 0:
-                #    colorIcon = surfmap_config.color_rating_criteria(is_option_prix_ok, is_option_distance_h_ok)
-                #else:
-                if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
-                    colorIcon = surfmap_config.color_rating_prix(spot_infos['prix'])
-                elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
-                    colorIcon = surfmap_config.color_rating_forecast(spot_forecast)
-                else:
-                    colorIcon = surfmap_config.color_rating_distance(spot_infos['drivingTime'])
+            for nomSpot in dfDataDisplay['nomSpot'].tolist():
+                spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]
+                spot_infos = spot_infos_df.to_dict('records')[0]
 
-                popupText = '🌊 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €<br>🏄‍♂️ Prévisions (' + selectbox_daily_forecast + ') : ' + str(spot_forecast) + " /10"
-                popupSpot = folium.Popup(popupText,
-                                         max_width = '220')
-                marker = folium.Marker(location = spot_infos['gps'],
-                                       popup = popupSpot,
-                                       icon = folium.Icon(color = colorIcon, icon = ''))
-                marker.add_to(m)
+                try:
+                    spot_forecast = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].tolist()[0]
+                    #if option_prix > 0 or option_distance_h > 0:
+                    #    colorIcon = displaymap_config.color_rating_criteria(is_option_prix_ok, is_option_distance_h_ok)
+                    #else:
+                    if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
+                        colorIcon = displaymap_config.color_rating_prix(spot_infos['prix'])
+                    elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
+                        colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
+                    else:
+                        colorIcon = displaymap_config.color_rating_distance(spot_infos['drivingTime'])
 
-            if len(dfData) > 0:
-                st.sidebar.success("Recherche terminée (" + str(len(dfData)) + " résultats) !")
-            if len(dfData) == 0:
+                    popupText = '🌊 Spot : ' + nomSpot + '<br>🏁 Distance : ' + str(round(spot_infos['drivingDist'], 1)) + ' km<br>⏳ Temps de trajet : ' + str(round(spot_infos['drivingTime'], 1)) + ' h<br>💸 Prix (aller) : ' + str(round(spot_infos['prix'], 2)) + ' €<br>🏄‍♂️ Prévisions (' + selectbox_daily_forecast + ') : ' + str(spot_forecast) + " /10"
+                    popupSpot = folium.Popup(popupText,
+                                             max_width = '220')
+                    marker = folium.Marker(location = spot_infos['gpsSpot'],
+                                           popup = popupSpot,
+                                           icon = folium.Icon(color = colorIcon, icon = ''))
+                    marker.add_to(m)
+                except Exception as e:
+                    print("Spot suivant non affiché : " + str(nomSpot))
+                    pass
+
+            if len(dfDataDisplay) > 0:
+                st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
+            if len(dfDataDisplay) == 0:
                 m = folium.Map(location = base_position,
                                zoom_start = 6)
                 st.sidebar.error("Aucun résultat trouvé")
@@ -238,5 +256,3 @@ def main():
     st.markdown(":copyright: 2021-2022 Paul Bâcle")
 
 main()
-
-#Tracer
