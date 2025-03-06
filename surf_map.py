@@ -292,60 +292,75 @@ def main():
                         if not spot_infos_df.empty:
                             spot_infos = spot_infos_df.to_dict('records')[0]
                             spot_coords = spot_infos.get('gpsSpot')
-
+                            
+                            # Skip if coordinates are invalid
+                            if not spot_coords or not isinstance(spot_coords, (list, tuple)) or len(spot_coords) != 2:
+                                failed_spots.append({
+                                    'name': nomSpot,
+                                    'reason': 'Invalid coordinates'
+                                })
+                                continue
+                            
                             try:
-                                spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
-                                if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
-                                    try:
-                                        if 'prix' in spot_infos:
-                                            colorIcon = displaymap_config.color_rating_prix(float(spot_infos['prix']))
-                                        else:
-                                            colorIcon = 'gray'
-                                    except (ValueError, TypeError):
-                                        colorIcon = 'gray'  # Default color if price conversion fails
-                                elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
-                                    colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
-                                else:
-                                    try:
-                                        if 'drivingTime' in spot_infos:
-                                            colorIcon = displaymap_config.color_rating_distance(float(spot_infos['drivingTime']))
-                                        else:
-                                            colorIcon = 'gray'
-                                    except (ValueError, TypeError):
-                                        colorIcon = 'gray'  # Default color if time conversion fails
-
+                                lat, lon = spot_coords
+                                if lat is None or lon is None:
+                                    failed_spots.append({
+                                        'name': nomSpot,
+                                        'reason': 'Invalid coordinates'
+                                    })
+                                    continue
+                                    
+                                # Get route information
+                                driving_dist = spot_infos.get('drivingDist')
+                                driving_time = spot_infos.get('drivingTime')
+                                
+                                # Convert route values to float, handling None/NaN
                                 try:
-                                    driving_dist = float(spot_infos.get('drivingDist', 0))
-                                    driving_time = float(spot_infos.get('drivingTime', 0))
-                                    prix = float(spot_infos.get('prix', 0))
+                                    driving_dist = float(driving_dist) if driving_dist is not None and not pd.isna(driving_dist) else 0
+                                    driving_time = float(driving_time) if driving_time is not None and not pd.isna(driving_time) else 0
+                                    prix = float(spot_infos.get('prix', 0)) if spot_infos.get('prix') is not None and not pd.isna(spot_infos.get('prix')) else 0
                                 except (ValueError, TypeError):
                                     driving_dist = 0
                                     driving_time = 0
                                     prix = 0
-
-                                popupText = f'🌊 Spot : {nomSpot}<br>🏁 Distance : {round(driving_dist, 1)} km<br>⏳ Temps de trajet : {round(driving_time, 1)} h<br>💸 Prix (aller) : {round(prix, 2)} €<br>🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast} /10'
-                                popupSpot = folium.Popup(popupText,
-                                                         max_width = '220')
                                 
+                                # Get forecast value
                                 try:
-                                    if isinstance(spot_coords, (list, tuple)) and len(spot_coords) == 2:
-                                        lat, lon = spot_coords
-                                        if lat is not None and lon is not None:
-                                            marker = folium.Marker(location = [float(lat), float(lon)],
-                                                                   popup = popupSpot,
-                                                                   icon = folium.Icon(color = colorIcon, icon = ''))
-                                            marker.add_to(marker_cluster)  # Add to marker cluster instead of map directly
-                                except (ValueError, TypeError, IndexError) as e:
-                                    continue
-
+                                    spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
+                                except (ValueError, TypeError, IndexError):
+                                    spot_forecast = 0
+                                
+                                # Determine marker color based on selected criteria
+                                if checkbox_choix_couleur == list_radio_choix_couleur[-1]:  # Price
+                                    colorIcon = displaymap_config.color_rating_prix(prix)
+                                elif checkbox_choix_couleur == list_radio_choix_couleur[0]:  # Forecast
+                                    colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
+                                else:  # Distance
+                                    colorIcon = displaymap_config.color_rating_distance(driving_time)
+                                
+                                # Create popup text
+                                popupText = f'🌊 Spot : {nomSpot}<br>🏁 Distance : {round(driving_dist, 1)} km<br>⏳ Temps de trajet : {round(driving_time, 1)} h<br>💸 Prix (aller) : {round(prix, 2)} €<br>🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast} /10'
+                                popupSpot = folium.Popup(popupText, max_width='220')
+                                
+                                # Add marker to map
+                                marker = folium.Marker(
+                                    location=[float(lat), float(lon)],
+                                    popup=popupSpot,
+                                    icon=folium.Icon(color=colorIcon, icon='')
+                                )
+                                marker.add_to(marker_cluster)
+                                
                             except Exception as e:
+                                failed_spots.append({
+                                    'name': nomSpot,
+                                    'reason': f'Error processing spot: {str(e)}'
+                                })
                                 continue
 
                 if len(dfDataDisplay) > 0:
                     st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
                 if len(dfDataDisplay) == 0:
-                    m = folium.Map(location = base_position,
-                                   zoom_start = 6)
+                    m = folium.Map(location=base_position, zoom_start=6)
                     st.sidebar.error("Aucun résultat trouvé")
     else:
         m = folium.Map(location = base_position,
