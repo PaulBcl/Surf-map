@@ -195,11 +195,16 @@ def main():
             marker_cluster = MarkerCluster().add_to(m)
             minimap = MiniMap(toggle_display = True)
             draw = Draw()
-            popupHome = folium.Popup("💑 Maison",
-                                     max_width = '150')
-            folium.Marker(location = [dfDataDisplay['gpsVilleOrigine'][0][0], dfDataDisplay['gpsVilleOrigine'][0][1]],
-                          popup = popupHome,
-                          icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
+            
+            # Only add home marker if we have valid data
+            if len(dfDataDisplay) > 0 and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                popupHome = folium.Popup("💑 Maison",
+                                         max_width = '150')
+                folium.Marker(location = [dfDataDisplay['gpsVilleOrigine'].iloc[0][0], 
+                                        dfDataDisplay['gpsVilleOrigine'].iloc[0][1]],
+                              popup = popupHome,
+                              icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
+            
             minimap.add_to(m)
             draw.add_to(m)
 
