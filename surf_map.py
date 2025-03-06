@@ -172,13 +172,13 @@ def main():
 
             #On commence par regarder si la ville recherchée a déjà été requêtée
             if 'villeOrigine' in dfData.columns and address in dfData['villeOrigine'].tolist():
-                dfDataDisplay = dfData[dfData['villeOrigine'] == address]
+                dfDataDisplay = dfData[dfData['villeOrigine'] == address].copy()  # Create a copy to avoid SettingWithCopyWarning
             else: #cas où la ville n'a jamais été requêtée
                 try:
                     dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_config.gmaps_api_key)
                     if dfSearchVille is not None and not dfSearchVille.empty:
                         dfData = pd.concat([dfData, dfSearchVille]) #appel à la fonction de merging de research_config
-                        dfDataDisplay = dfData[dfData['villeOrigine'] == address]
+                        dfDataDisplay = dfData[dfData['villeOrigine'] == address].copy()  # Create a copy
                     else:
                         st.error(f"Impossible de trouver des spots pour l'adresse '{address}'")
                         dfDataDisplay = pd.DataFrame()
@@ -252,17 +252,17 @@ def main():
                 try:
                     if 'nomSurfForecast' in dfDataDisplay.columns and not dfDataDisplay['nomSurfForecast'].empty:
                         forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
-                        dfDataDisplay['forecast'] = [forecast_data.get(spot, {}).get(selectbox_daily_forecast, 0) for spot in dfDataDisplay['nomSurfForecast']]
+                        dfDataDisplay.loc[:, 'forecast'] = [forecast_data.get(spot, {}).get(selectbox_daily_forecast, 0) for spot in dfDataDisplay['nomSurfForecast']]
                     else:
-                        dfDataDisplay['forecast'] = [0] * len(dfDataDisplay)
+                        dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay)
                 except Exception as e:
                     st.error("Erreur lors du chargement des prévisions de surf")
-                    dfDataDisplay['forecast'] = [0] * len(dfDataDisplay)  # Default to 0 if forecast fails
+                    dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay)  # Default to 0 if forecast fails
 
                 if option_prix > 0:
                     try:
                         if 'prix' in dfDataDisplay.columns:
-                            dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix]
+                            dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix].copy()
                             is_option_prix_ok = True
                         else:
                             st.warning("Colonne 'prix' non trouvée")
@@ -274,7 +274,7 @@ def main():
                 if option_distance_h > 0:
                     try:
                         if 'drivingTime' in dfDataDisplay.columns:
-                            dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h]
+                            dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h].copy()
                             is_option_distance_h_ok = True
                         else:
                             st.warning("Colonne 'drivingTime' non trouvée")
@@ -286,7 +286,7 @@ def main():
                 if option_forecast > 0:
                     try:
                         if 'forecast' in dfDataDisplay.columns:
-                            dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast]
+                            dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast].copy()
                         else:
                             st.warning("Colonne 'forecast' non trouvée")
                     except (ValueError, TypeError):
@@ -294,12 +294,12 @@ def main():
 
                 if 'paysSpot' in dfDataDisplay.columns:
                     multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
-                    dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)]
+                    dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)].copy()
 
                 # Only process spots if we have valid data
                 if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
                     for nomSpot in dfDataDisplay['nomSpot'].tolist():
-                        spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]
+                        spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
                         if not spot_infos_df.empty:
                             spot_infos = spot_infos_df.to_dict('records')[0]
 
