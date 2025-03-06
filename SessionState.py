@@ -19,17 +19,19 @@ result:
 import streamlit as st
 
 class SessionState:
-    def __init__(self, session_state, **kwargs):
-        for key, val in kwargs.items():
-            if key not in session_state:
-                session_state[key] = val
+    def __init__(self, session_state):
         self._state = session_state
 
     def __getattr__(self, name):
+        if name == '_state':
+            return super().__getattr__(name)
         return self._state.get(name)
 
     def __setattr__(self, name, value):
-        self._state[name] = value
+        if name == '_state':
+            super().__setattr__(name, value)
+        else:
+            self._state[name] = value
 
 def get_session():
     if not hasattr(st.session_state, '_custom_session'):
