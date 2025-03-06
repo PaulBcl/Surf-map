@@ -181,9 +181,20 @@ def main():
             dfDataDisplay.rename(columns = {'index': 'nomSpot'}, inplace = True)
 
             # Check if we have valid GPS coordinates
-            if len(dfDataDisplay) > 0 and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
-                gpsHome = [dfDataDisplay['gpsVilleOrigine'].iloc[0][0], dfDataDisplay['gpsVilleOrigine'].iloc[0][1]]
-            else:
+            try:
+                if len(dfDataDisplay) > 0 and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                    coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
+                    if isinstance(coords, (list, tuple)) and len(coords) == 2:
+                        lat, lon = coords
+                        if lat is not None and lon is not None:
+                            gpsHome = [float(lat), float(lon)]
+                        else:
+                            raise ValueError("Invalid coordinates")
+                    else:
+                        raise ValueError("Invalid coordinate format")
+                else:
+                    raise ValueError("No valid coordinates found")
+            except (ValueError, TypeError, IndexError) as e:
                 st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
                 gpsHome = base_position  # Use default coordinates
                 dfDataDisplay = pd.DataFrame()  # Clear the display data
@@ -198,12 +209,18 @@ def main():
             
             # Only add home marker if we have valid data
             if len(dfDataDisplay) > 0 and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
-                popupHome = folium.Popup("💑 Maison",
-                                         max_width = '150')
-                folium.Marker(location = [dfDataDisplay['gpsVilleOrigine'].iloc[0][0], 
-                                        dfDataDisplay['gpsVilleOrigine'].iloc[0][1]],
-                              popup = popupHome,
-                              icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
+                try:
+                    coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
+                    if isinstance(coords, (list, tuple)) and len(coords) == 2:
+                        lat, lon = coords
+                        if lat is not None and lon is not None:
+                            popupHome = folium.Popup("💑 Maison",
+                                                     max_width = '150')
+                            folium.Marker(location = [float(lat), float(lon)],
+                                          popup = popupHome,
+                                          icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
+                except (ValueError, TypeError, IndexError) as e:
+                    print(f"Error adding home marker: {str(e)}")
             
             minimap.add_to(m)
             draw.add_to(m)
