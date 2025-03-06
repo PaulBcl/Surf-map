@@ -381,16 +381,20 @@ def main():
                                 driving_time = spot_infos.get('drivingTime')
                                 prix = spot_infos.get('prix')
                                 
-                                add_debug_info(f"Route info for {nomSpot}: dist={driving_dist}, time={driving_time}, prix={prix}")
-                                add_debug_info(f"Route info types: dist={type(driving_dist)}, time={type(driving_time)}, prix={type(prix)}")
+                                add_debug_info(f"Raw route info for {nomSpot}:")
+                                add_debug_info(f"  driving_dist: {driving_dist} (type: {type(driving_dist)})")
+                                add_debug_info(f"  driving_time: {driving_time} (type: {type(driving_time)})")
+                                add_debug_info(f"  prix: {prix} (type: {type(prix)})")
                                 
                                 # Convert route values to float, handling None/NaN
                                 try:
                                     driving_dist = float(driving_dist) if driving_dist is not None and not pd.isna(driving_dist) else 0.0
                                     driving_time = float(driving_time) if driving_time is not None and not pd.isna(driving_time) else 0.0
                                     prix = float(prix) if prix is not None and not pd.isna(prix) else 0.0
-                                    add_debug_info(f"Converted route info for {nomSpot}: dist={driving_dist}, time={driving_time}, prix={prix}")
-                                    add_debug_info(f"Converted types: dist={type(driving_dist)}, time={type(driving_time)}, prix={type(prix)}")
+                                    add_debug_info(f"Converted route info for {nomSpot}:")
+                                    add_debug_info(f"  driving_dist: {driving_dist} (type: {type(driving_dist)})")
+                                    add_debug_info(f"  driving_time: {driving_time} (type: {type(driving_time)})")
+                                    add_debug_info(f"  prix: {prix} (type: {type(prix)})")
                                 except (ValueError, TypeError) as e:
                                     add_debug_info(f"Error converting route values for {nomSpot}: {str(e)}", "WARNING")
                                     driving_dist = 0.0
@@ -400,8 +404,7 @@ def main():
                                 # Get forecast value
                                 try:
                                     spot_forecast = float(spot_infos.get('forecast', 0))
-                                    add_debug_info(f"Forecast for {nomSpot}: {spot_forecast}")
-                                    add_debug_info(f"Forecast type: {type(spot_forecast)}")
+                                    add_debug_info(f"Forecast for {nomSpot}: {spot_forecast} (type: {type(spot_forecast)})")
                                 except (ValueError, TypeError, IndexError) as e:
                                     add_debug_info(f"Error getting forecast for {nomSpot}: {str(e)}", "WARNING")
                                     spot_forecast = 0.0
