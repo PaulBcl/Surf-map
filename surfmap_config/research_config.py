@@ -22,31 +22,40 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
 
     # Get GPS coordinates for the search city
     google_information_villeSearch = api_config.get_google_results(villeSearch, key_api_gmaps)
-    gps_data_villeSearch = [[google_information_villeSearch['latitude'], google_information_villeSearch['longitude']]]
-    dfData_temp['gpsVilleOrigine'] = gps_data_villeSearch*len(dfData_temp)
+    if google_information_villeSearch['latitude'] is not None and google_information_villeSearch['longitude'] is not None:
+        # Convert coordinates to tuple for hashability
+        gps_data_villeSearch = (google_information_villeSearch['latitude'], google_information_villeSearch['longitude'])
+        dfData_temp['gpsVilleOrigine'] = [gps_data_villeSearch] * len(dfData_temp)
+    else:
+        st.error(f"Could not get GPS coordinates for {villeSearch}")
+        return None
 
     # Get route information using Google Maps API
     dfData_request = dfData_temp[['gpsSpot', 'gpsVilleOrigine']]
     for row in dfData_request.itertuples():
         list_gps_coordinates = list(row)
         try:
+            # Convert coordinates to lists for API call
+            origin = list(list_gps_coordinates[2])  # Convert tuple to list
+            destination = list(list_gps_coordinates[1])  # Convert tuple to list
+            
             route_info = api_config.get_google_route_info(
-                list_gps_coordinates[2],  # origin
-                list_gps_coordinates[1],  # destination
+                origin,  # origin
+                destination,  # destination
                 key_api_gmaps
             )
-            dfData_temp.loc[list_gps_coordinates[0], 'drivingDist'] = route_info['distance']
-            dfData_temp.loc[list_gps_coordinates[0], 'drivingTime'] = route_info['duration']
-            dfData_temp.loc[list_gps_coordinates[0], 'tollCost'] = route_info.get('toll_cost', 0)
-            dfData_temp.loc[list_gps_coordinates[0], 'gazPrice'] = route_info.get('fuel_cost', 0)
+            if route_info:
+                dfData_temp.loc[list_gps_coordinates[0], 'drivingDist'] = route_info['distance']
+                dfData_temp.loc[list_gps_coordinates[0], 'drivingTime'] = route_info['duration']
+                dfData_temp.loc[list_gps_coordinates[0], 'tollCost'] = route_info.get('toll_cost', 0)
+                dfData_temp.loc[list_gps_coordinates[0], 'gazPrice'] = route_info.get('fuel_cost', 0)
         except Exception as e:
-            print("Error getting route information for spot:")
-            print(dfData_temp.iloc[list_gps_coordinates[0]])
+            st.write(f"Error getting route information for spot: {str(e)}")
             dfData_temp.loc[list_gps_coordinates[0], 'drivingDist'] = None
             dfData_temp.loc[list_gps_coordinates[0], 'drivingTime'] = None
             dfData_temp.loc[list_gps_coordinates[0], 'tollCost'] = None
             dfData_temp.loc[list_gps_coordinates[0], 'gazPrice'] = None
-            pass
+            continue
 
     dfData_temp['prix'] = dfData_temp['tollCost'] + dfData_temp['gazPrice']
 
@@ -59,23 +68,26 @@ def get_surfspot_data(start_address, spot, dfSpots, key_api_gmaps):
         paysSpot = dfSpots[dfSpots['nomSpot'] == spot]['paysSpot'].tolist()[0]
         nomSurfForecast = dfSpots[dfSpots['nomSpot'] == spot]['nomSurfForecast'].tolist()[0]
     except:
-        print('Impossible de trouver le spot ' + spot + ' dans la table de référencement')
+        st.error(f'Impossible de trouver le spot {spot} dans la table de référencement')
         return None
 
     try:
         route_info = api_config.get_google_route_info(start_address, villeSpot, key_api_gmaps)
-        result_spot = {
-            'drivingDist': route_info['distance'],
-            'drivingTime': route_info['duration'],
-            'tollCost': route_info.get('toll_cost', 0),
-            'gazPrice': route_info.get('fuel_cost', 0),
-            'prix': route_info.get('toll_cost', 0) + route_info.get('fuel_cost', 0),
-            'paysSpot': paysSpot,
-            'nomSurfForecast': nomSurfForecast
-        }
+        if route_info:
+            result_spot = {
+                'drivingDist': route_info['distance'],
+                'drivingTime': route_info['duration'],
+                'tollCost': route_info.get('toll_cost', 0),
+                'gazPrice': route_info.get('fuel_cost', 0),
+                'prix': route_info.get('toll_cost', 0) + route_info.get('fuel_cost', 0),
+                'paysSpot': paysSpot,
+                'nomSurfForecast': nomSurfForecast
+            }
+        else:
+            st.warning(f'Impossible de calculer l\'itinéraire pour le spot {spot}')
+            return None
     except Exception as e:
-        print(e)
-        print('Impossible de requêter via API (Google Maps) le spot ' + str(spot))
+        st.error(f"Error processing spot {spot}: {str(e)}")
         return None
 
     return result_spot

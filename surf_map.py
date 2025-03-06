@@ -208,7 +208,7 @@ def main():
                 try:
                     if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
                         coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
-                        st.write(f"Raw coordinates from DataFrame: {coords}")  # Debug raw coordinates
+                        st.write(f"Raw coordinates from DataFrame: {coords}")  # Debug info
                         if isinstance(coords, (list, tuple)) and len(coords) == 2:
                             lat, lon = coords
                             if lat is not None and lon is not None:
