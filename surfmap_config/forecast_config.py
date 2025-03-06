@@ -18,10 +18,17 @@ def get_surfSpot_url(nomSurfForecast):
     @param nomSurfForecast : nom du spot sur surf_forecast
     """
     urlSurfReport = "https://fr.surf-forecast.com/breaks/" + nomSurfForecast + "/forecasts/latest/six_day"
-    pageSurfReport = requests.get(urlSurfReport)
-    contentPage = pageSurfReport.content
-    soupContentPage = BeautifulSoup(contentPage, features = "html.parser")
-    return soupContentPage
+    try:
+        pageSurfReport = requests.get(urlSurfReport)
+        if pageSurfReport.status_code != 200:
+            st.error(f"Failed to fetch data for {nomSurfForecast}. Status code: {pageSurfReport.status_code}")
+            return None
+        contentPage = pageSurfReport.content
+        soupContentPage = BeautifulSoup(contentPage, features = "html.parser")
+        return soupContentPage
+    except Exception as e:
+        st.error(f"Error fetching data for {nomSurfForecast}: {str(e)}")
+        return None
 
 @st.cache_data
 def get_dayList_forecast():
@@ -57,29 +64,46 @@ def get_infos_surf_report(nomSurfForecast, dayList):
     try:
         #Import Page Web + jours à travailler
         soupContentPage = get_surfSpot_url(nomSurfForecast)
+        if soupContentPage is None:
+            st.warning(f"Could not get data for {nomSurfForecast}")
+            return {'No day': 0.0}
 
         #On récupère le tableau des prévisions
         table = soupContentPage.find_all("tbody", {"class": "forecast-table__basic"})
+        if not table:
+            st.warning(f"No forecast table found for {nomSurfForecast}")
+            return {'No day': 0.0}
 
         #On récupère ensuite toutes les notations que l'on met en forme
-        #Le résultat est tel : noteList = [0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 2]
-        resultNotations = soupContentPage.find_all("tr", {"class": "forecast-table__row forecast-table-rating"})[0].find_all("img")
+        resultNotations = soupContentPage.find_all("tr", {"class": "forecast-table__row forecast-table-rating"})
+        if not resultNotations:
+            st.warning(f"No ratings found for {nomSurfForecast}")
+            return {'No day': 0.0}
+            
         noteList = []
-        for resultNotation in resultNotations:
-            note = int(resultNotation['alt'])
-            noteList.append(note)
+        for img in resultNotations[0].find_all("img"):
+            try:
+                note = int(img['alt'])
+                noteList.append(note)
+            except (ValueError, KeyError) as e:
+                st.warning(f"Invalid rating for {nomSurfForecast}: {str(e)}")
+                continue
+
+        if not noteList:
+            st.warning(f"No valid ratings found for {nomSurfForecast}")
+            return {'No day': 0.0}
 
         #On agrège ensuite les résultats sous forme d'un dictionnaire
-        #Ce dictionnaire contient pour chaque jour de dayList la moyenne des notations du jour
-        #Le résultat est tel : dict_data_spot = {'Vendredi 03': 1.3333333333333333, ...,  'Ven 10': 3.0}
         index_average = 0
         for day in dayList:
-            dict_data_spot[day] = round(np.average(noteList[index_average:index_average+3]), 2)
-            index_average += 3
+            if index_average + 3 <= len(noteList):
+                dict_data_spot[day] = round(np.average(noteList[index_average:index_average+3]), 2)
+                index_average += 3
+            else:
+                dict_data_spot[day] = 0.0
 
     except Exception as e:
-        print(e)
-        print("Pas d'informations surf-report sur " + str(nomSurfForecast))
+        st.error(f"Error processing data for {nomSurfForecast}: {str(e)}")
         dict_data_spot['No day'] = 0.0
 
     return dict_data_spot
@@ -103,11 +127,13 @@ def load_forecast_data(spot_list, dayList):
     for spot in spot_list:
         try:
             iteration += 1
+            st.write(f"Fetching forecast for {spot}...")
             forecast_spot = get_infos_surf_report(spot, dayList)
             dict_data_forecast_spot[spot] = forecast_spot
             progress_bar.progress(nb_percent_complete*iteration + 1)
-        except:
-            print("Erreur avec le spot " + spot)
+        except Exception as e:
+            st.error(f"Error processing spot {spot}: {str(e)}")
+            dict_data_forecast_spot[spot] = {'No day': 0.0}
 
     placeholder_progress_bar.empty()
     return dict_data_forecast_spot
