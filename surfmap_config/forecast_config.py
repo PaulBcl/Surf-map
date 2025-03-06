@@ -8,36 +8,50 @@ import requests
 from bs4 import BeautifulSoup
 import sqlite3
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import numpy as np
 import time
 
+def setup_driver():
+    """Setup and return a Chrome WebDriver with appropriate options"""
+    chrome_options = Options()
+    chrome_options.add_argument('--headless')  # Run in headless mode
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument('--window-size=1920,1080')
+    chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
+    
+    driver = webdriver.Chrome(options=chrome_options)
+    return driver
 
 def get_surfSpot_url(nomSurfForecast):
     """
-    Donne le contenu web d'une page surf_forecast
+    Donne le contenu web d'une page surf_forecast en utilisant Selenium
 
     @param nomSurfForecast : nom du spot sur surf_forecast
     """
     urlSurfReport = "https://fr.surf-forecast.com/breaks/" + nomSurfForecast + "/forecasts/latest/six_day"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'max-age=0'
-    }
+    driver = setup_driver()
+    
     try:
-        pageSurfReport = requests.get(urlSurfReport, headers=headers)
-        if pageSurfReport.status_code != 200:
-            st.error(f"Failed to fetch data for {nomSurfForecast}. Status code: {pageSurfReport.status_code}")
-            return None
-        contentPage = pageSurfReport.content
+        driver.get(urlSurfReport)
+        # Wait for the forecast table to load
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "forecast-table__basic"))
+        )
+        # Get the page source after JavaScript has rendered
+        contentPage = driver.page_source
         soupContentPage = BeautifulSoup(contentPage, features="html.parser")
         return soupContentPage
     except Exception as e:
         st.error(f"Error fetching data for {nomSurfForecast}: {str(e)}")
         return None
+    finally:
+        driver.quit()
 
 @st.cache_data
 def get_dayList_forecast():
@@ -168,7 +182,7 @@ def load_forecast_data(spot_list, dayList):
             dict_data_forecast_spot[spot] = forecast_spot
             progress_bar.progress(nb_percent_complete*iteration + 1)
             # Add a small delay to avoid being blocked
-            time.sleep(1)
+            time.sleep(2)  # Increased delay to be more conservative
         except Exception as e:
             st.error(f"Error processing spot {spot}: {str(e)}")
             dict_data_forecast_spot[spot] = {'No day': 0.0}
