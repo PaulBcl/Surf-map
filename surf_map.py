@@ -386,6 +386,31 @@ def main():
     # Display the map with all its components
     st_folium(m, returned_objects=[], width=800, height=600)  # Added explicit dimensions
 
+    # Add expander for failed spots information
+    failed_spots = []
+    if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
+        for nomSpot in dfDataDisplay['nomSpot'].tolist():
+            spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
+            if not spot_infos_df.empty:
+                spot_infos = spot_infos_df.to_dict('records')[0]
+                spot_coords = spot_infos.get('gpsSpot')
+                if not spot_coords or not isinstance(spot_coords, (list, tuple)) or len(spot_coords) != 2:
+                    failed_spots.append({
+                        'name': nomSpot,
+                        'reason': 'Invalid coordinates'
+                    })
+                elif spot_infos.get('drivingDist') is None or spot_infos.get('drivingTime') is None:
+                    failed_spots.append({
+                        'name': nomSpot,
+                        'reason': 'Could not calculate route'
+                    })
+
+    if failed_spots:
+        with st.expander("⚠️ Spots non affichés sur la carte", expanded=False):
+            st.write("Les spots suivants n'ont pas pu être affichés sur la carte :")
+            for spot in failed_spots:
+                st.write(f"- {spot['name']} : {spot['reason']}")
+
     st.markdown("- - -")
 
     st.markdown(":copyright: 2021-2025 Paul Bâcle")
