@@ -13,12 +13,7 @@ from tqdm import tqdm, tqdm_notebook
 import streamlit as st
 
 # Get API key from Streamlit secrets
-try:
-    gmaps_api_key = st.secrets["google_maps_api_key"]
-except:
-    # Fallback for local development
-    gmaps_api_key = "AIzaSyCUV_lu8Fq10PySnL2j_00YEGWJXLfg70Q"
-
+gmaps_api_key = st.secrets["google_maps_api_key"]
 gmaps.configure(api_key = gmaps_api_key)
 
 #Variables
