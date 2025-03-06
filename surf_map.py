@@ -174,145 +174,164 @@ def main():
             if address in dfData['villeOrigine'].tolist():
                 dfDataDisplay = dfData[dfData['villeOrigine'] == address]
             else: #cas où la ville n'a jamais été requêtée
-                dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_config.gmaps_api_key)
-                dfData = pd.concat([dfData, dfSearchVille]) #appel à la fonction de merging de research_config
-                dfDataDisplay = dfData[dfData['villeOrigine'] == address]
-
-            dfDataDisplay.rename(columns = {'index': 'nomSpot'}, inplace = True)
-
-            # Check if we have valid GPS coordinates
-            try:
-                if len(dfDataDisplay) > 0 and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
-                    coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
-                    if isinstance(coords, (list, tuple)) and len(coords) == 2:
-                        lat, lon = coords
-                        if lat is not None and lon is not None:
-                            gpsHome = [float(lat), float(lon)]
-                        else:
-                            raise ValueError("Invalid coordinates")
+                try:
+                    dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_config.gmaps_api_key)
+                    if dfSearchVille is not None and not dfSearchVille.empty:
+                        dfData = pd.concat([dfData, dfSearchVille]) #appel à la fonction de merging de research_config
+                        dfDataDisplay = dfData[dfData['villeOrigine'] == address]
                     else:
-                        raise ValueError("Invalid coordinate format")
-                else:
-                    raise ValueError("No valid coordinates found")
-            except (ValueError, TypeError, IndexError) as e:
-                st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
-                gpsHome = base_position  # Use default coordinates
-                dfDataDisplay = pd.DataFrame()  # Clear the display data
+                        st.error(f"Impossible de trouver des spots pour l'adresse '{address}'")
+                        dfDataDisplay = pd.DataFrame()
+                except Exception as e:
+                    st.error(f"Erreur lors de la recherche des spots: {str(e)}")
+                    dfDataDisplay = pd.DataFrame()
 
-            #Display maps
-            m = folium.Map(location = gpsHome,
-                           zoom_start = 5)
-            #Petits ajouts
-            marker_cluster = MarkerCluster().add_to(m)
-            minimap = MiniMap(toggle_display = True)
-            draw = Draw()
-            
-            # Only add home marker if we have valid data
-            if len(dfDataDisplay) > 0 and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+            if not dfDataDisplay.empty:
+                dfDataDisplay.rename(columns = {'index': 'nomSpot'}, inplace = True)
+                
+                # Ensure all required columns exist
+                required_columns = ['gpsVilleOrigine', 'paysSpot', 'nomSurfForecast', 'prix', 'drivingTime', 'drivingDist']
+                for col in required_columns:
+                    if col not in dfDataDisplay.columns:
+                        dfDataDisplay[col] = None
+
+                # Check if we have valid GPS coordinates
                 try:
-                    coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
-                    if isinstance(coords, (list, tuple)) and len(coords) == 2:
-                        lat, lon = coords
-                        if lat is not None and lon is not None:
-                            popupHome = folium.Popup("💑 Maison",
-                                                     max_width = '150')
-                            folium.Marker(location = [float(lat), float(lon)],
-                                          popup = popupHome,
-                                          icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
-                except (ValueError, TypeError, IndexError) as e:
-                    print(f"Error adding home marker: {str(e)}")
-            
-            minimap.add_to(m)
-            draw.add_to(m)
-
-            #Ajout des données de forecast
-            try:
-                forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
-                dfDataDisplay['forecast'] = [forecast_data[spot].get(selectbox_daily_forecast) for spot in dfDataDisplay['nomSurfForecast']]
-            except Exception as e:
-                st.error("Erreur lors du chargement des prévisions de surf")
-                dfDataDisplay['forecast'] = [0] * len(dfDataDisplay)  # Default to 0 if forecast fails
-
-            if option_prix > 0:
-                try:
-                    dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix]
-                    is_option_prix_ok = True
-                except (ValueError, TypeError):
-                    st.warning("Impossible de filtrer par prix")
-                    is_option_prix_ok = False
-
-            if option_distance_h > 0:
-                try:
-                    dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h]
-                    is_option_distance_h_ok = True
-                except (ValueError, TypeError):
-                    st.warning("Impossible de filtrer par temps de trajet")
-                    is_option_distance_h_ok = False
-
-            if option_forecast > 0:
-                try:
-                    dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast]
-                except (ValueError, TypeError):
-                    st.warning("Impossible de filtrer par prévisions")
-
-            multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
-            dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)]
-
-            for nomSpot in dfDataDisplay['nomSpot'].tolist():
-                spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]
-                spot_infos = spot_infos_df.to_dict('records')[0]
-
-                try:
-                    spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
-                    if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
-                        try:
-                            colorIcon = displaymap_config.color_rating_prix(float(spot_infos['prix']))
-                        except (ValueError, TypeError):
-                            colorIcon = 'gray'  # Default color if price conversion fails
-                    elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
-                        colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
-                    else:
-                        try:
-                            colorIcon = displaymap_config.color_rating_distance(float(spot_infos['drivingTime']))
-                        except (ValueError, TypeError):
-                            colorIcon = 'gray'  # Default color if time conversion fails
-
-                    try:
-                        driving_dist = float(spot_infos['drivingDist'])
-                        driving_time = float(spot_infos['drivingTime'])
-                        prix = float(spot_infos['prix'])
-                    except (ValueError, TypeError):
-                        driving_dist = 0
-                        driving_time = 0
-                        prix = 0
-
-                    popupText = f'🌊 Spot : {nomSpot}<br>🏁 Distance : {round(driving_dist, 1)} km<br>⏳ Temps de trajet : {round(driving_time, 1)} h<br>💸 Prix (aller) : {round(prix, 2)} €<br>🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast} /10'
-                    popupSpot = folium.Popup(popupText,
-                                             max_width = '220')
-                    
-                    try:
-                        spot_coords = spot_infos['gpsSpot']
-                        if isinstance(spot_coords, (list, tuple)) and len(spot_coords) == 2:
-                            lat, lon = spot_coords
+                    if dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                        coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
+                        if isinstance(coords, (list, tuple)) and len(coords) == 2:
+                            lat, lon = coords
                             if lat is not None and lon is not None:
-                                marker = folium.Marker(location = [float(lat), float(lon)],
-                                                       popup = popupSpot,
-                                                       icon = folium.Icon(color = colorIcon, icon = ''))
-                                marker.add_to(m)
+                                gpsHome = [float(lat), float(lon)]
+                            else:
+                                raise ValueError("Invalid coordinates")
+                        else:
+                            raise ValueError("Invalid coordinate format")
+                    else:
+                        raise ValueError("No valid coordinates found")
+                except (ValueError, TypeError, IndexError) as e:
+                    st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
+                    gpsHome = base_position  # Use default coordinates
+                    dfDataDisplay = pd.DataFrame()  # Clear the display data
+
+                #Display maps
+                m = folium.Map(location = gpsHome,
+                               zoom_start = 5)
+                #Petits ajouts
+                marker_cluster = MarkerCluster().add_to(m)
+                minimap = MiniMap(toggle_display = True)
+                draw = Draw()
+                
+                # Only add home marker if we have valid data
+                if not dfDataDisplay.empty and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                    try:
+                        coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
+                        if isinstance(coords, (list, tuple)) and len(coords) == 2:
+                            lat, lon = coords
+                            if lat is not None and lon is not None:
+                                popupHome = folium.Popup("💑 Maison",
+                                                         max_width = '150')
+                                folium.Marker(location = [float(lat), float(lon)],
+                                              popup = popupHome,
+                                              icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
                     except (ValueError, TypeError, IndexError) as e:
-                        print(f"Erreur lors de l'ajout du marqueur pour le spot {nomSpot}: {str(e)}")
+                        print(f"Error adding home marker: {str(e)}")
+                
+                minimap.add_to(m)
+                draw.add_to(m)
+
+                #Ajout des données de forecast
+                try:
+                    if 'nomSurfForecast' in dfDataDisplay.columns and not dfDataDisplay['nomSurfForecast'].empty:
+                        forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
+                        dfDataDisplay['forecast'] = [forecast_data.get(spot, {}).get(selectbox_daily_forecast, 0) for spot in dfDataDisplay['nomSurfForecast']]
+                    else:
+                        dfDataDisplay['forecast'] = [0] * len(dfDataDisplay)
+                except Exception as e:
+                    st.error("Erreur lors du chargement des prévisions de surf")
+                    dfDataDisplay['forecast'] = [0] * len(dfDataDisplay)  # Default to 0 if forecast fails
+
+                if option_prix > 0:
+                    try:
+                        dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix]
+                        is_option_prix_ok = True
+                    except (ValueError, TypeError):
+                        st.warning("Impossible de filtrer par prix")
+                        is_option_prix_ok = False
+
+                if option_distance_h > 0:
+                    try:
+                        dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h]
+                        is_option_distance_h_ok = True
+                    except (ValueError, TypeError):
+                        st.warning("Impossible de filtrer par temps de trajet")
+                        is_option_distance_h_ok = False
+
+                if option_forecast > 0:
+                    try:
+                        dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast]
+                    except (ValueError, TypeError):
+                        st.warning("Impossible de filtrer par prévisions")
+
+                if 'paysSpot' in dfDataDisplay.columns:
+                    multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
+                    dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)]
+
+                for nomSpot in dfDataDisplay['nomSpot'].tolist():
+                    spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]
+                    spot_infos = spot_infos_df.to_dict('records')[0]
+
+                    try:
+                        spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
+                        if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
+                            try:
+                                colorIcon = displaymap_config.color_rating_prix(float(spot_infos['prix']))
+                            except (ValueError, TypeError):
+                                colorIcon = 'gray'  # Default color if price conversion fails
+                        elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
+                            colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
+                        else:
+                            try:
+                                colorIcon = displaymap_config.color_rating_distance(float(spot_infos['drivingTime']))
+                            except (ValueError, TypeError):
+                                colorIcon = 'gray'  # Default color if time conversion fails
+
+                        try:
+                            driving_dist = float(spot_infos['drivingDist'])
+                            driving_time = float(spot_infos['drivingTime'])
+                            prix = float(spot_infos['prix'])
+                        except (ValueError, TypeError):
+                            driving_dist = 0
+                            driving_time = 0
+                            prix = 0
+
+                        popupText = f'🌊 Spot : {nomSpot}<br>🏁 Distance : {round(driving_dist, 1)} km<br>⏳ Temps de trajet : {round(driving_time, 1)} h<br>💸 Prix (aller) : {round(prix, 2)} €<br>🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast} /10'
+                        popupSpot = folium.Popup(popupText,
+                                                 max_width = '220')
+                        
+                        try:
+                            spot_coords = spot_infos['gpsSpot']
+                            if isinstance(spot_coords, (list, tuple)) and len(spot_coords) == 2:
+                                lat, lon = spot_coords
+                                if lat is not None and lon is not None:
+                                    marker = folium.Marker(location = [float(lat), float(lon)],
+                                                           popup = popupSpot,
+                                                           icon = folium.Icon(color = colorIcon, icon = ''))
+                                    marker.add_to(m)
+                        except (ValueError, TypeError, IndexError) as e:
+                            print(f"Erreur lors de l'ajout du marqueur pour le spot {nomSpot}: {str(e)}")
+                            continue
+
+                    except Exception as e:
+                        print(f"Spot suivant non affiché : {nomSpot} - Erreur: {str(e)}")
                         continue
 
-                except Exception as e:
-                    print(f"Spot suivant non affiché : {nomSpot} - Erreur: {str(e)}")
-                    continue
-
-            if len(dfDataDisplay) > 0:
-                st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
-            if len(dfDataDisplay) == 0:
-                m = folium.Map(location = base_position,
-                               zoom_start = 6)
-                st.sidebar.error("Aucun résultat trouvé")
+                if len(dfDataDisplay) > 0:
+                    st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
+                if len(dfDataDisplay) == 0:
+                    m = folium.Map(location = base_position,
+                                   zoom_start = 6)
+                    st.sidebar.error("Aucun résultat trouvé")
     else:
         m = folium.Map(location = base_position,
                        zoom_start = 6)
