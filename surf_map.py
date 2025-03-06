@@ -382,6 +382,7 @@ def main():
                                 prix = spot_infos.get('prix')
                                 
                                 add_debug_info(f"Route info for {nomSpot}: dist={driving_dist}, time={driving_time}, prix={prix}")
+                                add_debug_info(f"Route info types: dist={type(driving_dist)}, time={type(driving_time)}, prix={type(prix)}")
                                 
                                 # Convert route values to float, handling None/NaN
                                 try:
@@ -389,6 +390,7 @@ def main():
                                     driving_time = float(driving_time) if driving_time is not None and not pd.isna(driving_time) else 0.0
                                     prix = float(prix) if prix is not None and not pd.isna(prix) else 0.0
                                     add_debug_info(f"Converted route info for {nomSpot}: dist={driving_dist}, time={driving_time}, prix={prix}")
+                                    add_debug_info(f"Converted types: dist={type(driving_dist)}, time={type(driving_time)}, prix={type(prix)}")
                                 except (ValueError, TypeError) as e:
                                     add_debug_info(f"Error converting route values for {nomSpot}: {str(e)}", "WARNING")
                                     driving_dist = 0.0
@@ -399,6 +401,7 @@ def main():
                                 try:
                                     spot_forecast = float(spot_infos.get('forecast', 0))
                                     add_debug_info(f"Forecast for {nomSpot}: {spot_forecast}")
+                                    add_debug_info(f"Forecast type: {type(spot_forecast)}")
                                 except (ValueError, TypeError, IndexError) as e:
                                     add_debug_info(f"Error getting forecast for {nomSpot}: {str(e)}", "WARNING")
                                     spot_forecast = 0.0
@@ -414,34 +417,43 @@ def main():
                                 add_debug_info(f"Marker color for {nomSpot}: {colorIcon}")
                                 
                                 # Create popup text with explicit formatting
-                                popupText = (
-                                    f'🌊 Spot : {nomSpot}<br>'
-                                    f'🏁 Distance : {driving_dist:.1f} km<br>'
-                                    f'⏳ Temps de trajet : {driving_time:.1f} h<br>'
-                                    f'💸 Prix (aller) : {prix:.2f} €<br>'
-                                    f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast:.1f} /10'
-                                )
-                                add_debug_info(f"Popup text for {nomSpot}: {popupText}")
+                                try:
+                                    popupText = (
+                                        f'🌊 Spot : {nomSpot}<br>'
+                                        f'🏁 Distance : {driving_dist:.1f} km<br>'
+                                        f'⏳ Temps de trajet : {driving_time:.1f} h<br>'
+                                        f'💸 Prix (aller) : {prix:.2f} €<br>'
+                                        f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast:.1f} /10'
+                                    )
+                                    add_debug_info(f"Popup text for {nomSpot}: {popupText}")
+                                except Exception as e:
+                                    add_debug_info(f"Error creating popup text for {nomSpot}: {str(e)}", "ERROR")
+                                    popupText = f'🌊 Spot : {nomSpot}'
                                 
-                                popupSpot = folium.Popup(popupText, max_width='220')
+                                try:
+                                    popupSpot = folium.Popup(popupText, max_width='220')
+                                    add_debug_info(f"Successfully created popup for {nomSpot}")
+                                except Exception as e:
+                                    add_debug_info(f"Error creating popup for {nomSpot}: {str(e)}", "ERROR")
+                                    popupSpot = folium.Popup(f'🌊 Spot : {nomSpot}', max_width='220')
                                 
                                 # Add marker to map with explicit float conversion
-                                marker = folium.Marker(
-                                    location=[float(lat), float(lon)],
-                                    popup=popupSpot,
-                                    icon=folium.Icon(color=colorIcon, icon='')
-                                )
-                                marker.add_to(marker_cluster)
-                                add_debug_info(f"Successfully added marker for {nomSpot}")
-                                
-                            except Exception as e:
-                                add_debug_info(f"Error processing spot {nomSpot}: {str(e)}", "ERROR")
-                                add_debug_info(traceback.format_exc(), "ERROR")
-                                failed_spots.append({
-                                    'name': nomSpot,
-                                    'reason': f'Error processing spot: {str(e)}'
-                                })
-                                continue
+                                try:
+                                    marker = folium.Marker(
+                                        location=[float(lat), float(lon)],
+                                        popup=popupSpot,
+                                        icon=folium.Icon(color=colorIcon, icon='')
+                                    )
+                                    marker.add_to(marker_cluster)
+                                    add_debug_info(f"Successfully added marker for {nomSpot}")
+                                except Exception as e:
+                                    add_debug_info(f"Error adding marker for {nomSpot}: {str(e)}", "ERROR")
+                                    add_debug_info(traceback.format_exc(), "ERROR")
+                                    failed_spots.append({
+                                        'name': nomSpot,
+                                        'reason': f'Error adding marker: {str(e)}'
+                                    })
+                                    continue
 
                 if len(dfDataDisplay) > 0:
                     st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
