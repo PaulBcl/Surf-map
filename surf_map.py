@@ -171,7 +171,7 @@ def main():
             # et remplacer ci-dessous "dfData" par "dfDataDisplay"
 
             #On commence par regarder si la ville recherchée a déjà été requêtée
-            if address in dfData['villeOrigine'].tolist():
+            if 'villeOrigine' in dfData.columns and address in dfData['villeOrigine'].tolist():
                 dfDataDisplay = dfData[dfData['villeOrigine'] == address]
             else: #cas où la ville n'a jamais été requêtée
                 try:
@@ -187,17 +187,26 @@ def main():
                     dfDataDisplay = pd.DataFrame()
 
             if not dfDataDisplay.empty:
-                dfDataDisplay.rename(columns = {'index': 'nomSpot'}, inplace = True)
+                # Ensure all required columns exist with default values
+                required_columns = {
+                    'gpsVilleOrigine': None,
+                    'paysSpot': None,
+                    'nomSurfForecast': None,
+                    'prix': 0.0,
+                    'drivingTime': 0.0,
+                    'drivingDist': 0.0,
+                    'nomSpot': None,
+                    'gpsSpot': None,
+                    'forecast': 0.0
+                }
                 
-                # Ensure all required columns exist
-                required_columns = ['gpsVilleOrigine', 'paysSpot', 'nomSurfForecast', 'prix', 'drivingTime', 'drivingDist']
-                for col in required_columns:
+                for col, default_value in required_columns.items():
                     if col not in dfDataDisplay.columns:
-                        dfDataDisplay[col] = None
+                        dfDataDisplay[col] = default_value
 
                 # Check if we have valid GPS coordinates
                 try:
-                    if dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                    if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
                         coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
                         if isinstance(coords, (list, tuple)) and len(coords) == 2:
                             lat, lon = coords
@@ -212,7 +221,6 @@ def main():
                 except (ValueError, TypeError, IndexError) as e:
                     st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
                     gpsHome = base_position  # Use default coordinates
-                    dfDataDisplay = pd.DataFrame()  # Clear the display data
 
                 #Display maps
                 m = folium.Map(location = gpsHome,
@@ -223,7 +231,7 @@ def main():
                 draw = Draw()
                 
                 # Only add home marker if we have valid data
-                if not dfDataDisplay.empty and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                if not dfDataDisplay.empty and 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
                     try:
                         coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
                         if isinstance(coords, (list, tuple)) and len(coords) == 2:
@@ -253,23 +261,34 @@ def main():
 
                 if option_prix > 0:
                     try:
-                        dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix]
-                        is_option_prix_ok = True
+                        if 'prix' in dfDataDisplay.columns:
+                            dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix]
+                            is_option_prix_ok = True
+                        else:
+                            st.warning("Colonne 'prix' non trouvée")
+                            is_option_prix_ok = False
                     except (ValueError, TypeError):
                         st.warning("Impossible de filtrer par prix")
                         is_option_prix_ok = False
 
                 if option_distance_h > 0:
                     try:
-                        dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h]
-                        is_option_distance_h_ok = True
+                        if 'drivingTime' in dfDataDisplay.columns:
+                            dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h]
+                            is_option_distance_h_ok = True
+                        else:
+                            st.warning("Colonne 'drivingTime' non trouvée")
+                            is_option_distance_h_ok = False
                     except (ValueError, TypeError):
                         st.warning("Impossible de filtrer par temps de trajet")
                         is_option_distance_h_ok = False
 
                 if option_forecast > 0:
                     try:
-                        dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast]
+                        if 'forecast' in dfDataDisplay.columns:
+                            dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast]
+                        else:
+                            st.warning("Colonne 'forecast' non trouvée")
                     except (ValueError, TypeError):
                         st.warning("Impossible de filtrer par prévisions")
 
@@ -277,54 +296,63 @@ def main():
                     multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
                     dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)]
 
-                for nomSpot in dfDataDisplay['nomSpot'].tolist():
-                    spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]
-                    spot_infos = spot_infos_df.to_dict('records')[0]
+                # Only process spots if we have valid data
+                if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
+                    for nomSpot in dfDataDisplay['nomSpot'].tolist():
+                        spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]
+                        if not spot_infos_df.empty:
+                            spot_infos = spot_infos_df.to_dict('records')[0]
 
-                    try:
-                        spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
-                        if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
                             try:
-                                colorIcon = displaymap_config.color_rating_prix(float(spot_infos['prix']))
-                            except (ValueError, TypeError):
-                                colorIcon = 'gray'  # Default color if price conversion fails
-                        elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
-                            colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
-                        else:
-                            try:
-                                colorIcon = displaymap_config.color_rating_distance(float(spot_infos['drivingTime']))
-                            except (ValueError, TypeError):
-                                colorIcon = 'gray'  # Default color if time conversion fails
+                                spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
+                                if checkbox_choix_couleur == list_radio_choix_couleur[-1]: #corresponds à "prix" avec l'icône associée
+                                    try:
+                                        if 'prix' in spot_infos:
+                                            colorIcon = displaymap_config.color_rating_prix(float(spot_infos['prix']))
+                                        else:
+                                            colorIcon = 'gray'
+                                    except (ValueError, TypeError):
+                                        colorIcon = 'gray'  # Default color if price conversion fails
+                                elif checkbox_choix_couleur == list_radio_choix_couleur[0]: #corresponds à "forecast" avec l'icône associée
+                                    colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
+                                else:
+                                    try:
+                                        if 'drivingTime' in spot_infos:
+                                            colorIcon = displaymap_config.color_rating_distance(float(spot_infos['drivingTime']))
+                                        else:
+                                            colorIcon = 'gray'
+                                    except (ValueError, TypeError):
+                                        colorIcon = 'gray'  # Default color if time conversion fails
 
-                        try:
-                            driving_dist = float(spot_infos['drivingDist'])
-                            driving_time = float(spot_infos['drivingTime'])
-                            prix = float(spot_infos['prix'])
-                        except (ValueError, TypeError):
-                            driving_dist = 0
-                            driving_time = 0
-                            prix = 0
+                                try:
+                                    driving_dist = float(spot_infos.get('drivingDist', 0))
+                                    driving_time = float(spot_infos.get('drivingTime', 0))
+                                    prix = float(spot_infos.get('prix', 0))
+                                except (ValueError, TypeError):
+                                    driving_dist = 0
+                                    driving_time = 0
+                                    prix = 0
 
-                        popupText = f'🌊 Spot : {nomSpot}<br>🏁 Distance : {round(driving_dist, 1)} km<br>⏳ Temps de trajet : {round(driving_time, 1)} h<br>💸 Prix (aller) : {round(prix, 2)} €<br>🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast} /10'
-                        popupSpot = folium.Popup(popupText,
-                                                 max_width = '220')
-                        
-                        try:
-                            spot_coords = spot_infos['gpsSpot']
-                            if isinstance(spot_coords, (list, tuple)) and len(spot_coords) == 2:
-                                lat, lon = spot_coords
-                                if lat is not None and lon is not None:
-                                    marker = folium.Marker(location = [float(lat), float(lon)],
-                                                           popup = popupSpot,
-                                                           icon = folium.Icon(color = colorIcon, icon = ''))
-                                    marker.add_to(m)
-                        except (ValueError, TypeError, IndexError) as e:
-                            print(f"Erreur lors de l'ajout du marqueur pour le spot {nomSpot}: {str(e)}")
-                            continue
+                                popupText = f'🌊 Spot : {nomSpot}<br>🏁 Distance : {round(driving_dist, 1)} km<br>⏳ Temps de trajet : {round(driving_time, 1)} h<br>💸 Prix (aller) : {round(prix, 2)} €<br>🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast} /10'
+                                popupSpot = folium.Popup(popupText,
+                                                         max_width = '220')
+                                
+                                try:
+                                    spot_coords = spot_infos.get('gpsSpot')
+                                    if isinstance(spot_coords, (list, tuple)) and len(spot_coords) == 2:
+                                        lat, lon = spot_coords
+                                        if lat is not None and lon is not None:
+                                            marker = folium.Marker(location = [float(lat), float(lon)],
+                                                                   popup = popupSpot,
+                                                                   icon = folium.Icon(color = colorIcon, icon = ''))
+                                            marker.add_to(m)
+                                except (ValueError, TypeError, IndexError) as e:
+                                    print(f"Erreur lors de l'ajout du marqueur pour le spot {nomSpot}: {str(e)}")
+                                    continue
 
-                    except Exception as e:
-                        print(f"Spot suivant non affiché : {nomSpot} - Erreur: {str(e)}")
-                        continue
+                            except Exception as e:
+                                print(f"Spot suivant non affiché : {nomSpot} - Erreur: {str(e)}")
+                                continue
 
                 if len(dfDataDisplay) > 0:
                     st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
