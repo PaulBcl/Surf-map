@@ -454,6 +454,14 @@ def main():
                                         'reason': f'Error adding marker: {str(e)}'
                                     })
                                     continue
+                            except Exception as e:
+                                add_debug_info(f"Error processing spot {nomSpot}: {str(e)}", "ERROR")
+                                add_debug_info(traceback.format_exc(), "ERROR")
+                                failed_spots.append({
+                                    'name': nomSpot,
+                                    'reason': f'Error processing spot: {str(e)}'
+                                })
+                                continue
 
                 if len(dfDataDisplay) > 0:
                     st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
