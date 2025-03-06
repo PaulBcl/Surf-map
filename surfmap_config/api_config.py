@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import gmaps
-import gmaps.datasets
+import googlemaps
 import pandas as pd
 import logging
 import requests
@@ -14,7 +13,7 @@ import streamlit as st
 
 # Get API key from Streamlit secrets
 gmaps_api_key = st.secrets["google_maps_api_key"]
-gmaps.configure(api_key = gmaps_api_key)
+gmaps = googlemaps.Client(key=gmaps_api_key)
 
 #Variables
 consommation_moyenne = 6.5  # L/100km
