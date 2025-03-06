@@ -32,12 +32,11 @@ def get_google_data_gps_villeSpot(villeSpot, key_api_gmaps):
 
     return gps_villeSpot
 
-@st.cache(suppress_st_warning = True)
+@st.cache_data
 def load_spots(url_database):
     dfSpots = pd.read_excel(url_database)
     return dfSpots
 
-#@st.cache(suppress_st_warning = True)
 def load_data(dfSpots, key_api_gmaps):
     dfData = dfSpots.copy(deep = True) #le dataframe comprends les colonnes du fichier Excel
     dfData['villeOrigine'] = None

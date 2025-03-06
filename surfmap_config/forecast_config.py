@@ -23,7 +23,7 @@ def get_surfSpot_url(nomSurfForecast):
     soupContentPage = BeautifulSoup(contentPage, features = "html.parser")
     return soupContentPage
 
-@st.cache(suppress_st_warning = True)
+@st.cache_data
 def get_dayList_forecast():
     """
     On récupère les jours qui font l'objet de prévision puis on les met en forme
@@ -44,7 +44,7 @@ def get_dayList_forecast():
             pass
     return dayList
 
-@st.cache(suppress_st_warning = True)
+@st.cache_data
 def get_infos_surf_report(nomSurfForecast, dayList):
     """
     Récupère et met en forme les forecast pour le spot sélectionné
@@ -84,7 +84,7 @@ def get_infos_surf_report(nomSurfForecast, dayList):
 
     return dict_data_spot
 
-@st.cache(suppress_st_warning = True)
+@st.cache_data
 def load_forecast_data(spot_list, dayList):
     """
     Fait tourner la fonction get_infos_surf_report sur la liste des spots choisis
