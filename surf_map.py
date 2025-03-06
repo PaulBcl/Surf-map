@@ -298,6 +298,7 @@ def main():
 
                 # Only process spots if we have valid data
                 if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
+                    st.write(f"Processing {len(dfDataDisplay)} spots...")  # Debug info
                     for nomSpot in dfDataDisplay['nomSpot'].tolist():
                         spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
                         if not spot_infos_df.empty:
@@ -345,17 +346,19 @@ def main():
                                             marker = folium.Marker(location = [float(lat), float(lon)],
                                                                    popup = popupSpot,
                                                                    icon = folium.Icon(color = colorIcon, icon = ''))
-                                            marker.add_to(m)
+                                            marker.add_to(marker_cluster)  # Add to marker cluster instead of map directly
+                                            st.write(f"Added marker for spot {nomSpot} at coordinates {lat}, {lon}")  # Debug info
                                 except (ValueError, TypeError, IndexError) as e:
-                                    print(f"Erreur lors de l'ajout du marqueur pour le spot {nomSpot}: {str(e)}")
+                                    st.write(f"Error adding marker for spot {nomSpot}: {str(e)}")  # Debug info
                                     continue
 
                             except Exception as e:
-                                print(f"Spot suivant non affiché : {nomSpot} - Erreur: {str(e)}")
+                                st.write(f"Error processing spot {nomSpot}: {str(e)}")  # Debug info
                                 continue
 
                 if len(dfDataDisplay) > 0:
                     st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
+                    st.write(f"Map should display {len(dfDataDisplay)} spots")  # Debug info
                 if len(dfDataDisplay) == 0:
                     m = folium.Map(location = base_position,
                                    zoom_start = 6)
@@ -365,7 +368,8 @@ def main():
                        zoom_start = 6)
         st.warning('Aucune adresse sélectionnée')
 
-    st_folium(m, returned_objects=[])
+    # Display the map with all its components
+    st_folium(m, returned_objects=[], width=800, height=600)  # Added explicit dimensions
 
     st.markdown("- - -")
 
