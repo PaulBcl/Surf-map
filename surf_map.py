@@ -180,14 +180,13 @@ def main():
 
             dfDataDisplay.rename(columns = {'index': 'nomSpot'}, inplace = True)
 
-            #if len(dfDataDisplay) > 0:
-
-            #    geocode_gps = [(dfDataDisplay['gpsVilleOrigine'][0][0] + min(dfData['latitude']))/2,
-            #                    (dfDataDisplay['gpsVilleOrigine'][0][1] + min(dfData['longitude']))/2]
-
-            #else:
-
-            gpsHome = [dfDataDisplay['gpsVilleOrigine'][0][0], dfDataDisplay['gpsVilleOrigine'][0][1]]
+            # Check if we have valid GPS coordinates
+            if len(dfDataDisplay) > 0 and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                gpsHome = [dfDataDisplay['gpsVilleOrigine'].iloc[0][0], dfDataDisplay['gpsVilleOrigine'].iloc[0][1]]
+            else:
+                st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
+                gpsHome = base_position  # Use default coordinates
+                dfDataDisplay = pd.DataFrame()  # Clear the display data
 
             #Display maps
             m = folium.Map(location = gpsHome,
@@ -264,6 +263,6 @@ def main():
 
     st.markdown("- - -")
 
-    st.markdown(":copyright: 2021-2022 Paul Bâcle")
+    st.markdown(":copyright: 2021-2025 Paul Bâcle")
 
 main()
