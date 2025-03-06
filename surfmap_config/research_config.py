@@ -29,6 +29,12 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
         st.error(f"Could not get GPS coordinates for {villeSearch}")
         return None
 
+    # Convert any list coordinates to tuples for hashability
+    if 'gpsSpot' in dfData_temp.columns:
+        dfData_temp['gpsSpot'] = dfData_temp['gpsSpot'].apply(
+            lambda x: tuple(float(coord) for coord in x) if isinstance(x, (list, tuple)) else x
+        )
+
     # Get route information using Google Maps API
     dfData_request = dfData_temp[['gpsSpot', 'gpsVilleOrigine']]
     for row in dfData_request.itertuples():
