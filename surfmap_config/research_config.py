@@ -23,8 +23,8 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
     # Get GPS coordinates for the search city
     google_information_villeSearch = api_config.get_google_results(villeSearch, key_api_gmaps)
     if google_information_villeSearch['latitude'] is not None and google_information_villeSearch['longitude'] is not None:
-        # Convert coordinates to tuple for hashability
-        gps_data_villeSearch = (google_information_villeSearch['latitude'], google_information_villeSearch['longitude'])
+        # Store coordinates as a tuple for hashability
+        gps_data_villeSearch = (float(google_information_villeSearch['latitude']), float(google_information_villeSearch['longitude']))
         dfData_temp['gpsVilleOrigine'] = [gps_data_villeSearch] * len(dfData_temp)
     else:
         st.error(f"Could not get GPS coordinates for {villeSearch}")
@@ -33,28 +33,47 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
     # Get route information using Google Maps API
     dfData_request = dfData_temp[['gpsSpot', 'gpsVilleOrigine']]
     for row in dfData_request.itertuples():
-        list_gps_coordinates = list(row)
         try:
-            # Convert coordinates to lists for API call
-            origin = list(list_gps_coordinates[2])  # Convert tuple to list
-            destination = list(list_gps_coordinates[1])  # Convert tuple to list
+            # Get spot coordinates and convert to float
+            spot_coords = row.gpsSpot
+            if isinstance(spot_coords, (list, tuple)) and len(spot_coords) == 2:
+                spot_lat, spot_lon = float(spot_coords[0]), float(spot_coords[1])
+            else:
+                continue
+
+            # Get origin coordinates and convert to float
+            origin_coords = row.gpsVilleOrigine
+            if isinstance(origin_coords, (list, tuple)) and len(origin_coords) == 2:
+                origin_lat, origin_lon = float(origin_coords[0]), float(origin_coords[1])
+            else:
+                continue
+
+            # Format coordinates for API call
+            origin = [origin_lat, origin_lon]
+            destination = [spot_lat, spot_lon]
             
             route_info = api_config.get_google_route_info(
-                origin,  # origin
-                destination,  # destination
+                origin,
+                destination,
                 key_api_gmaps
             )
+            
             if route_info:
-                dfData_temp.loc[list_gps_coordinates[0], 'drivingDist'] = route_info['distance']
-                dfData_temp.loc[list_gps_coordinates[0], 'drivingTime'] = route_info['duration']
-                dfData_temp.loc[list_gps_coordinates[0], 'tollCost'] = route_info.get('toll_cost', 0)
-                dfData_temp.loc[list_gps_coordinates[0], 'gazPrice'] = route_info.get('fuel_cost', 0)
+                dfData_temp.loc[row.Index, 'drivingDist'] = route_info['distance']
+                dfData_temp.loc[row.Index, 'drivingTime'] = route_info['duration']
+                dfData_temp.loc[row.Index, 'tollCost'] = route_info.get('toll_cost', 0)
+                dfData_temp.loc[row.Index, 'gazPrice'] = route_info.get('fuel_cost', 0)
+            else:
+                dfData_temp.loc[row.Index, 'drivingDist'] = None
+                dfData_temp.loc[row.Index, 'drivingTime'] = None
+                dfData_temp.loc[row.Index, 'tollCost'] = None
+                dfData_temp.loc[row.Index, 'gazPrice'] = None
+
         except Exception as e:
-            st.write(f"Error getting route information for spot: {str(e)}")
-            dfData_temp.loc[list_gps_coordinates[0], 'drivingDist'] = None
-            dfData_temp.loc[list_gps_coordinates[0], 'drivingTime'] = None
-            dfData_temp.loc[list_gps_coordinates[0], 'tollCost'] = None
-            dfData_temp.loc[list_gps_coordinates[0], 'gazPrice'] = None
+            dfData_temp.loc[row.Index, 'drivingDist'] = None
+            dfData_temp.loc[row.Index, 'drivingTime'] = None
+            dfData_temp.loc[row.Index, 'tollCost'] = None
+            dfData_temp.loc[row.Index, 'gazPrice'] = None
             continue
 
     dfData_temp['prix'] = dfData_temp['tollCost'] + dfData_temp['gazPrice']
@@ -84,10 +103,8 @@ def get_surfspot_data(start_address, spot, dfSpots, key_api_gmaps):
                 'nomSurfForecast': nomSurfForecast
             }
         else:
-            st.warning(f'Impossible de calculer l\'itinéraire pour le spot {spot}')
             return None
     except Exception as e:
-        st.error(f"Error processing spot {spot}: {str(e)}")
         return None
 
     return result_spot
