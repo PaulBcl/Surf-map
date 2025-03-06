@@ -11,7 +11,7 @@ import json
 import traceback
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 #Asynchronous run on api
@@ -37,25 +37,8 @@ from surfmap_config import api_config
 #documents d'upload : https://github.com/MaartenGr/streamlit_guide
 #source : https://towardsdatascience.com/quickly-build-and-deploy-an-application-with-streamlit-988ca08c7e83
 
-# Initialize debug information storage
-if 'debug_info' not in st.session_state:
-    st.session_state.debug_info = []
-
-def add_debug_info(message, level="INFO"):
-    """Add debug information to the session state"""
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    st.session_state.debug_info.append(f"[{timestamp}] {level}: {message}")
-
 st.title('Surfmap')
 base_position = [48.8434864, 2.3859893]
-
-# Add debug expander at the start
-with st.expander("🔍 Debug Information", expanded=True):
-    st.write("This section shows detailed information about the application's operation and any potential issues.")
-    if st.button("Clear Debug Log"):
-        st.session_state.debug_info = []
-    for message in st.session_state.debug_info:
-        st.text(message)
 
 # Initialize session state
 session = get_session()
@@ -69,12 +52,8 @@ address = st.sidebar.text_input(label_address, value = '',
 try:
     url_database = "surfmap_config/surfspots.xlsx"
     dfSpots = surfmap_config.load_spots(url_database)
-    add_debug_info(f"Successfully loaded spots database with {len(dfSpots)} entries")
     dayList = forecast_config.get_dayList_forecast()
-    add_debug_info(f"Successfully loaded forecast days: {dayList}")
 except Exception as e:
-    add_debug_info(f"Error loading spots database: {str(e)}", "ERROR")
-    add_debug_info(traceback.format_exc(), "ERROR")
     st.error(f"Error loading spots database: {str(e)}")
     dfSpots = pd.DataFrame()
     dayList = []
@@ -97,11 +76,7 @@ def main():
     
     try:
         dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key)
-        add_debug_info(f"Successfully loaded data with {len(dfData)} entries")
-        add_debug_info(f"DataFrame columns: {dfData.columns.tolist()}")
     except Exception as e:
-        add_debug_info(f"Error loading data: {str(e)}", "ERROR")
-        add_debug_info(traceback.format_exc(), "ERROR")
         st.error(f"Error loading data: {str(e)}")
         dfData = pd.DataFrame()
 
@@ -345,21 +320,14 @@ def main():
 
                 # Only process spots if we have valid data
                 if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
-                    add_debug_info(f"Processing {len(dfDataDisplay)} spots")
                     for nomSpot in dfDataDisplay['nomSpot'].tolist():
                         spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
                         if not spot_infos_df.empty:
                             spot_infos = spot_infos_df.to_dict('records')[0]
                             spot_coords = spot_infos.get('gpsSpot')
                             
-                            # Log spot information for debugging
-                            add_debug_info(f"Processing spot: {nomSpot}")
-                            add_debug_info(f"Spot coordinates: {spot_coords}")
-                            add_debug_info(f"Spot info: {spot_infos}")
-                            
                             # Skip if coordinates are invalid
                             if not spot_coords or not isinstance(spot_coords, (list, tuple)) or len(spot_coords) != 2:
-                                add_debug_info(f"Invalid coordinates for spot {nomSpot}: {spot_coords}", "WARNING")
                                 failed_spots.append({
                                     'name': nomSpot,
                                     'reason': 'Invalid coordinates'
@@ -369,7 +337,6 @@ def main():
                             try:
                                 lat, lon = spot_coords
                                 if lat is None or lon is None:
-                                    add_debug_info(f"Missing coordinates for spot {nomSpot}", "WARNING")
                                     failed_spots.append({
                                         'name': nomSpot,
                                         'reason': 'Invalid coordinates'
@@ -381,22 +348,12 @@ def main():
                                 driving_time = spot_infos.get('drivingTime')
                                 prix = spot_infos.get('prix')
                                 
-                                add_debug_info(f"Raw route info for {nomSpot}:")
-                                add_debug_info(f"  driving_dist: {driving_dist} (type: {type(driving_dist)})")
-                                add_debug_info(f"  driving_time: {driving_time} (type: {type(driving_time)})")
-                                add_debug_info(f"  prix: {prix} (type: {type(prix)})")
-                                
                                 # Convert route values to float, handling None/NaN
                                 try:
                                     driving_dist = float(driving_dist) if driving_dist is not None and not pd.isna(driving_dist) else 0.0
                                     driving_time = float(driving_time) if driving_time is not None and not pd.isna(driving_time) else 0.0
                                     prix = float(prix) if prix is not None and not pd.isna(prix) else 0.0
-                                    add_debug_info(f"Converted route info for {nomSpot}:")
-                                    add_debug_info(f"  driving_dist: {driving_dist} (type: {type(driving_dist)})")
-                                    add_debug_info(f"  driving_time: {driving_time} (type: {type(driving_time)})")
-                                    add_debug_info(f"  prix: {prix} (type: {type(prix)})")
                                 except (ValueError, TypeError) as e:
-                                    add_debug_info(f"Error converting route values for {nomSpot}: {str(e)}", "WARNING")
                                     driving_dist = 0.0
                                     driving_time = 0.0
                                     prix = 0.0
@@ -404,9 +361,7 @@ def main():
                                 # Get forecast value
                                 try:
                                     spot_forecast = float(spot_infos.get('forecast', 0))
-                                    add_debug_info(f"Forecast for {nomSpot}: {spot_forecast} (type: {type(spot_forecast)})")
                                 except (ValueError, TypeError, IndexError) as e:
-                                    add_debug_info(f"Error getting forecast for {nomSpot}: {str(e)}", "WARNING")
                                     spot_forecast = 0.0
                                 
                                 # Determine marker color based on selected criteria
@@ -417,8 +372,6 @@ def main():
                                 else:  # Distance
                                     colorIcon = displaymap_config.color_rating_distance(driving_time)
                                 
-                                add_debug_info(f"Marker color for {nomSpot}: {colorIcon}")
-                                
                                 # Create popup text with explicit formatting
                                 try:
                                     popupText = (
@@ -428,16 +381,12 @@ def main():
                                         f'💸 Prix (aller) : {prix:.2f} €<br>'
                                         f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast:.1f} /10'
                                     )
-                                    add_debug_info(f"Popup text for {nomSpot}: {popupText}")
                                 except Exception as e:
-                                    add_debug_info(f"Error creating popup text for {nomSpot}: {str(e)}", "ERROR")
                                     popupText = f'🌊 Spot : {nomSpot}'
                                 
                                 try:
                                     popupSpot = folium.Popup(popupText, max_width='220')
-                                    add_debug_info(f"Successfully created popup for {nomSpot}")
                                 except Exception as e:
-                                    add_debug_info(f"Error creating popup for {nomSpot}: {str(e)}", "ERROR")
                                     popupSpot = folium.Popup(f'🌊 Spot : {nomSpot}', max_width='220')
                                 
                                 # Add marker to map with explicit float conversion
@@ -448,18 +397,13 @@ def main():
                                         icon=folium.Icon(color=colorIcon, icon='')
                                     )
                                     marker.add_to(marker_cluster)
-                                    add_debug_info(f"Successfully added marker for {nomSpot}")
                                 except Exception as e:
-                                    add_debug_info(f"Error adding marker for {nomSpot}: {str(e)}", "ERROR")
-                                    add_debug_info(traceback.format_exc(), "ERROR")
                                     failed_spots.append({
                                         'name': nomSpot,
                                         'reason': f'Error adding marker: {str(e)}'
                                     })
                                     continue
                             except Exception as e:
-                                add_debug_info(f"Error processing spot {nomSpot}: {str(e)}", "ERROR")
-                                add_debug_info(traceback.format_exc(), "ERROR")
                                 failed_spots.append({
                                     'name': nomSpot,
                                     'reason': f'Error processing spot: {str(e)}'
