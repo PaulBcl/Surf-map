@@ -10,3 +10,4 @@ openpyxl>=3.0.10  # For Excel file support
 aiohttp>=3.8.0
 beautifulsoup4>=4.12.0
 selenium>=4.0.0
+googlemaps>=4.10.0
