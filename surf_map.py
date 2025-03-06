@@ -20,7 +20,7 @@ import folium
 from folium.plugins import MarkerCluster, MiniMap, Draw, Fullscreen
 from folium.features import CustomIcon
 #Streamlit custom
-import SessionState
+from SessionState import get_session
 from streamlit_folium import folium_static #https://github.com/randyzwitch/streamlit-folium
 #from st_annotated_text import annotated_text #https://github.com/tvst/st-annotated-text
 #Config perso
@@ -35,6 +35,9 @@ from surfmap_config import api_config
 st.title('Surfmap')
 base_position = [48.8434864, 2.3859893]
 
+# Initialize session state
+session = get_session()
+
 #Sidebar & data
 label_address = "Renseignez votre ville"
 address = st.sidebar.text_input(label_address, value = '',
@@ -45,6 +48,15 @@ url_database = "surfmap_config/surfspots.xlsx"
 dfSpots = surfmap_config.load_spots(url_database)
 dayList = forecast_config.get_dayList_forecast()
 
+# Initialize session state variables if they don't exist
+if not hasattr(session, 'run_id'):
+    session.run_id = str(time.time())
+if not hasattr(session, 'address'):
+    session.address = None
+if not hasattr(session, 'dfData'):
+    session.dfData = None
+if not hasattr(session, 'map'):
+    session.map = None
 
 def main():
 
@@ -79,7 +91,6 @@ def main():
     option_distance_h = 0
     is_option_prix_ok = False
     is_option_distance_h_ok = False
-    session = SessionState.get(run_id = 0)
 
     #if checkbox:
     label_sidebar_profil = "Profil"
