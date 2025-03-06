@@ -24,33 +24,18 @@ toll_cost_per_km = 0.05  # €/km (average toll cost in France)
 #data
 url_database = "surfmap_config/surfspots.xlsx"
 
-# ## Fonctions Gmaps
-
-#@st.cache(suppress_st_warning = True)
+@st.cache_data
 def get_google_results(address, key_api_gmaps, return_full_response = False):
     """
     Get geocode results from Google Maps Geocoding API.
-
-    Note, that in the case of multiple google geocode reuslts, this function returns details of the FIRST result.
-
-    @param address: String address as accurate as possible. For Example "18 Grafton Street, Dublin, Ireland"
-    @param api_key: String API key if present from google.
-                    If supplied, requests will use your allowance from the Google API. If not, you
-                    will be limited to the free usage of 2500 requests per day.
-    @param return_full_response: Boolean to indicate if you'd like to return the full response from google. This
-                    is useful if you'd like additional location details for storage or parsing later.
     """
     try:
-        # Set up your Geocoding url
         geocode_url = "https://maps.googleapis.com/maps/api/geocode/json?address={}".format(address)
         if key_api_gmaps is not None:
             geocode_url = geocode_url + "&key={}".format(key_api_gmaps)
-        # Ping google for the reuslts:
         results = requests.get(geocode_url)
-        # Results will be in JSON format - convert to dict using requests functionality
         results = results.json()
 
-        # if there's no results or an error, return empty results.
         if len(results['results']) == 0:
             output = {
                 "formatted_address" : None,
@@ -74,7 +59,6 @@ def get_google_results(address, key_api_gmaps, return_full_response = False):
                                       if 'postal_code' in x.get('types')])
             }
 
-        # Append some other details:
         output['input_string'] = address
         output['number_of_results'] = len(results['results'])
         output['status'] = results.get('status')
@@ -85,7 +69,8 @@ def get_google_results(address, key_api_gmaps, return_full_response = False):
         print(e)
     return output
 
-def get_route_info(start_coords, end_coords, key_api_gmaps):
+@st.cache_data
+def get_google_route_info(start_coords, end_coords, key_api_gmaps):
     """
     Get route information using Google Maps Directions API.
     
@@ -114,54 +99,41 @@ def get_route_info(start_coords, end_coords, key_api_gmaps):
         # Calculate costs
         fuel_cost = (distance * consommation_moyenne / 100) * prix_essence  # Fuel cost in €
         toll_cost = distance * toll_cost_per_km  # Estimated toll cost in €
-        total_cost = fuel_cost + toll_cost
         
         return {
-            'drivingDist': round(distance, 1),
-            'drivingTime': round(duration, 2),
-            'tollCost': round(toll_cost, 2),
-            'gazPrice': round(fuel_cost, 2),
-            'totalCost': round(total_cost, 2)
+            'distance': round(distance, 1),
+            'duration': round(duration, 2),
+            'toll_cost': round(toll_cost, 2),
+            'fuel_cost': round(fuel_cost, 2)
         }
     except Exception as e:
         print(f"Error getting route information: {str(e)}")
         return None
 
-def get_road_info_no_infos(start_address, arrival_address, key_api_gmaps, key_api_michelin=None,
-                          consommation_moyenne=6.5, prix_essence=1.7):
+@st.cache_data
+def get_route_info(start_address, end_address, key_api_gmaps):
     """
     Get route information using addresses.
     """
     try:
         # Get coordinates for both addresses
         start_results = get_google_results(start_address, key_api_gmaps)
-        end_results = get_google_results(arrival_address, key_api_gmaps)
+        end_results = get_google_results(end_address, key_api_gmaps)
         
         if not start_results['latitude'] or not end_results['latitude']:
             return None
             
         # Get route information using coordinates
-        return get_route_info(
+        return get_google_route_info(
             [start_results['latitude'], start_results['longitude']],
             [end_results['latitude'], end_results['longitude']],
             key_api_gmaps
         )
     except Exception as e:
-        print(f"Error in get_road_info_no_infos: {str(e)}")
+        print(f"Error in get_route_info: {str(e)}")
         return None
 
-def get_road_info_avec_infos(gpsOrigine, gpsTarget, key_api_michelin=None,
-                            consommation_moyenne=6.5, prix_essence=1.7):
-    """
-    Get route information using GPS coordinates.
-    """
-    try:
-        return get_route_info(gpsOrigine, gpsTarget, gmaps_api_key)
-    except Exception as e:
-        print(f"Error in get_road_info_avec_infos: {str(e)}")
-        return None
-
-# Keep the existing helper functions
+@st.cache_data
 def google_results(df_to_search, key_api_gmaps):
     df_google_results = []
     for address in df_to_search:
@@ -170,10 +142,11 @@ def google_results(df_to_search, key_api_gmaps):
                                                 return_full_response = True)
             df_google_results.append(geocode_result)
         except Exception as e:
-            logger.exception(e)
-            logger.error("Major error while searching Google results with {}".format(address))
+            logging.exception(e)
+            logging.error("Major error while searching Google results with {}".format(address))
     return df_google_results
 
+@st.cache_data
 def df_geocoding(df_adresses):
     try:
         df_geocoded = []

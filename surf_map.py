@@ -21,7 +21,7 @@ from folium.plugins import MarkerCluster, MiniMap, Draw, Fullscreen
 from folium.features import CustomIcon
 #Streamlit custom
 from SessionState import get_session
-from streamlit_folium import folium_static #https://github.com/randyzwitch/streamlit-folium
+from streamlit_folium import folium_static, st_folium #https://github.com/randyzwitch/streamlit-folium
 #from st_annotated_text import annotated_text #https://github.com/tvst/st-annotated-text
 #Config perso
 from surfmap_config import surfmap_config
@@ -174,7 +174,7 @@ def main():
             if address in dfData['villeOrigine'].tolist():
                 dfDataDisplay = dfData[dfData['villeOrigine'] == address]
             else: #cas où la ville n'a jamais été requêtée
-                dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_config.gmaps_api_key, api_config.key_michelin)
+                dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_config.gmaps_api_key)
                 dfData = pd.concat([dfData, dfSearchVille]) #appel à la fonction de merging de research_config
                 dfDataDisplay = dfData[dfData['villeOrigine'] == address]
 
@@ -260,7 +260,7 @@ def main():
                        zoom_start = 6)
         st.warning('Aucune adresse sélectionnée')
 
-    folium_static(m)
+    st_folium(m, returned_objects=[])
 
     st.markdown("- - -")
 
