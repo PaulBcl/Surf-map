@@ -61,6 +61,8 @@ if not hasattr(session, 'map'):
 def main():
     # Initialize dfDataDisplay as an empty DataFrame
     dfDataDisplay = pd.DataFrame()
+    # Initialize failed_spots list
+    failed_spots = []
     
     dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key)
 
@@ -371,48 +373,6 @@ def main():
     st_folium(m, returned_objects=[], width=800, height=600)  # Added explicit dimensions
 
     # Add expander for failed spots information
-    failed_spots = []
-    if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
-        for nomSpot in dfDataDisplay['nomSpot'].tolist():
-            spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
-            if not spot_infos_df.empty:
-                spot_infos = spot_infos_df.to_dict('records')[0]
-                spot_coords = spot_infos.get('gpsSpot')
-                
-                # Check for invalid coordinates
-                if not spot_coords or not isinstance(spot_coords, (list, tuple)) or len(spot_coords) != 2:
-                    failed_spots.append({
-                        'name': nomSpot,
-                        'reason': 'Invalid coordinates'
-                    })
-                    continue
-                
-                # Check for route calculation - only consider it failed if the values are None or NaN
-                driving_dist = spot_infos.get('drivingDist')
-                driving_time = spot_infos.get('drivingTime')
-                
-                if (driving_dist is None or pd.isna(driving_dist)) and (driving_time is None or pd.isna(driving_time)):
-                    failed_spots.append({
-                        'name': nomSpot,
-                        'reason': 'Could not calculate route'
-                    })
-                else:
-                    # If we have valid coordinates and at least one valid route value, the spot should be displayed
-                    try:
-                        lat, lon = spot_coords
-                        if lat is not None and lon is not None:
-                            marker = folium.Marker(
-                                location=[float(lat), float(lon)],
-                                popup=folium.Popup(f'🌊 Spot : {nomSpot}', max_width='220'),
-                                icon=folium.Icon(color='gray', icon='')
-                            )
-                            marker.add_to(marker_cluster)
-                    except (ValueError, TypeError, IndexError):
-                        failed_spots.append({
-                            'name': nomSpot,
-                            'reason': 'Error adding marker to map'
-                        })
-
     if failed_spots:
         with st.expander("⚠️ Spots non affichés sur la carte", expanded=False):
             st.write("Les spots suivants n'ont pas pu être affichés sur la carte :")
