@@ -197,12 +197,10 @@ def main():
                 try:
                     if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
                         coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
-                        st.write(f"Raw coordinates from DataFrame: {coords}")  # Debug info
                         if isinstance(coords, (list, tuple)) and len(coords) == 2:
                             lat, lon = coords
                             if lat is not None and lon is not None:
                                 gpsHome = [float(lat), float(lon)]
-                                st.write(f"Using GPS coordinates for {address}: {gpsHome}")  # Debug info
                             else:
                                 raise ValueError("Invalid coordinates")
                         else:
@@ -212,7 +210,6 @@ def main():
                 except (ValueError, TypeError, IndexError) as e:
                     st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
                     gpsHome = base_position  # Use default coordinates
-                    st.write(f"Using default coordinates: {gpsHome}")  # Debug info
 
                 #Display maps
                 m = folium.Map(location = gpsHome,
@@ -234,9 +231,8 @@ def main():
                                 folium.Marker(location = [float(lat), float(lon)],
                                               popup = popupHome,
                                               icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
-                                st.write(f"Added home marker at {lat}, {lon}")  # Debug info
                     except (ValueError, TypeError, IndexError) as e:
-                        st.write(f"Error adding home marker: {str(e)}")  # Debug info
+                        pass  # Silently handle any errors when adding home marker
                 
                 minimap.add_to(m)
                 draw.add_to(m)
@@ -291,18 +287,11 @@ def main():
 
                 # Only process spots if we have valid data
                 if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
-                    st.write(f"Processing {len(dfDataDisplay)} spots...")  # Debug info
-                    st.write(f"DataFrame columns: {dfDataDisplay.columns.tolist()}")  # Debug DataFrame structure
-                    
                     for nomSpot in dfDataDisplay['nomSpot'].tolist():
                         spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
                         if not spot_infos_df.empty:
                             spot_infos = spot_infos_df.to_dict('records')[0]
-                            
-                            # Debug info for spot coordinates
                             spot_coords = spot_infos.get('gpsSpot')
-                            st.write(f"Spot {nomSpot} coordinates: {spot_coords}")  # Debug info
-                            st.write(f"Spot {nomSpot} full info: {spot_infos}")  # Debug full spot info
 
                             try:
                                 spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
@@ -346,23 +335,14 @@ def main():
                                                                    popup = popupSpot,
                                                                    icon = folium.Icon(color = colorIcon, icon = ''))
                                             marker.add_to(marker_cluster)  # Add to marker cluster instead of map directly
-                                            st.write(f"Added marker for spot {nomSpot} at coordinates {lat}, {lon}")  # Debug info
-                                        else:
-                                            st.write(f"Invalid coordinates for spot {nomSpot}: {spot_coords}")  # Debug info
-                                    else:
-                                        st.write(f"Invalid coordinate format for spot {nomSpot}: {spot_coords}")  # Debug info
                                 except (ValueError, TypeError, IndexError) as e:
-                                    st.write(f"Error adding marker for spot {nomSpot}: {str(e)}")  # Debug info
                                     continue
 
                             except Exception as e:
-                                st.write(f"Error processing spot {nomSpot}: {str(e)}")  # Debug info
                                 continue
 
                 if len(dfDataDisplay) > 0:
                     st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
-                    st.write(f"Map should display {len(dfDataDisplay)} spots")  # Debug info
-                    st.write(f"Final DataFrame structure: {dfDataDisplay.head()}")  # Debug final DataFrame
                 if len(dfDataDisplay) == 0:
                     m = folium.Map(location = base_position,
                                    zoom_start = 6)
@@ -383,16 +363,40 @@ def main():
             if not spot_infos_df.empty:
                 spot_infos = spot_infos_df.to_dict('records')[0]
                 spot_coords = spot_infos.get('gpsSpot')
+                
+                # Check for invalid coordinates
                 if not spot_coords or not isinstance(spot_coords, (list, tuple)) or len(spot_coords) != 2:
                     failed_spots.append({
                         'name': nomSpot,
                         'reason': 'Invalid coordinates'
                     })
-                elif spot_infos.get('drivingDist') is None or spot_infos.get('drivingTime') is None:
+                    continue
+                
+                # Check for route calculation - only consider it failed if the values are None or NaN
+                driving_dist = spot_infos.get('drivingDist')
+                driving_time = spot_infos.get('drivingTime')
+                
+                if (driving_dist is None or pd.isna(driving_dist)) and (driving_time is None or pd.isna(driving_time)):
                     failed_spots.append({
                         'name': nomSpot,
                         'reason': 'Could not calculate route'
                     })
+                else:
+                    # If we have valid coordinates and at least one valid route value, the spot should be displayed
+                    try:
+                        lat, lon = spot_coords
+                        if lat is not None and lon is not None:
+                            marker = folium.Marker(
+                                location=[float(lat), float(lon)],
+                                popup=folium.Popup(f'🌊 Spot : {nomSpot}', max_width='220'),
+                                icon=folium.Icon(color='gray', icon='')
+                            )
+                            marker.add_to(marker_cluster)
+                    except (ValueError, TypeError, IndexError):
+                        failed_spots.append({
+                            'name': nomSpot,
+                            'reason': 'Error adding marker to map'
+                        })
 
     if failed_spots:
         with st.expander("⚠️ Spots non affichés sur la carte", expanded=False):
