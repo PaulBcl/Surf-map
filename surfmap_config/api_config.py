@@ -33,31 +33,53 @@ def get_google_results(address, key_api_gmaps, return_full_response = False):
         geocode_url = "https://maps.googleapis.com/maps/api/geocode/json?address={}".format(address)
         if key_api_gmaps is not None:
             geocode_url = geocode_url + "&key={}".format(key_api_gmaps)
+        
+        st.write(f"Making request to Google Maps API for address: {address}")  # Debug info
         results = requests.get(geocode_url)
         results = results.json()
-
-        if len(results['results']) == 0:
-            output = {
-                "formatted_address" : None,
+        
+        st.write(f"Google Maps API response status: {results.get('status')}")  # Debug info
+        
+        if results.get('status') != 'OK':
+            st.error(f"Google Maps API error: {results.get('status')} - {results.get('error_message', 'No error message')}")
+            return {
+                "formatted_address": None,
                 "latitude": None,
                 "longitude": None,
                 "accuracy": None,
                 "google_place_id": None,
                 "type": None,
-                "postcode": None
+                "postcode": None,
+                "status": results.get('status'),
+                "error_message": results.get('error_message')
             }
-        else:
-            answer = results['results'][0]
-            output = {
-                "formatted_address" : answer.get('formatted_address'),
-                "latitude": answer.get('geometry').get('location').get('lat'),
-                "longitude": answer.get('geometry').get('location').get('lng'),
-                "accuracy": answer.get('geometry').get('location_type'),
-                "google_place_id": answer.get("place_id"),
-                "type": ",".join(answer.get('types')),
-                "postcode": ",".join([x['long_name'] for x in answer.get('address_components')
-                                      if 'postal_code' in x.get('types')])
+
+        if len(results['results']) == 0:
+            st.warning(f"No results found for address: {address}")
+            return {
+                "formatted_address": None,
+                "latitude": None,
+                "longitude": None,
+                "accuracy": None,
+                "google_place_id": None,
+                "type": None,
+                "postcode": None,
+                "status": "ZERO_RESULTS"
             }
+            
+        answer = results['results'][0]
+        output = {
+            "formatted_address": answer.get('formatted_address'),
+            "latitude": answer.get('geometry').get('location').get('lat'),
+            "longitude": answer.get('geometry').get('location').get('lng'),
+            "accuracy": answer.get('geometry').get('location_type'),
+            "google_place_id": answer.get("place_id"),
+            "type": ",".join(answer.get('types')),
+            "postcode": ",".join([x['long_name'] for x in answer.get('address_components')
+                                  if 'postal_code' in x.get('types')])
+        }
+        
+        st.write(f"Successfully geocoded address: {address} to coordinates: {output['latitude']}, {output['longitude']}")  # Debug info
 
         output['input_string'] = address
         output['number_of_results'] = len(results['results'])
@@ -65,28 +87,41 @@ def get_google_results(address, key_api_gmaps, return_full_response = False):
         if return_full_response is True:
             output['response'] = results
     except Exception as e:
-        print("Couldn't find Google results on address : " + str(address))
-        print(e)
+        st.error(f"Error geocoding address '{address}': {str(e)}")
+        return {
+            "formatted_address": None,
+            "latitude": None,
+            "longitude": None,
+            "accuracy": None,
+            "google_place_id": None,
+            "type": None,
+            "postcode": None,
+            "status": "ERROR",
+            "error_message": str(e)
+        }
     return output
 
 @st.cache_data
 def get_google_route_info(start_coords, end_coords, key_api_gmaps):
     """
     Get route information using Google Maps Directions API.
-    
-    @param start_coords: List [lat, lng] of starting point
-    @param end_coords: List [lat, lng] of ending point
-    @param key_api_gmaps: Google Maps API key
     """
     try:
+        if not start_coords or not end_coords or None in start_coords or None in end_coords:
+            st.error("Invalid coordinates provided for route calculation")
+            return None
+            
         # Format coordinates for Google Maps API
         origin = f"{start_coords[0]},{start_coords[1]}"
         destination = f"{end_coords[0]},{end_coords[1]}"
+        
+        st.write(f"Calculating route from {origin} to {destination}")  # Debug info
         
         # Get directions from Google Maps
         directions = gmaps.directions(origin, destination, mode='driving')
         
         if not directions:
+            st.warning("No route found between the specified coordinates")
             return None
             
         route = directions[0]
@@ -100,14 +135,18 @@ def get_google_route_info(start_coords, end_coords, key_api_gmaps):
         fuel_cost = (distance * consommation_moyenne / 100) * prix_essence  # Fuel cost in €
         toll_cost = distance * toll_cost_per_km  # Estimated toll cost in €
         
-        return {
+        result = {
             'distance': round(distance, 1),
             'duration': round(duration, 2),
             'toll_cost': round(toll_cost, 2),
             'fuel_cost': round(fuel_cost, 2)
         }
+        
+        st.write(f"Route calculated successfully: {result}")  # Debug info
+        return result
+        
     except Exception as e:
-        print(f"Error getting route information: {str(e)}")
+        st.error(f"Error calculating route: {str(e)}")
         return None
 
 @st.cache_data
