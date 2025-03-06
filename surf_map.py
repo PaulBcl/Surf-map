@@ -59,8 +59,10 @@ if not hasattr(session, 'map'):
     session.map = None
 
 def main():
-
-    dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key) #on pourra déplacer au sein du main pour n'initier le peuplement de la base de données que lors du premier appel de la BDD
+    # Initialize dfDataDisplay as an empty DataFrame
+    dfDataDisplay = pd.DataFrame()
+    
+    dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key)
 
     st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
     st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
@@ -157,19 +159,6 @@ def main():
 
     if address != '':
         if validation_button or option_prix >= 0 or option_distance_h >= 0 or option_forecast >= 0:
-
-            #dict_data_from_address = surfmap_config.load_surfspot_data(address, dfSpots,
-            #                                                          surfmap_config.gmaps_api_key, surfmap_config.key_michelin)
-            #dfData = pd.DataFrame.from_dict(dict_data_from_address, orient = 'index').reset_index()
-            #dfData.rename(columns = {'index': 'nomSpot'}, inplace = True)
-            #dfData['latitude'] = [x[0] for x in dfData['gps']]
-            #dfData['longitude'] = [x[-1] for x in dfData['gps']]
-
-            #geocode_address = surfmap_config.get_google_results(address, surfmap_config.gmaps_api_key, return_full_response = True)
-
-            #Insérer ici la boucle sur le dataset global (i.e. vérification présence ville requêtée) + filtrage pour affichage dataframe
-            # et remplacer ci-dessous "dfData" par "dfDataDisplay"
-
             #On commence par regarder si la ville recherchée a déjà été requêtée
             if 'villeOrigine' in dfData.columns and address in dfData['villeOrigine'].tolist():
                 dfDataDisplay = dfData[dfData['villeOrigine'] == address].copy()  # Create a copy to avoid SettingWithCopyWarning
