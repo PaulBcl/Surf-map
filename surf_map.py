@@ -208,6 +208,7 @@ def main():
                 try:
                     if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
                         coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
+                        st.write(f"Raw coordinates from DataFrame: {coords}")  # Debug raw coordinates
                         if isinstance(coords, (list, tuple)) and len(coords) == 2:
                             lat, lon = coords
                             if lat is not None and lon is not None:
@@ -302,6 +303,8 @@ def main():
                 # Only process spots if we have valid data
                 if not dfDataDisplay.empty and 'nomSpot' in dfDataDisplay.columns:
                     st.write(f"Processing {len(dfDataDisplay)} spots...")  # Debug info
+                    st.write(f"DataFrame columns: {dfDataDisplay.columns.tolist()}")  # Debug DataFrame structure
+                    
                     for nomSpot in dfDataDisplay['nomSpot'].tolist():
                         spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
                         if not spot_infos_df.empty:
@@ -310,6 +313,7 @@ def main():
                             # Debug info for spot coordinates
                             spot_coords = spot_infos.get('gpsSpot')
                             st.write(f"Spot {nomSpot} coordinates: {spot_coords}")  # Debug info
+                            st.write(f"Spot {nomSpot} full info: {spot_infos}")  # Debug full spot info
 
                             try:
                                 spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
@@ -369,6 +373,7 @@ def main():
                 if len(dfDataDisplay) > 0:
                     st.sidebar.success("Recherche terminée (" + str(len(dfDataDisplay)) + " résultats) !")
                     st.write(f"Map should display {len(dfDataDisplay)} spots")  # Debug info
+                    st.write(f"Final DataFrame structure: {dfDataDisplay.head()}")  # Debug final DataFrame
                 if len(dfDataDisplay) == 0:
                     m = folium.Map(location = base_position,
                                    zoom_start = 6)
