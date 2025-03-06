@@ -103,20 +103,16 @@ def get_google_route_info(start_coords, end_coords, key_api_gmaps):
     """
     try:
         if not start_coords or not end_coords or None in start_coords or None in end_coords:
-            st.error(f"Invalid coordinates: start={start_coords}, end={end_coords}")
             return None
             
         # Format coordinates for Google Maps API
         origin = f"{start_coords[0]},{start_coords[1]}"
         destination = f"{end_coords[0]},{end_coords[1]}"
         
-        st.info(f"Requesting directions from {origin} to {destination}")
-        
         # Get directions from Google Maps
         directions = gmaps.directions(origin, destination, mode='driving')
         
         if not directions:
-            st.error("No directions found")
             return None
             
         route = directions[0]
@@ -137,11 +133,9 @@ def get_google_route_info(start_coords, end_coords, key_api_gmaps):
             'fuel_cost': round(fuel_cost, 2)
         }
         
-        st.success(f"Successfully retrieved route info: {result}")
         return result
         
     except Exception as e:
-        st.error(f"Error getting route info: {str(e)}")
         return None
 
 @st.cache_data
@@ -175,8 +169,7 @@ def google_results(df_to_search, key_api_gmaps):
                                                 return_full_response = True)
             df_google_results.append(geocode_result)
         except Exception as e:
-            logging.exception(e)
-            logging.error("Major error while searching Google results with {}".format(address))
+            continue
     return df_google_results
 
 @st.cache_data
@@ -186,6 +179,5 @@ def df_geocoding(df_adresses):
         for address in df_adresses:
             df_geocoded.append([address['latitude'], address['longitude']])
     except Exception as e:
-        logging.error("Couldn't geocode adresses in the dataframe")
-        logging.exception(e)
+        return []
     return df_geocoded

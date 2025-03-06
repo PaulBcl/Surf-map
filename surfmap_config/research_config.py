@@ -26,7 +26,6 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
         gps_data_villeSearch = (float(google_information_villeSearch['latitude']), float(google_information_villeSearch['longitude']))
         dfData_temp['gpsVilleOrigine'] = [gps_data_villeSearch] * len(dfData_temp)
     else:
-        st.error(f"Could not get GPS coordinates for {villeSearch}")
         return None
 
     # Convert any list coordinates to tuples for hashability
@@ -49,7 +48,6 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
             if isinstance(spot_coords, (list, tuple)) and len(spot_coords) == 2:
                 spot_lat, spot_lon = float(spot_coords[0]), float(spot_coords[1])
             else:
-                st.warning(f"Invalid spot coordinates for row {row.Index}: {spot_coords}")
                 continue
 
             # Get origin coordinates and convert to float
@@ -57,14 +55,12 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
             if isinstance(origin_coords, (list, tuple)) and len(origin_coords) == 2:
                 origin_lat, origin_lon = float(origin_coords[0]), float(origin_coords[1])
             else:
-                st.warning(f"Invalid origin coordinates for row {row.Index}: {origin_coords}")
                 continue
 
             # Format coordinates for API call
             origin = [origin_lat, origin_lon]
             destination = [spot_lat, spot_lon]
             
-            st.info(f"Getting route info for spot {row.Index} from {origin} to {destination}")
             route_info = api_config.get_google_route_info(
                 origin,
                 destination,
@@ -77,12 +73,8 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
                 dfData_temp.loc[row.Index, 'drivingTime'] = float(route_info['duration'])
                 dfData_temp.loc[row.Index, 'tollCost'] = float(route_info.get('toll_cost', 0))
                 dfData_temp.loc[row.Index, 'gazPrice'] = float(route_info.get('fuel_cost', 0))
-                st.success(f"Successfully retrieved route info for spot {row.Index}")
-            else:
-                st.error(f"Failed to get route info for spot {row.Index}")
 
         except Exception as e:
-            st.error(f"Error getting route info for spot {row.Index}: {str(e)}")
             continue
 
     # Calculate total price as sum of toll and fuel costs
@@ -102,7 +94,6 @@ def get_surfspot_data(start_address, spot, dfSpots, key_api_gmaps):
         paysSpot = dfSpots[dfSpots['nomSpot'] == spot]['paysSpot'].tolist()[0]
         nomSurfForecast = dfSpots[dfSpots['nomSpot'] == spot]['nomSurfForecast'].tolist()[0]
     except:
-        st.error(f'Impossible de trouver le spot {spot} dans la table de référencement')
         return None
 
     try:
