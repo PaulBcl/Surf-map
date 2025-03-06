@@ -168,8 +168,25 @@ def main():
                 try:
                     dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_config.gmaps_api_key)
                     if dfSearchVille is not None and not dfSearchVille.empty:
-                        dfData = pd.concat([dfData, dfSearchVille]) #appel à la fonction de merging de research_config
-                        dfDataDisplay = dfData[dfData['villeOrigine'] == address].copy()  # Create a copy
+                        # Ensure both DataFrames have the same columns and handle empty/NA values
+                        common_columns = list(set(dfData.columns) & set(dfSearchVille.columns))
+                        dfData = dfData[common_columns].copy()
+                        dfSearchVille = dfSearchVille[common_columns].copy()
+                        
+                        # Fill NA values with appropriate defaults
+                        numeric_columns = ['drivingDist', 'drivingTime', 'tollCost', 'gazPrice', 'prix', 'forecast']
+                        for col in numeric_columns:
+                            if col in common_columns:
+                                dfData[col] = pd.to_numeric(dfData[col], errors='coerce').fillna(0.0)
+                                dfSearchVille[col] = pd.to_numeric(dfSearchVille[col], errors='coerce').fillna(0.0)
+                        
+                        # Handle empty DataFrames before concatenation
+                        if dfData.empty and dfSearchVille.empty:
+                            dfDataDisplay = pd.DataFrame()
+                        else:
+                            # Concatenate the DataFrames
+                            dfData = pd.concat([dfData, dfSearchVille], ignore_index=True)
+                            dfDataDisplay = dfData[dfData['villeOrigine'] == address].copy()  # Create a copy
                     else:
                         st.error(f"Impossible de trouver des spots pour l'adresse '{address}'")
                         dfDataDisplay = pd.DataFrame()
@@ -241,16 +258,16 @@ def main():
 
                 #Ajout des données de forecast
                 try:
-                    if 'nomSurfForecast' in dfDataDisplay.columns and not dfDataDisplay['nomSurfForecast'].empty:
+                    if not dfDataDisplay.empty and 'nomSurfForecast' in dfDataDisplay.columns and not dfDataDisplay['nomSurfForecast'].empty:
                         forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
                         dfDataDisplay.loc[:, 'forecast'] = [forecast_data.get(spot, {}).get(selectbox_daily_forecast, 0) for spot in dfDataDisplay['nomSurfForecast']]
                     else:
-                        dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay)
+                        dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay) if not dfDataDisplay.empty else []
                 except Exception as e:
                     st.error("Erreur lors du chargement des prévisions de surf")
-                    dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay)  # Default to 0 if forecast fails
+                    dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay) if not dfDataDisplay.empty else []
 
-                if option_prix > 0:
+                if option_prix > 0 and not dfDataDisplay.empty:
                     try:
                         if 'prix' in dfDataDisplay.columns:
                             dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix].copy()
@@ -262,7 +279,7 @@ def main():
                         st.warning("Impossible de filtrer par prix")
                         is_option_prix_ok = False
 
-                if option_distance_h > 0:
+                if option_distance_h > 0 and not dfDataDisplay.empty:
                     try:
                         if 'drivingTime' in dfDataDisplay.columns:
                             dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h].copy()
@@ -274,7 +291,7 @@ def main():
                         st.warning("Impossible de filtrer par temps de trajet")
                         is_option_distance_h_ok = False
 
-                if option_forecast > 0:
+                if option_forecast > 0 and not dfDataDisplay.empty:
                     try:
                         if 'forecast' in dfDataDisplay.columns:
                             dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast].copy()
@@ -283,7 +300,7 @@ def main():
                     except (ValueError, TypeError):
                         st.warning("Impossible de filtrer par prévisions")
 
-                if 'paysSpot' in dfDataDisplay.columns:
+                if not dfDataDisplay.empty and 'paysSpot' in dfDataDisplay.columns:
                     multiselect_pays = [x.split()[-1] for x in multiselect_pays] #permet d'enlever les émoji pour la recherche
                     dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)].copy()
 
@@ -315,22 +332,23 @@ def main():
                                 # Get route information
                                 driving_dist = spot_infos.get('drivingDist')
                                 driving_time = spot_infos.get('drivingTime')
+                                prix = spot_infos.get('prix')
                                 
                                 # Convert route values to float, handling None/NaN
                                 try:
-                                    driving_dist = float(driving_dist) if driving_dist is not None and not pd.isna(driving_dist) else 0
-                                    driving_time = float(driving_time) if driving_time is not None and not pd.isna(driving_time) else 0
-                                    prix = float(spot_infos.get('prix', 0)) if spot_infos.get('prix') is not None and not pd.isna(spot_infos.get('prix')) else 0
+                                    driving_dist = float(driving_dist) if driving_dist is not None and not pd.isna(driving_dist) else 0.0
+                                    driving_time = float(driving_time) if driving_time is not None and not pd.isna(driving_time) else 0.0
+                                    prix = float(prix) if prix is not None and not pd.isna(prix) else 0.0
                                 except (ValueError, TypeError):
-                                    driving_dist = 0
-                                    driving_time = 0
-                                    prix = 0
+                                    driving_dist = 0.0
+                                    driving_time = 0.0
+                                    prix = 0.0
                                 
                                 # Get forecast value
                                 try:
-                                    spot_forecast = float(dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot]['forecast'].iloc[0])
+                                    spot_forecast = float(spot_infos.get('forecast', 0))
                                 except (ValueError, TypeError, IndexError):
-                                    spot_forecast = 0
+                                    spot_forecast = 0.0
                                 
                                 # Determine marker color based on selected criteria
                                 if checkbox_choix_couleur == list_radio_choix_couleur[-1]:  # Price
@@ -340,11 +358,17 @@ def main():
                                 else:  # Distance
                                     colorIcon = displaymap_config.color_rating_distance(driving_time)
                                 
-                                # Create popup text
-                                popupText = f'🌊 Spot : {nomSpot}<br>🏁 Distance : {round(driving_dist, 1)} km<br>⏳ Temps de trajet : {round(driving_time, 1)} h<br>💸 Prix (aller) : {round(prix, 2)} €<br>🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast} /10'
+                                # Create popup text with explicit formatting
+                                popupText = (
+                                    f'🌊 Spot : {nomSpot}<br>'
+                                    f'🏁 Distance : {driving_dist:.1f} km<br>'
+                                    f'⏳ Temps de trajet : {driving_time:.1f} h<br>'
+                                    f'💸 Prix (aller) : {prix:.2f} €<br>'
+                                    f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast:.1f} /10'
+                                )
                                 popupSpot = folium.Popup(popupText, max_width='220')
                                 
-                                # Add marker to map
+                                # Add marker to map with explicit float conversion
                                 marker = folium.Marker(
                                     location=[float(lat), float(lon)],
                                     popup=popupSpot,
