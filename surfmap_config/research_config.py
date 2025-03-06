@@ -17,7 +17,6 @@ from surfmap_config import api_config
 @st.cache_data
 def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
     dfData_temp = dfData.drop_duplicates(['nomSpot', 'villeSpot'])
-
     dfData_temp['villeOrigine'] = villeSearch
 
     # Get GPS coordinates for the search city
@@ -59,23 +58,25 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
             )
             
             if route_info:
-                dfData_temp.loc[row.Index, 'drivingDist'] = route_info['distance']
-                dfData_temp.loc[row.Index, 'drivingTime'] = route_info['duration']
-                dfData_temp.loc[row.Index, 'tollCost'] = route_info.get('toll_cost', 0)
-                dfData_temp.loc[row.Index, 'gazPrice'] = route_info.get('fuel_cost', 0)
+                # Store route information as float values
+                dfData_temp.loc[row.Index, 'drivingDist'] = float(route_info['distance'])
+                dfData_temp.loc[row.Index, 'drivingTime'] = float(route_info['duration'])
+                dfData_temp.loc[row.Index, 'tollCost'] = float(route_info.get('toll_cost', 0))
+                dfData_temp.loc[row.Index, 'gazPrice'] = float(route_info.get('fuel_cost', 0))
             else:
-                dfData_temp.loc[row.Index, 'drivingDist'] = None
-                dfData_temp.loc[row.Index, 'drivingTime'] = None
-                dfData_temp.loc[row.Index, 'tollCost'] = None
-                dfData_temp.loc[row.Index, 'gazPrice'] = None
+                dfData_temp.loc[row.Index, 'drivingDist'] = 0.0
+                dfData_temp.loc[row.Index, 'drivingTime'] = 0.0
+                dfData_temp.loc[row.Index, 'tollCost'] = 0.0
+                dfData_temp.loc[row.Index, 'gazPrice'] = 0.0
 
         except Exception as e:
-            dfData_temp.loc[row.Index, 'drivingDist'] = None
-            dfData_temp.loc[row.Index, 'drivingTime'] = None
-            dfData_temp.loc[row.Index, 'tollCost'] = None
-            dfData_temp.loc[row.Index, 'gazPrice'] = None
+            dfData_temp.loc[row.Index, 'drivingDist'] = 0.0
+            dfData_temp.loc[row.Index, 'drivingTime'] = 0.0
+            dfData_temp.loc[row.Index, 'tollCost'] = 0.0
+            dfData_temp.loc[row.Index, 'gazPrice'] = 0.0
             continue
 
+    # Calculate total price as sum of toll and fuel costs
     dfData_temp['prix'] = dfData_temp['tollCost'] + dfData_temp['gazPrice']
 
     return dfData_temp
