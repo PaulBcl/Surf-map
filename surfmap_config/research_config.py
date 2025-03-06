@@ -85,6 +85,12 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
     # Calculate total price as sum of toll and fuel costs
     dfData_temp['prix'] = dfData_temp['tollCost'] + dfData_temp['gazPrice']
 
+    # Ensure all numeric columns are float type
+    numeric_columns = ['drivingDist', 'drivingTime', 'tollCost', 'gazPrice', 'prix']
+    for col in numeric_columns:
+        if col in dfData_temp.columns:
+            dfData_temp[col] = pd.to_numeric(dfData_temp[col], errors='coerce').fillna(0.0)
+
     return dfData_temp
 
 @st.cache_data
