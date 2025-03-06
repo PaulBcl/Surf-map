@@ -35,6 +35,11 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
             lambda x: tuple(float(coord) for coord in x) if isinstance(x, (list, tuple)) else x
         )
 
+    # Initialize numeric columns with default values
+    numeric_columns = ['drivingDist', 'drivingTime', 'tollCost', 'gazPrice', 'prix']
+    for col in numeric_columns:
+        dfData_temp[col] = 0.0
+
     # Get route information using Google Maps API
     dfData_request = dfData_temp[['gpsSpot', 'gpsVilleOrigine']]
     for row in dfData_request.itertuples():
@@ -69,24 +74,14 @@ def add_new_spot_to_dfData(villeSearch, dfData, key_api_gmaps):
                 dfData_temp.loc[row.Index, 'drivingTime'] = float(route_info['duration'])
                 dfData_temp.loc[row.Index, 'tollCost'] = float(route_info.get('toll_cost', 0))
                 dfData_temp.loc[row.Index, 'gazPrice'] = float(route_info.get('fuel_cost', 0))
-            else:
-                dfData_temp.loc[row.Index, 'drivingDist'] = 0.0
-                dfData_temp.loc[row.Index, 'drivingTime'] = 0.0
-                dfData_temp.loc[row.Index, 'tollCost'] = 0.0
-                dfData_temp.loc[row.Index, 'gazPrice'] = 0.0
 
         except Exception as e:
-            dfData_temp.loc[row.Index, 'drivingDist'] = 0.0
-            dfData_temp.loc[row.Index, 'drivingTime'] = 0.0
-            dfData_temp.loc[row.Index, 'tollCost'] = 0.0
-            dfData_temp.loc[row.Index, 'gazPrice'] = 0.0
             continue
 
     # Calculate total price as sum of toll and fuel costs
     dfData_temp['prix'] = dfData_temp['tollCost'] + dfData_temp['gazPrice']
 
     # Ensure all numeric columns are float type
-    numeric_columns = ['drivingDist', 'drivingTime', 'tollCost', 'gazPrice', 'prix']
     for col in numeric_columns:
         if col in dfData_temp.columns:
             dfData_temp[col] = pd.to_numeric(dfData_temp[col], errors='coerce').fillna(0.0)
