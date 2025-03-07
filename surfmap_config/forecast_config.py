@@ -94,29 +94,63 @@ def format_surf_forecast_url(nomSurfForecast: str) -> str:
 def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
     """
     Gets the URL for a surf spot, with improved error handling and logging.
+    Uses Playwright to handle JavaScript-rendered content.
     """
     formatted_name = format_surf_forecast_url(nomSurfForecast)
     url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
     logger.info(f"Attempting to fetch data from: {url}")
     
-    session = create_session()
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Connection': 'keep-alive',
-    }
-    
     try:
-        response = session.get(url, headers=headers, timeout=20)
-        if response.status_code == 404:
-            logger.warning(f"URL Not Found (404): {url}")
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            context = browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            )
+            page = context.new_page()
+            
+            # Set longer timeout for initial load
+            page.set_default_timeout(30000)
+            
+            # Navigate to the page
+            logger.info("Loading page with Playwright...")
+            page.goto(url, wait_until='networkidle')
+            
+            # Wait for specific elements that indicate the content has loaded
+            logger.info("Waiting for forecast table to load...")
+            page.wait_for_selector('.forecast-table__basic', timeout=10000)
+            
+            # Get the rendered content
+            content = page.content()
+            browser.close()
+            
+            if "404 Not Found" in content:
+                logger.warning(f"URL Not Found (404): {url}")
+                return None
+                
+            return content
+            
+    except Exception as e:
+        logger.error(f"Error fetching data with Playwright for {formatted_name}: {str(e)}")
+        # Fallback to requests method
+        logger.info("Falling back to requests method...")
+        session = create_session()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive',
+        }
+        
+        try:
+            response = session.get(url, headers=headers, timeout=20)
+            if response.status_code == 404:
+                logger.warning(f"URL Not Found (404): {url}")
+                return None
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching data with requests for {formatted_name}: {str(e)}")
             return None
-        response.raise_for_status()
-        return response.text
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching data for {formatted_name}: {str(e)}")
-        return None
 
 # Extract forecast data with structured parsing and robust error handling
 def extract_forecast_data(nomSurfForecast: str) -> Dict:
@@ -136,32 +170,32 @@ def extract_forecast_data(nomSurfForecast: str) -> Dict:
             return {'error': 'Access blocked - possible bot detection'}
 
         # Rating (out of 10)
-        ratings = soup.select('.forecast-table-rating img')
+        ratings = soup.select('.forecast-table__rating img')  # Updated selector
         logger.info(f"Found {len(ratings)} rating elements")
         logger.info(f"Rating elements: {[img.get('alt') for img in ratings]}")
         data['ratings'] = [int(img.get('alt', 0)) for img in ratings if img.get('alt', '').isdigit()]
         logger.info(f"Parsed ratings: {data['ratings']}")
 
         # Wave height
-        wave_heights = soup.select('.forecast-table__wave-height .forecast-table__value')
+        wave_heights = soup.select('.forecast-table__cell--wave-height .forecast-table__value')  # Updated selector
         logger.info(f"Found {len(wave_heights)} wave height elements")
         logger.info(f"Wave height elements: {[wh.text.strip() for wh in wave_heights]}")
         data['wave_heights'] = [wh.text.strip() for wh in wave_heights]
 
         # Wave period
-        wave_periods = soup.select('.forecast-table__wave-period .forecast-table__value')
+        wave_periods = soup.select('.forecast-table__cell--wave-period .forecast-table__value')  # Updated selector
         logger.info(f"Found {len(wave_periods)} wave period elements")
         logger.info(f"Wave period elements: {[wp.text.strip() for wp in wave_periods]}")
         data['wave_periods'] = [wp.text.strip() for wp in wave_periods]
 
         # Wave energy
-        wave_energies = soup.select('.forecast-table__wave-energy .forecast-table__value')
+        wave_energies = soup.select('.forecast-table__cell--wave-energy .forecast-table__value')  # Updated selector
         logger.info(f"Found {len(wave_energies)} wave energy elements")
         logger.info(f"Wave energy elements: {[we.text.strip() for we in wave_energies]}")
         data['wave_energies'] = [we.text.strip() for we in wave_energies]
 
         # Wind speed
-        wind_speeds = soup.select('.forecast-table__wind-speed .forecast-table__value')
+        wind_speeds = soup.select('.forecast-table__cell--wind-speed .forecast-table__value')  # Updated selector
         logger.info(f"Found {len(wind_speeds)} wind speed elements")
         logger.info(f"Wind speed elements: {[ws.text.strip() for ws in wind_speeds]}")
         data['wind_speeds'] = [ws.text.strip() for ws in wind_speeds]
