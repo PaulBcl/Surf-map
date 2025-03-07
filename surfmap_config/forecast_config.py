@@ -87,13 +87,26 @@ def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
 
 # AI-powered extraction for missing data
 def ai_extract_forecast(content: str) -> Dict:
-    prompt = f"Extract surf forecast details (ratings, wave heights, wave periods, wave energy, wind speed) from the following HTML: {content[:1000]}... (truncated)"
-    response = openai.Completion.create(
-        model="gpt-4",
-        prompt=prompt,
-        max_tokens=500
-    )
-    return response["choices"][0]["text"].strip()
+    try:
+        prompt = f"Extract surf forecast details (ratings, wave heights, wave periods, wave energy, wind speed) from the following HTML: {content[:1000]}... (truncated)"
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a surf forecast data extractor. Extract the following information: ratings (0-10), wave heights, wave periods, wave energy, and wind speed."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Error in AI extraction: {str(e)}")
+        return {
+            'ratings': ['0.0'] * 7,  # Default to 0.0 for 7 days
+            'wave_heights': ['N/A'] * 7,
+            'wave_periods': ['N/A'] * 7,
+            'wave_energies': ['N/A'] * 7,
+            'wind_speeds': ['N/A'] * 7
+        }
 
 # Extract forecast data
 def extract_forecast_data(nomSurfForecast: str) -> Dict:
@@ -117,10 +130,13 @@ def extract_forecast_data(nomSurfForecast: str) -> Dict:
         data['wave_energies'] = extract_data('.forecast-table__wave-energy .forecast-table__value')
         data['wind_speeds'] = extract_data('.forecast-table__wind-speed .forecast-table__value')
 
+        # Check if any data is missing and use AI as fallback
         for key, value in data.items():
             if all(v == "N/A" for v in value):
                 logger.warning(f"Missing {key} for {nomSurfForecast}, using AI")
-                data[key] = ai_extract_forecast(content)
+                ai_data = ai_extract_forecast(content)
+                if isinstance(ai_data, dict):
+                    data[key] = ai_data.get(key, ["N/A"] * 7)
 
     except Exception as e:
         logger.error(f"Error parsing forecast data for {nomSurfForecast}: {str(e)}")

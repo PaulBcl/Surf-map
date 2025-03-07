@@ -76,6 +76,13 @@ def main():
     # Initialize map with default position
     m = folium.Map(location=base_position, zoom_start=6)
     
+    # Add map components
+    marker_cluster = MarkerCluster().add_to(m)
+    minimap = MiniMap(toggle_display=True)
+    draw = Draw()
+    minimap.add_to(m)
+    draw.add_to(m)
+    
     try:
         dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key)
     except Exception as e:
@@ -420,13 +427,6 @@ def main():
                     st.sidebar.error("Aucun résultat trouvé")
     else:
         st.warning('Aucune adresse sélectionnée')
-
-    # Add map components
-    marker_cluster = MarkerCluster().add_to(m)
-    minimap = MiniMap(toggle_display=True)
-    draw = Draw()
-    minimap.add_to(m)
-    draw.add_to(m)
 
     # Display the map with all its components
     st_folium(m, returned_objects=[], width=800, height=600)
