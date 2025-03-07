@@ -91,18 +91,33 @@ def format_surf_forecast_url(nomSurfForecast: str) -> str:
     """
     # Special cases mapping
     special_cases = {
+        # Existing spots
         "plagedu-loch": "Plage-du-Loch",
-        "plouharnel-la-guerite-tata-beach": "Plouharnel",
+        "plouharnel-la-guerite-tata-beach": "Plouharnel-La-Guerite-Tata-Beach",
         "pointedu-couregan": "Pointe-du-Couregan",
         "port-bara": "Port-Bara",
         "port-rhu": "Port-Rhu",
         "sainte-barbe": "Sainte-Barbe",
         "thoulars": "Thoulars",
-        "penthievre": "Penthievre"
+        "penthievre": "Penthievre",
+        # New spots
+        "la-torche": "La-Torche",
+        "siouville-dielette-left": "Siouville",
+        "anael": "Anael",
+        "anse-de-vauville": "Anse-de-Vauville",
+        "etretat": "Etretat",
+        "le-havre": "Le-Havre",
+        "les-dunes": "Les-Dunes",
+        "saint-gilles-croix-de-vie": "Saint-Gilles-Croix-de-Vie",
+        "bud-bud": "Bud-Bud",
+        "cote-des-basques": "Cote-des-Basques",
+        "la-ciotat": "La-Ciotat",
+        "la-marina": "La-Marina",
+        "biarritz-grande-plage": "Biarritz-Grande-Plage"
     }
     
-    # Convert to lowercase for comparison
-    spot_lower = nomSurfForecast.lower()
+    # Convert to lowercase and replace spaces/underscores with hyphens
+    spot_lower = nomSurfForecast.lower().replace(' ', '-').replace('_', '-')
     
     # Check if it's a special case
     if spot_lower in special_cases:
@@ -113,9 +128,10 @@ def format_surf_forecast_url(nomSurfForecast: str) -> str:
     formatted_parts = []
     for part in parts:
         # Handle multi-word parts (e.g., "la guerite")
-        words = part.split()
-        formatted_words = [word.capitalize() for word in words]
-        formatted_parts.append(' '.join(formatted_words))
+        if part in ['la', 'le', 'les', 'de', 'du', 'des']:
+            formatted_parts.append(part.capitalize())
+        else:
+            formatted_parts.append(part.capitalize())
     
     return '-'.join(formatted_parts)
 
@@ -335,20 +351,27 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
         Dictionary mapping spot names to their forecast data by day
     """
     forecasts = {}
+    
+    # Process each spot
     for spot in spot_names:
         if not spot:  # Skip empty spot names
             continue
             
         try:
-            data = extract_forecast_data(spot)
-            if 'error' in data:
-                st_log(f"Error getting forecast for {spot}: {data['error']}")
+            # Initialize forecast_data here to ensure it's always defined
+            forecast_data = {'error': 'Not processed'}
+            
+            # Get the forecast data
+            forecast_data = extract_forecast_data(spot)
+            
+            if 'error' in forecast_data:
+                st_log(f"Error getting forecast for {spot}: {forecast_data['error']}")
                 forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
                 continue
                 
             # Create a mapping of ratings to days
             spot_forecasts = {}
-            ratings = data.get('ratings', [])
+            ratings = forecast_data.get('ratings', [])
             
             # Ensure we have enough ratings for each day
             if len(ratings) >= len(day_list):
