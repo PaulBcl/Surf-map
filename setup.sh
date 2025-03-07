@@ -1,3 +1,19 @@
+#!/bin/bash
+
+# Make script exit on first error
+set -e
+
+# Install Python dependencies
+echo "Installing Python dependencies..."
+pip install -r requirements.txt
+
+# Install Playwright browsers
+echo "Installing Playwright browsers..."
+playwright install chromium
+playwright install-deps
+
+# Setup streamlit
+echo "Setting up Streamlit..."
 mkdir -p ~/.streamlit/
 
 echo "\

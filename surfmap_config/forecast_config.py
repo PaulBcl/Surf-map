@@ -12,7 +12,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from typing import Optional, Dict, List, Union, Any
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -171,6 +171,36 @@ def validate_forecast_data(data: Dict[str, Any]) -> bool:
             
     return True
 
+def get_dayList_forecast() -> List[str]:
+    """Get list of forecast days in the correct format."""
+    # List of sample spots to try
+    sample_spots = ["Penthievre", "Hossegor", "Lacanau"]
+    
+    for spot in sample_spots:
+        try:
+            data = extract_forecast_data(spot)
+            if not data.get('error'):
+                days = []
+                for forecast in data['forecasts']:
+                    day_str = forecast.timestamp.strftime('%A %d')
+                    if day_str not in days:
+                        days.append(day_str)
+                if days:  # Only return if we got some days
+                    return days
+            logger.warning(f"Could not get forecast data for {spot}")
+        except Exception as e:
+            logger.warning(f"Error getting forecast for {spot}: {str(e)}")
+            continue
+    
+    # Fallback: return next 7 days
+    logger.warning("Using fallback day list")
+    days = []
+    today = datetime.now()
+    for i in range(7):
+        day = today + timedelta(days=i)
+        days.append(day.strftime('%A %d'))
+    return days
+
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, Dict[str, float]]:
     """
@@ -185,10 +215,14 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
     """
     forecasts = {}
     for spot in spot_names:
+        if not spot:  # Skip empty spot names
+            continue
+            
         try:
             data = extract_forecast_data(spot)
             if 'error' in data:
                 logger.warning(f"Error getting forecast for {spot}: {data['error']}")
+                forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
                 continue
                 
             spot_forecasts = {}
@@ -198,36 +232,21 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
                 # Find matching day in day_list (handle partial matches)
                 matching_day = next((d for d in day_list if day_str in d), None)
                 if matching_day:
-                    spot_forecasts[matching_day] = forecast.rating
+                    spot_forecasts[matching_day] = float(forecast.rating)
+                    
+            # Fill in missing days with 0.0
+            for day in day_list:
+                if day not in spot_forecasts:
+                    spot_forecasts[day] = 0.0
                     
             forecasts[spot] = spot_forecasts
             
         except Exception as e:
             logger.error(f"Failed to get forecast for {spot}: {str(e)}")
+            forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
             continue
             
     return forecasts
-
-def get_dayList_forecast() -> List[str]:
-    """Get list of forecast days in the correct format."""
-    try:
-        # Get a sample spot to extract the day list
-        sample_spot = "Penthievre"  # You may want to make this configurable
-        data = extract_forecast_data(sample_spot)
-        if 'error' in data:
-            logger.warning(f"Error getting day list: {data['error']}")
-            return []
-            
-        days = []
-        for forecast in data['forecasts']:
-            day_str = forecast.timestamp.strftime('%A %d')
-            if day_str not in days:
-                days.append(day_str)
-        return days
-        
-    except Exception as e:
-        logger.error(f"Failed to get day list: {str(e)}")
-        return []
 
 # Example usage
 if __name__ == "__main__":
