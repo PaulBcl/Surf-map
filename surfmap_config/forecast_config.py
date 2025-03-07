@@ -10,8 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from typing import Optional, Dict, List, Union, Any
-from dataclasses import dataclass
+from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 
 # Set up logging
@@ -55,13 +54,17 @@ def setup_browser_context(playwright):
     context = browser.new_context(user_agent='Mozilla/5.0')
     return browser, context
 
-# Fetch surf forecast data
+# Format surf forecast name for URL
+def format_surf_forecast_url(nomSurfForecast):
+    """
+    Formats the surf spot name correctly for Surf-Forecast URLs.
+    """
+    return '-'.join([word.capitalize() for word in nomSurfForecast.split('-')])
 
+# Fetch surf forecast data
 def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
-    """Get the surf forecast URL for a given spot."""
-    # Format the spot name for the URL (replace spaces with hyphens, lowercase)
-    formatted_spot = nomSurfForecast.strip().replace(' ', '-').lower()
-    url = f"https://www.surf-forecast.com/breaks/{formatted_spot}/forecasts/latest/six_day"
+    formatted_name = format_surf_forecast_url(nomSurfForecast)
+    url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
     
     if USE_PLAYWRIGHT:
         try:
@@ -79,128 +82,81 @@ def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
             logger.error(f"Error fetching data with Playwright: {str(e)}")
     
     session = create_session()
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Connection': 'keep-alive',
-    }
+    headers = {'User-Agent': 'Mozilla/5.0'}
     try:
         response = session.get(url, headers=headers, timeout=20)
+        if response.status_code == 404:
+            logger.warning(f"URL Not Found (404): {url}")
+            return None
         response.raise_for_status()
         return response.text
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data with requests: {str(e)}")
         return None
 
-@dataclass
-class ForecastData:
-    rating: int
-    wave_height: str
-    wave_period: str
-    wave_energy: str
-    wind_speed: str
-    timestamp: datetime
-
-def extract_forecast_data(nomSurfForecast: str) -> Dict[str, Union[List[ForecastData], str]]:
+# Extract forecast data with structured parsing and robust error handling
+def extract_forecast_data(nomSurfForecast: str) -> Dict:
     content = get_surfSpot_url(nomSurfForecast)
     if not content:
+        logger.warning(f"No data fetched for spot: {nomSurfForecast}")
         return {'error': 'No data fetched'}
-    
+
     soup = BeautifulSoup(content, 'html.parser')
-    forecasts: List[ForecastData] = []
-    
+    data = {}
+
     try:
-        # Get timestamps
-        timestamps = soup.select('.forecast-table__header-row time')
-        times = [datetime.fromisoformat(t['datetime']) if t.get('datetime') else None for t in timestamps]
-        
-        # Get all data rows
-        rows = soup.select('.forecast-table__basic tr')
-        for i in range(len(times)):
-            try:
-                # Rating (out of 10)
-                rating_img = soup.select('.forecast-table-rating img')[i]
-                rating = int(rating_img.get('alt', 0))
-                
-                # Wave height
-                wave_height = soup.select('.forecast-table__wave-height .forecast-table__value')[i].text.strip()
-                
-                # Wave period
-                wave_period = soup.select('.forecast-table__wave-period .forecast-table__value')[i].text.strip()
-                
-                # Wave energy
-                wave_energy = soup.select('.forecast-table__wave-energy .forecast-table__value')[i].text.strip()
-                
-                # Wind speed (km/h)
-                wind_speed = soup.select('.forecast-table__wind .forecast-table__value')[i].text.strip()
-                
-                # Create forecast data point
-                forecast = ForecastData(
-                    rating=rating,
-                    wave_height=wave_height,
-                    wave_period=wave_period,
-                    wave_energy=wave_energy,
-                    wind_speed=wind_speed,
-                    timestamp=times[i] if times[i] else datetime.now()
-                )
-                forecasts.append(forecast)
-                
-            except (IndexError, ValueError, AttributeError) as e:
-                logger.warning(f"Error parsing forecast at index {i}: {str(e)}")
-                continue
-        
-        if not forecasts:
-            return {'error': 'No valid forecast data found'}
-            
-        return {
-            'forecasts': forecasts,
-            'spot_name': nomSurfForecast,
-            'total_forecasts': len(forecasts)
-        }
-        
+        # Rating (out of 10)
+        ratings = soup.select('.forecast-table-rating img')
+        data['ratings'] = [int(img.get('alt', 0)) for img in ratings if img.get('alt', '').isdigit()]
+
+        # Wave height
+        wave_heights = soup.select('.forecast-table__wave-height .forecast-table__value')
+        data['wave_heights'] = [wh.text.strip() for wh in wave_heights]
+
+        # Wave period
+        wave_periods = soup.select('.forecast-table__wave-period .forecast-table__value')
+        data['wave_periods'] = [wp.text.strip() for wp in wave_periods]
+
+        # Wave energy
+        wave_energies = soup.select('.forecast-table__wave-energy .forecast-table__value')
+        data['wave_energies'] = [we.text.strip() for we in wave_energies]
+
+        # Wind speed (km/h)
+        wind_speeds = soup.select('.forecast-table__wind-speed .forecast-table__value')
+        data['wind_speeds'] = [ws.text.strip() for ws in wind_speeds]
+
+        # Validate data completeness
+        if not all([data['ratings'], data['wave_heights'], data['wave_periods'], data['wave_energies'], data['wind_speeds']]):
+            logger.warning(f"Incomplete data for spot: {nomSurfForecast}")
+            return {'error': 'Incomplete data fetched'}
+
     except Exception as e:
         logger.error(f"Error parsing forecast data for {nomSurfForecast}: {str(e)}")
-        return {'error': f'Failed to parse forecast data: {str(e)}'}
+        return {'error': f'Parsing error: {str(e)}'}
 
-def validate_forecast_data(data: Dict[str, Any]) -> bool:
-    """Validate the structure and content of forecast data."""
-    if 'error' in data:
-        return False
-        
-    if not isinstance(data.get('forecasts'), list):
-        return False
-        
-    for forecast in data['forecasts']:
-        if not isinstance(forecast, ForecastData):
-            return False
-        if not all(hasattr(forecast, attr) for attr in ['rating', 'wave_height', 'wave_period', 'wave_energy', 'wind_speed', 'timestamp']):
-            return False
-            
-    return True
+    return data
 
 def get_dayList_forecast() -> List[str]:
     """Get list of forecast days in the correct format."""
     # List of sample spots to try (these are verified working spots)
     sample_spots = [
-        "La-Torche",
-        "Biarritz-Grande-Plage",
-        "Hossegor-La-Graviere",
-        "Lacanau-Ocean"
+        "penthievre",  # Using lowercase as per new format
+        "la-torche",
+        "hossegor"
     ]
     
     for spot in sample_spots:
         try:
             data = extract_forecast_data(spot)
-            if not data.get('error'):
+            if 'error' not in data and data.get('ratings'):
+                # Get the next 7 days
                 days = []
-                for forecast in data['forecasts']:
-                    day_str = forecast.timestamp.strftime('%A %d')
-                    if day_str not in days:
-                        days.append(day_str)
-                if days:  # Only return if we got some days
-                    logger.info(f"Successfully got forecast days from {spot}")
-                    return days
+                today = datetime.now()
+                for i in range(7):
+                    day = today + timedelta(days=i)
+                    days.append(day.strftime('%A %d'))
+                logger.info(f"Successfully generated forecast days")
+                return days
             logger.warning(f"Could not get forecast data for {spot}")
         except Exception as e:
             logger.warning(f"Error getting forecast for {spot}: {str(e)}")
@@ -239,20 +195,18 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
                 forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
                 continue
                 
+            # Create a mapping of ratings to days
             spot_forecasts = {}
-            for forecast in data['forecasts']:
-                # Format the date to match the day_list format
-                day_str = forecast.timestamp.strftime('%A %d')  # e.g. "Monday 15"
-                # Find matching day in day_list (handle partial matches)
-                matching_day = next((d for d in day_list if day_str in d), None)
-                if matching_day:
-                    spot_forecasts[matching_day] = float(forecast.rating)
-                    
-            # Fill in missing days with 0.0
-            for day in day_list:
-                if day not in spot_forecasts:
-                    spot_forecasts[day] = 0.0
-                    
+            ratings = data.get('ratings', [])
+            
+            # Ensure we have enough ratings for each day
+            if len(ratings) >= len(day_list):
+                for i, day in enumerate(day_list):
+                    spot_forecasts[day] = float(ratings[i])
+            else:
+                logger.warning(f"Insufficient ratings data for {spot}")
+                spot_forecasts = {day: 0.0 for day in day_list}
+                
             forecasts[spot] = spot_forecasts
             
         except Exception as e:
@@ -264,17 +218,30 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
 
 # Example usage
 if __name__ == "__main__":
-    nomSurfForecast = "Penthievre"
+    # Test the full pipeline
+    nomSurfForecast = "penthievre"  # Using lowercase as per new format
+    
+    # Test day list generation
+    print("Getting forecast days...")
+    days = get_dayList_forecast()
+    print(f"Forecast days: {days}")
+    
+    # Test forecast data extraction
+    print("\nGetting forecast data...")
     forecast_data = extract_forecast_data(nomSurfForecast)
-    if validate_forecast_data(forecast_data):
-        print("Valid forecast data retrieved:")
-        for forecast in forecast_data['forecasts']:
-            print(f"Time: {forecast.timestamp}")
-            print(f"Rating: {forecast.rating}/10")
-            print(f"Wave Height: {forecast.wave_height}")
-            print(f"Wave Period: {forecast.wave_period}")
-            print(f"Wave Energy: {forecast.wave_energy}")
-            print(f"Wind Speed: {forecast.wind_speed}")
-            print("---")
+    
+    if 'error' not in forecast_data:
+        print("\nRaw forecast data:")
+        for key, value in forecast_data.items():
+            print(f"{key}: {value}")
+            
+        # Test forecast loading
+        print("\nLoading formatted forecast data...")
+        formatted_data = load_forecast_data([nomSurfForecast], days)
+        print("\nFormatted forecast data:")
+        for spot, forecasts in formatted_data.items():
+            print(f"\nSpot: {spot}")
+            for day, rating in forecasts.items():
+                print(f"{day}: {rating}/10")
     else:
-        print(f"Error: {forecast_data.get('error', 'Unknown error')}")
+        print(f"\nError: {forecast_data['error']}")
