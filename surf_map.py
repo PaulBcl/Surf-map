@@ -246,6 +246,15 @@ def main():
                     except (ValueError, TypeError, IndexError) as e:
                         st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
                         m = folium.Map(location=base_position, zoom_start=6)
+                else:
+                    m = folium.Map(location=base_position, zoom_start=6)
+
+                # Add map components after map initialization
+                marker_cluster = MarkerCluster().add_to(m)
+                minimap = MiniMap(toggle_display=True)
+                draw = Draw()
+                minimap.add_to(m)
+                draw.add_to(m)
 
                 #Ajout des données de forecast
                 try:
