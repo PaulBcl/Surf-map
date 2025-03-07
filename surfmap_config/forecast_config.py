@@ -7,91 +7,69 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import sqlite3
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 import numpy as np
 import time
 import logging
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def setup_driver():
-    """Setup and return a Chrome WebDriver with appropriate options"""
-    chrome_options = Options()
-    chrome_options.add_argument('--headless')
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-gpu')
-    chrome_options.add_argument('--window-size=1920,1080')
-    chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
-    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
-    
-    try:
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        # Execute CDP commands to prevent detection
-        driver.execute_cdp_cmd('Network.setUserAgentOverride', {
-            "userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
-        return driver
-    except Exception as e:
-        logger.error(f"Error setting up Chrome driver: {str(e)}")
-        raise
+def create_session():
+    """Create a requests session with retry logic"""
+    session = requests.Session()
+    retry = Retry(
+        total=5,
+        backoff_factor=0.5,
+        status_forcelist=[500, 502, 503, 504],
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
 
 def get_surfSpot_url(nomSurfForecast):
     """
-    Donne le contenu web d'une page surf_forecast en utilisant Selenium
+    Donne le contenu web d'une page surf_forecast
 
     @param nomSurfForecast : nom du spot sur surf_forecast
     """
     urlSurfReport = "https://fr.surf-forecast.com/breaks/" + nomSurfForecast + "/forecasts/latest/six_day"
-    driver = None
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'fr,fr-FR;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0'
+    }
     
     try:
-        logger.info(f"Fetching data for {nomSurfForecast}")
-        driver = setup_driver()
-        driver.get(urlSurfReport)
+        session = create_session()
+        response = session.get(urlSurfReport, headers=headers, timeout=20)
+        response.raise_for_status()
         
-        # Wait for the page to load completely
-        time.sleep(5)  # Give the page time to load
+        # Parse the response content
+        soupContentPage = BeautifulSoup(response.content, features="html.parser")
         
-        # Wait for the forecast table to load
-        try:
-            WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "forecast-table__basic"))
-            )
-        except Exception as e:
-            logger.warning(f"Could not find forecast table for {nomSurfForecast}: {str(e)}")
-            # Try to get the page source anyway
-            contentPage = driver.page_source
-            soupContentPage = BeautifulSoup(contentPage, features="html.parser")
+        # Check if we got a valid page
+        if "Access denied" in soupContentPage.text or "Please verify you are a human" in soupContentPage.text:
+            logger.warning(f"Access denied for {nomSurfForecast}")
+            return None
             
-            # Log the HTML structure for debugging
-            logger.debug(f"Page source for {nomSurfForecast}: {soupContentPage.prettify()[:1000]}...")
-            return soupContentPage
-            
-        # Get the page source after JavaScript has rendered
-        contentPage = driver.page_source
-        soupContentPage = BeautifulSoup(contentPage, features="html.parser")
         return soupContentPage
-        
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data for {nomSurfForecast}: {str(e)}")
         return None
-    finally:
-        if driver:
-            driver.quit()
 
-@st.cache_data
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_dayList_forecast():
     """
     On récupère les jours qui font l'objet de prévision puis on les met en forme
@@ -108,8 +86,6 @@ def get_dayList_forecast():
         resultDays = soupContentPage.find_all("tr", {"class": ["forecast-table__row forecast-table-days", "forecast-table-days"]})
         if not resultDays:
             logger.warning("Could not find forecast days row")
-            # Log the HTML structure for debugging
-            logger.debug(f"Page structure: {soupContentPage.prettify()[:1000]}...")
             return []
             
         dayList = []
@@ -127,7 +103,7 @@ def get_dayList_forecast():
         logger.error(f"Error getting forecast days: {str(e)}")
         return []
 
-@st.cache_data
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_infos_surf_report(nomSurfForecast, dayList):
     """
     Récupère et met en forme les forecast pour le spot sélectionné
@@ -148,8 +124,6 @@ def get_infos_surf_report(nomSurfForecast, dayList):
         table = soupContentPage.find_all("tbody", {"class": "forecast-table__basic"})
         if not table:
             logger.warning(f"No forecast table found for {nomSurfForecast}")
-            # Log the HTML structure for debugging
-            logger.debug(f"Page structure: {soupContentPage.prettify()[:1000]}...")
             return {'No day': 0.0}
 
         #On récupère ensuite toutes les notations que l'on met en forme
@@ -174,6 +148,14 @@ def get_infos_surf_report(nomSurfForecast, dayList):
                     note = int(img['title'])
                 elif 'data-rating' in img.attrs:
                     note = int(img['data-rating'])
+                elif 'src' in img.attrs:
+                    # Try to extract rating from image URL if it contains it
+                    src = img['src']
+                    if 'rating_' in src:
+                        try:
+                            note = int(src.split('rating_')[1].split('.')[0])
+                        except (ValueError, IndexError):
+                            pass
                 
                 if note is not None:
                     noteList.append(note)
@@ -200,7 +182,7 @@ def get_infos_surf_report(nomSurfForecast, dayList):
 
     return dict_data_spot
 
-@st.cache_data
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_forecast_data(spot_list, dayList):
     """
     Fait tourner la fonction get_infos_surf_report sur la liste des spots choisis
@@ -219,12 +201,12 @@ def load_forecast_data(spot_list, dayList):
     for spot in spot_list:
         try:
             iteration += 1
-            logger.info(f"Fetching forecast for {spot}...")
+            st.write(f"Fetching forecast for {spot}...")
             forecast_spot = get_infos_surf_report(spot, dayList)
             dict_data_forecast_spot[spot] = forecast_spot
             progress_bar.progress(nb_percent_complete*iteration + 1)
             # Add a small delay to avoid being blocked
-            time.sleep(3)  # Increased delay to be more conservative
+            time.sleep(2)
         except Exception as e:
             logger.error(f"Error processing spot {spot}: {str(e)}")
             dict_data_forecast_spot[spot] = {'No day': 0.0}
