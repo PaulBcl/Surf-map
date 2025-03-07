@@ -17,6 +17,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import openai
+from datetime import datetime, timedelta
 
 # OpenAI API Key (Make sure to store it securely in Streamlit secrets)
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -186,3 +187,15 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
             continue
             
     return forecasts
+
+def get_dayList_forecast() -> List[str]:
+    """
+    Get list of forecast days in the correct format.
+    Returns a list of the next 7 days in the format 'Day DD' (e.g., 'Monday 15').
+    """
+    days = []
+    today = datetime.now()
+    for i in range(7):
+        day = today + timedelta(days=i)
+        days.append(day.strftime('%A %d'))
+    return days
