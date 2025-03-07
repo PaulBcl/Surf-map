@@ -7,7 +7,6 @@ import openai
 from bs4 import BeautifulSoup
 import folium
 from streamlit_folium import folium_static
-from unidecode import unidecode
 
 # Configure APIs
 GOOGLE_MAPS_API_KEY = st.secrets["GOOGLE_MAPS_API_KEY"]
@@ -23,18 +22,21 @@ surf_spots_file = "surf_spots.xlsx"  # Ensure this file is available in the depl
 surf_spots_df = pd.read_excel(surf_spots_file)
 
 # Ensure correct columns are used
-surf_spots = surf_spots_df.rename(columns={
+rename_mapping = {
     "nomSpot": "name",
     "villeSpot": "city",
     "latitude": "latitude",
     "longitude": "longitude",
-    "nomSurfForecast": "forecast_name",
-    "region": "region"
-})
+    "nomSurfForecast": "forecast_name"
+}
+if "region" in surf_spots_df.columns:
+    rename_mapping["region"] = "region"
+
+surf_spots = surf_spots_df.rename(columns=rename_mapping)
 
 # Verify and format Surf-Forecast URLs
 def format_forecast_url(name):
-    formatted_name = unidecode(name.replace(" ", "-").capitalize())
+    formatted_name = name.replace(" ", "-").capitalize()
     url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
     response = requests.get(url)
     return url if response.status_code == 200 else None
@@ -90,8 +92,12 @@ def ai_generate_forecast(location):
 # Streamlit UI
 st.title("Surf Spot Finder 🌊")
 user_location = st.text_input("Enter your starting location (e.g., Paris, France):", "Paris, France")
-region_filter = st.selectbox("Filter by region:", ["All"] + list(surf_spots["region"].unique()))
-filtered_spots = surf_spots if region_filter == "All" else surf_spots[surf_spots["region"] == region_filter]
+if "region" in surf_spots.columns:
+    region_filter = st.selectbox("Filter by region:", ["All"] + list(surf_spots["region"].unique()))
+    filtered_spots = surf_spots if region_filter == "All" else surf_spots[surf_spots["region"] == region_filter]
+else:
+    filtered_spots = surf_spots
+
 selected_spot = st.selectbox("Choose a surf spot:", filtered_spots["name"])
 
 if st.button("Get Info"):
