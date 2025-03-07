@@ -13,3 +13,9 @@ selenium>=4.11.2
 webdriver-manager>=4.0.0
 googlemaps>=4.10.0
 python-dotenv>=1.0.0  # For environment variables
+requests
+beautifulsoup4
+selenium
+webdriver-manager
+streamlit
+openai
