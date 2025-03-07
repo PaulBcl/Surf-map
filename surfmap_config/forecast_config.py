@@ -26,6 +26,21 @@ from contextlib import contextmanager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Create a Streamlit container for debug info
+debug_container = st.empty()
+
+def st_log(message: str, level: str = "info"):
+    """Log message both to logger and Streamlit."""
+    if level == "error":
+        logger.error(message)
+        debug_container.error(message)
+    elif level == "warning":
+        logger.warning(message)
+        debug_container.warning(message)
+    else:
+        logger.info(message)
+        debug_container.info(message)
+
 @contextmanager
 def get_selenium_driver():
     """
@@ -33,6 +48,7 @@ def get_selenium_driver():
     """
     driver = None
     try:
+        st_log("Initializing Selenium WebDriver...")
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
@@ -45,16 +61,18 @@ def get_selenium_driver():
         
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
+        st_log("WebDriver initialized successfully")
         yield driver
     except Exception as e:
-        logger.error(f"Failed to initialize Selenium driver: {str(e)}")
+        st_log(f"Failed to initialize Selenium driver: {str(e)}", "error")
         yield None
     finally:
         if driver:
             try:
                 driver.quit()
+                st_log("WebDriver closed successfully")
             except Exception as e:
-                logger.error(f"Error closing Selenium driver: {str(e)}")
+                st_log(f"Error closing Selenium driver: {str(e)}", "error")
 
 # Requests session with retry logic
 def create_session():
@@ -106,6 +124,7 @@ def handle_popups(driver):
     Handle various types of popups that might appear on the page.
     """
     try:
+        st_log("Checking for popups...")
         # Common cookie consent and popup button selectors
         popup_selectors = [
             "#onetrust-accept-btn-handler",  # Common cookie accept button
@@ -121,17 +140,16 @@ def handle_popups(driver):
         
         for selector in popup_selectors:
             try:
-                wait = WebDriverWait(driver, 3)  # Short timeout for popup check
                 elements = driver.find_elements(By.CSS_SELECTOR, selector)
                 for element in elements:
                     if element.is_displayed():
                         element.click()
-                        logger.info(f"Clicked popup element with selector: {selector}")
+                        st_log(f"Clicked popup element with selector: {selector}")
                         time.sleep(1)  # Short wait after clicking
             except Exception:
                 continue
     except Exception as e:
-        logger.warning(f"Error handling popups (non-critical): {str(e)}")
+        st_log(f"Error handling popups (non-critical): {str(e)}", "warning")
 
 def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
     """
@@ -139,30 +157,32 @@ def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
     """
     formatted_name = format_surf_forecast_url(nomSurfForecast)
     url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
-    logger.info(f"Attempting to fetch data from: {url}")
+    st_log(f"Attempting to fetch data from: {url}")
     
     with get_selenium_driver() as driver:
         if not driver:
-            logger.error("Failed to initialize Selenium driver")
+            st_log("Failed to initialize Selenium driver", "error")
             return None
             
         try:
             # Load the page
+            st_log(f"Loading page for {formatted_name}...")
             driver.get(url)
             
             # Handle any popups that might block content
             handle_popups(driver)
             
             # Wait for the forecast table to load
-            logger.info("Waiting for forecast table to load...")
+            st_log("Waiting for forecast table to load...")
             wait = WebDriverWait(driver, 20)
             
             # First check if table exists
             table = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'forecast-table__basic')))
+            st_log("Found forecast table element")
             
             # Then check if it's visible
             if not table.is_displayed():
-                logger.error("Forecast table found but not visible - possible overlay issue")
+                st_log("Forecast table found but not visible - possible overlay issue", "warning")
                 # Try handling popups again
                 handle_popups(driver)
                 if not table.is_displayed():
@@ -172,96 +192,99 @@ def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
             content = driver.page_source
             
             if "404 Not Found" in content:
-                logger.warning(f"URL Not Found (404): {url}")
+                st_log(f"URL Not Found (404): {url}", "warning")
                 return None
             
             # Verify we have the content we need
             if 'forecast-table__basic' not in content:
-                logger.error("Forecast table not found in page source")
+                st_log("Forecast table not found in page source", "error")
                 return None
                 
+            st_log(f"Successfully fetched data for {formatted_name}")
             return content
             
         except TimeoutException:
-            logger.error(f"Timeout waiting for forecast table to load: {url}")
+            st_log(f"Timeout waiting for forecast table to load: {url}", "error")
             return None
         except Exception as e:
-            logger.error(f"Error fetching data with Selenium for {formatted_name}: {str(e)}")
+            st_log(f"Error fetching data with Selenium for {formatted_name}: {str(e)}", "error")
             return None
 
 # Extract forecast data with structured parsing and robust error handling
 def extract_forecast_data(nomSurfForecast: str) -> Dict:
+    st_log(f"Starting data extraction for {nomSurfForecast}...")
     content = get_surfSpot_url(nomSurfForecast)
     if not content:
-        logger.warning(f"No data fetched for spot: {nomSurfForecast}")
+        st_log(f"No data fetched for spot: {nomSurfForecast}", "warning")
         return {'error': 'No data fetched'}
 
-    logger.info(f"Successfully fetched content for {nomSurfForecast}")
+    st_log(f"Successfully fetched content for {nomSurfForecast}")
     soup = BeautifulSoup(content, 'html.parser')
     data = {}
 
     try:
         # Debug: Check if we're getting blocked or if there's a captcha
         if "captcha" in content.lower() or "blocked" in content.lower():
-            logger.error("Possible bot detection/blocking")
+            st_log("Possible bot detection/blocking", "error")
             return {'error': 'Access blocked - possible bot detection'}
 
         # Rating (out of 10)
         ratings = soup.select('.forecast-table__rating img')  # Updated selector
-        logger.info(f"Found {len(ratings)} rating elements")
-        logger.info(f"Rating elements: {[img.get('alt') for img in ratings]}")
+        st_log(f"Found {len(ratings)} rating elements")
+        st_log(f"Rating elements: {[img.get('alt') for img in ratings]}")
         data['ratings'] = [int(img.get('alt', 0)) for img in ratings if img.get('alt', '').isdigit()]
-        logger.info(f"Parsed ratings: {data['ratings']}")
+        st_log(f"Parsed ratings: {data['ratings']}")
 
         # Wave height
         wave_heights = soup.select('.forecast-table__cell--wave-height .forecast-table__value')  # Updated selector
-        logger.info(f"Found {len(wave_heights)} wave height elements")
-        logger.info(f"Wave height elements: {[wh.text.strip() for wh in wave_heights]}")
+        st_log(f"Found {len(wave_heights)} wave height elements")
+        st_log(f"Wave height elements: {[wh.text.strip() for wh in wave_heights]}")
         data['wave_heights'] = [wh.text.strip() for wh in wave_heights]
 
         # Wave period
         wave_periods = soup.select('.forecast-table__cell--wave-period .forecast-table__value')  # Updated selector
-        logger.info(f"Found {len(wave_periods)} wave period elements")
-        logger.info(f"Wave period elements: {[wp.text.strip() for wp in wave_periods]}")
+        st_log(f"Found {len(wave_periods)} wave period elements")
+        st_log(f"Wave period elements: {[wp.text.strip() for wp in wave_periods]}")
         data['wave_periods'] = [wp.text.strip() for wp in wave_periods]
 
         # Wave energy
         wave_energies = soup.select('.forecast-table__cell--wave-energy .forecast-table__value')  # Updated selector
-        logger.info(f"Found {len(wave_energies)} wave energy elements")
-        logger.info(f"Wave energy elements: {[we.text.strip() for we in wave_energies]}")
+        st_log(f"Found {len(wave_energies)} wave energy elements")
+        st_log(f"Wave energy elements: {[we.text.strip() for we in wave_energies]}")
         data['wave_energies'] = [we.text.strip() for we in wave_energies]
 
         # Wind speed
         wind_speeds = soup.select('.forecast-table__cell--wind-speed .forecast-table__value')  # Updated selector
-        logger.info(f"Found {len(wind_speeds)} wind speed elements")
-        logger.info(f"Wind speed elements: {[ws.text.strip() for ws in wind_speeds]}")
+        st_log(f"Found {len(wind_speeds)} wind speed elements")
+        st_log(f"Wind speed elements: {[ws.text.strip() for ws in wind_speeds]}")
         data['wind_speeds'] = [ws.text.strip() for ws in wind_speeds]
 
         # Debug: Print the first few lines of HTML if no data found
         if not any([data['ratings'], data['wave_heights'], data['wave_periods'], data['wave_energies'], data['wind_speeds']]):
-            logger.error("No data found in any category. First 500 chars of HTML:")
-            logger.error(content[:500])
-            logger.error("\nCSS classes found in document:")
-            logger.error([cls for tag in soup.find_all(class_=True) for cls in tag['class']])
+            st_log("No data found in any category. Showing HTML sample:", "error")
+            st_log(content[:500], "error")
+            st_log("\nCSS classes found in document:", "error")
+            st_log(str([cls for tag in soup.find_all(class_=True) for cls in tag['class']]), "error")
             return {'error': 'No data found in HTML'}
 
         # Validate data completeness
         if not all([data['ratings'], data['wave_heights'], data['wave_periods'], data['wave_energies'], data['wind_speeds']]):
-            logger.warning(f"Incomplete data for spot: {nomSurfForecast}")
-            logger.warning("Data lengths: " + 
-                         f"ratings={len(data['ratings'])}, " +
-                         f"wave_heights={len(data['wave_heights'])}, " +
-                         f"wave_periods={len(data['wave_periods'])}, " +
-                         f"wave_energies={len(data['wave_energies'])}, " +
-                         f"wind_speeds={len(data['wind_speeds'])}")
+            st_log(f"Incomplete data for spot: {nomSurfForecast}", "warning")
+            st_log("Data lengths: " + 
+                   f"ratings={len(data['ratings'])}, " +
+                   f"wave_heights={len(data['wave_heights'])}, " +
+                   f"wave_periods={len(data['wave_periods'])}, " +
+                   f"wave_energies={len(data['wave_energies'])}, " +
+                   f"wind_speeds={len(data['wind_speeds'])}", "warning")
             return {'error': 'Incomplete data fetched'}
 
     except Exception as e:
-        logger.error(f"Error parsing forecast data for {nomSurfForecast}: {str(e)}")
-        logger.error("First 500 chars of HTML:")
-        logger.error(content[:500])
+        st_log(f"Error parsing forecast data for {nomSurfForecast}: {str(e)}", "error")
+        st_log("First 500 chars of HTML:", "error")
+        st_log(content[:500], "error")
         return {'error': f'Parsing error: {str(e)}'}
 
+    st_log(f"Successfully extracted all data for {nomSurfForecast}")
     return data
 
 def get_dayList_forecast() -> List[str]:
@@ -283,15 +306,15 @@ def get_dayList_forecast() -> List[str]:
                 for i in range(7):
                     day = today + timedelta(days=i)
                     days.append(day.strftime('%A %d'))
-                logger.info(f"Successfully generated forecast days")
+                st_log(f"Successfully generated forecast days")
                 return days
-            logger.warning(f"Could not get forecast data for {spot}")
+            st_log(f"Could not get forecast data for {spot}")
         except Exception as e:
-            logger.warning(f"Error getting forecast for {spot}: {str(e)}")
+            st_log(f"Error getting forecast for {spot}: {str(e)}")
             continue
     
     # Fallback: return next 7 days
-    logger.warning("Using fallback day list")
+    st_log("Using fallback day list")
     days = []
     today = datetime.now()
     for i in range(7):
@@ -319,7 +342,7 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
         try:
             data = extract_forecast_data(spot)
             if 'error' in data:
-                logger.warning(f"Error getting forecast for {spot}: {data['error']}")
+                st_log(f"Error getting forecast for {spot}: {data['error']}")
                 forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
                 continue
                 
@@ -332,13 +355,13 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
                 for i, day in enumerate(day_list):
                     spot_forecasts[day] = float(ratings[i])
             else:
-                logger.warning(f"Insufficient ratings data for {spot}")
+                st_log(f"Insufficient ratings data for {spot}")
                 spot_forecasts = {day: 0.0 for day in day_list}
                 
             forecasts[spot] = spot_forecasts
             
         except Exception as e:
-            logger.error(f"Failed to get forecast for {spot}: {str(e)}")
+            st_log(f"Failed to get forecast for {spot}: {str(e)}")
             forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
             continue
             
@@ -348,19 +371,19 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
 if __name__ == "__main__":
     # Test with a specific spot
     test_spot = "penthievre"
-    logger.info(f"\nTesting detailed scraping for spot: {test_spot}")
+    st_log(f"\nTesting detailed scraping for spot: {test_spot}")
     
     # Get the URL
     formatted_name = format_surf_forecast_url(test_spot)
     url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
-    logger.info(f"Using URL: {url}")
+    st_log(f"Using URL: {url}")
     
     # Get the forecast data with detailed logging
     forecast_data = extract_forecast_data(test_spot)
     
     if 'error' not in forecast_data:
-        logger.info("\nSuccessfully retrieved forecast data:")
+        st_log("\nSuccessfully retrieved forecast data:")
         for key, value in forecast_data.items():
-            logger.info(f"{key}: {value}")
+            st_log(f"{key}: {value}")
     else:
-        logger.error(f"\nError: {forecast_data['error']}")
+        st_log(f"\nError: {forecast_data['error']}")
