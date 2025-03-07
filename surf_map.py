@@ -43,7 +43,7 @@ base_position = [48.8434864, 2.3859893]
 # Initialize session state
 session = get_session()
 
-def setup_sidebar():
+def setup_sidebar(dayList):
     """Set up the sidebar with all controls."""
     # Welcome message and instructions
     st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
@@ -141,7 +141,7 @@ def main():
     dfSpots, dayList = load_initial_data()
     
     # Set up sidebar and get user inputs
-    address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur = setup_sidebar()
+    address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur = setup_sidebar(dayList)
     
     # Initialize display variables
     dfDataDisplay = pd.DataFrame()
