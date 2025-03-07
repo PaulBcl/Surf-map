@@ -12,30 +12,49 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from contextlib import contextmanager
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Flag to control whether to use Playwright
-USE_PLAYWRIGHT = False
-
-try:
-    from playwright.sync_api import sync_playwright
-    @st.cache_resource
-    def check_playwright_availability():
-        try:
-            with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(headless=True)
-                browser.close()
-                return True
-        except Exception as e:
-            logger.warning(f"Playwright initialization failed: {str(e)}")
-            return False
-    USE_PLAYWRIGHT = check_playwright_availability()
-except ImportError:
-    logger.warning("Playwright not available, using requests-based scraping")
-    USE_PLAYWRIGHT = False
+@contextmanager
+def get_selenium_driver():
+    """
+    Context manager for Selenium WebDriver to ensure proper cleanup.
+    """
+    driver = None
+    try:
+        chrome_options = Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--disable-features=NetworkService')
+        chrome_options.add_argument('--window-size=1920x1080')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
+        
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        yield driver
+    except Exception as e:
+        logger.error(f"Failed to initialize Selenium driver: {str(e)}")
+        yield None
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except Exception as e:
+                logger.error(f"Error closing Selenium driver: {str(e)}")
 
 # Requests session with retry logic
 def create_session():
@@ -45,14 +64,6 @@ def create_session():
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session
-
-# Playwright browser setup
-def setup_browser_context(playwright):
-    if not USE_PLAYWRIGHT:
-        return None, None
-    browser = playwright.chromium.launch(headless=True, args=['--disable-blink-features=AutomationControlled'])
-    context = browser.new_context(user_agent='Mozilla/5.0')
-    return browser, context
 
 # Format surf forecast name for URL
 def format_surf_forecast_url(nomSurfForecast: str) -> str:
@@ -90,66 +101,92 @@ def format_surf_forecast_url(nomSurfForecast: str) -> str:
     
     return '-'.join(formatted_parts)
 
-# Fetch surf forecast data
+def handle_popups(driver):
+    """
+    Handle various types of popups that might appear on the page.
+    """
+    try:
+        # Common cookie consent and popup button selectors
+        popup_selectors = [
+            "#onetrust-accept-btn-handler",  # Common cookie accept button
+            ".accept-cookies",
+            "#accept-cookies",
+            ".cookie-notice button",
+            ".qc-cmp2-summary-buttons button",  # Quantcast consent button
+            ".modal-close",
+            ".popup-close",
+            ".dialog-close",
+            ".overlay-close"
+        ]
+        
+        for selector in popup_selectors:
+            try:
+                wait = WebDriverWait(driver, 3)  # Short timeout for popup check
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                for element in elements:
+                    if element.is_displayed():
+                        element.click()
+                        logger.info(f"Clicked popup element with selector: {selector}")
+                        time.sleep(1)  # Short wait after clicking
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning(f"Error handling popups (non-critical): {str(e)}")
+
 def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
     """
-    Gets the URL for a surf spot, with improved error handling and logging.
-    Uses Playwright to handle JavaScript-rendered content.
+    Gets the URL for a surf spot using Selenium for JavaScript rendering.
     """
     formatted_name = format_surf_forecast_url(nomSurfForecast)
     url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
     logger.info(f"Attempting to fetch data from: {url}")
     
-    try:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            context = browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            )
-            page = context.new_page()
+    with get_selenium_driver() as driver:
+        if not driver:
+            logger.error("Failed to initialize Selenium driver")
+            return None
             
-            # Set longer timeout for initial load
-            page.set_default_timeout(30000)
+        try:
+            # Load the page
+            driver.get(url)
             
-            # Navigate to the page
-            logger.info("Loading page with Playwright...")
-            page.goto(url, wait_until='networkidle')
+            # Handle any popups that might block content
+            handle_popups(driver)
             
-            # Wait for specific elements that indicate the content has loaded
+            # Wait for the forecast table to load
             logger.info("Waiting for forecast table to load...")
-            page.wait_for_selector('.forecast-table__basic', timeout=10000)
+            wait = WebDriverWait(driver, 20)
             
-            # Get the rendered content
-            content = page.content()
-            browser.close()
+            # First check if table exists
+            table = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'forecast-table__basic')))
+            
+            # Then check if it's visible
+            if not table.is_displayed():
+                logger.error("Forecast table found but not visible - possible overlay issue")
+                # Try handling popups again
+                handle_popups(driver)
+                if not table.is_displayed():
+                    return None
+            
+            # Get the page source after JavaScript execution
+            content = driver.page_source
             
             if "404 Not Found" in content:
                 logger.warning(f"URL Not Found (404): {url}")
                 return None
+            
+            # Verify we have the content we need
+            if 'forecast-table__basic' not in content:
+                logger.error("Forecast table not found in page source")
+                return None
                 
             return content
             
-    except Exception as e:
-        logger.error(f"Error fetching data with Playwright for {formatted_name}: {str(e)}")
-        # Fallback to requests method
-        logger.info("Falling back to requests method...")
-        session = create_session()
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Connection': 'keep-alive',
-        }
-        
-        try:
-            response = session.get(url, headers=headers, timeout=20)
-            if response.status_code == 404:
-                logger.warning(f"URL Not Found (404): {url}")
-                return None
-            response.raise_for_status()
-            return response.text
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching data with requests for {formatted_name}: {str(e)}")
+        except TimeoutException:
+            logger.error(f"Timeout waiting for forecast table to load: {url}")
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching data with Selenium for {formatted_name}: {str(e)}")
             return None
 
 # Extract forecast data with structured parsing and robust error handling
