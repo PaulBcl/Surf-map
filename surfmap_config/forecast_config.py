@@ -17,6 +17,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import openai
+from datetime import datetime, timedelta
 
 # OpenAI API Key (Make sure to store it securely in Streamlit secrets)
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -145,6 +146,10 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
     Returns:
         Dictionary mapping spot names to their forecast data by day
     """
+    if not spot_names or not day_list:
+        logger.warning("Empty spot names or day list provided")
+        return {}
+        
     forecasts = {}
     
     # Process each spot
@@ -157,7 +162,7 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
             forecast_data = extract_forecast_data(spot)
             
             if 'error' in forecast_data:
-                st_log(f"Error getting forecast for {spot}: {forecast_data['error']}")
+                logger.warning(f"Error getting forecast for {spot}: {forecast_data['error']}")
                 forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
                 continue
                 
@@ -175,14 +180,32 @@ def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, 
                     except (ValueError, TypeError):
                         spot_forecasts[day] = 0.0
             else:
-                st_log(f"Insufficient ratings data for {spot}")
+                logger.warning(f"Insufficient ratings data for {spot}")
                 spot_forecasts = {day: 0.0 for day in day_list}
                 
             forecasts[spot] = spot_forecasts
             
         except Exception as e:
-            st_log(f"Failed to get forecast for {spot}: {str(e)}")
+            logger.error(f"Failed to get forecast for {spot}: {str(e)}")
             forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
             continue
             
     return forecasts
+
+def get_dayList_forecast() -> List[str]:
+    """
+    Get list of forecast days in the correct format.
+    Returns a list of the next 7 days in the format 'Day DD' (e.g., 'Monday 15').
+    """
+    try:
+        days = []
+        today = datetime.now()
+        for i in range(7):
+            day = today + timedelta(days=i)
+            days.append(day.strftime('%A %d'))
+        return days
+    except Exception as e:
+        logger.error(f"Error generating forecast days: {str(e)}")
+        # Return default days if there's an error
+        return ['Monday 01', 'Tuesday 02', 'Wednesday 03', 'Thursday 04', 
+                'Friday 05', 'Saturday 06', 'Sunday 07']

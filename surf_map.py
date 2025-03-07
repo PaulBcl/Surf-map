@@ -73,6 +73,8 @@ def main():
     dfDataDisplay = pd.DataFrame()
     # Initialize failed_spots list
     failed_spots = []
+    # Initialize map with default position
+    m = folium.Map(location=base_position, zoom_start=6)
     
     try:
         dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key)
@@ -82,7 +84,6 @@ def main():
 
     st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
     st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
-
     st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
 
     explication_expander = st.expander("Guide d'utilisation")
@@ -93,10 +94,8 @@ def main():
 
     couleur_radio_expander = st.expander("Légende de la carte")
     with couleur_radio_expander:
-        #st.markdown("_Légende :_")
         st.markdown(":triangular_flag_on_post: représente un spot de surf")
         st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
-        #st.markdown("_Choisir le code couleur (optionnel) :_")
         label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
         list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
         checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
@@ -104,17 +103,14 @@ def main():
     st.write("\n")
     # Sliders
     label_checkbox = "Filtres avancés"
-    #checkbox = st.sidebar.checkbox(label_checkbox)
     option_prix = 0
     option_distance_h = 0
     is_option_prix_ok = False
     is_option_distance_h_ok = False
 
-    #if checkbox:
     label_sidebar_profil = "Profil"
     sidebar_profil = st.sidebar.expander(label_sidebar_profil)
     with sidebar_profil:
-        #st.markdown("Quel type de surfer es-tu ?")
         st.warning("Work in progress")
         label_transport = "Moyen(s) de transport(s) favori(s)"
         list_transport = ["🚗 Voiture", "🚝 Train", "🚲 Vélo", "⛵ Bateau"]
@@ -124,7 +120,6 @@ def main():
     label_sidebar_options = "Options avancées"
     sidebar_options = st.sidebar.expander(label_sidebar_options)
     with sidebar_options:
-        #st.markdown("Choix des options pour l'affichage des spots")
         label_raz = "Remise à zéro"
         col1, col2, col3 = st.columns([1, 2, 1])
         with col1:
@@ -163,7 +158,7 @@ def main():
                                           key = session.run_id)
 
     st.sidebar.write("\n")
-    #On met le boutton servant à chercher les résultats
+    #On met le bouton servant à chercher les résultats
     label_button = "Soumettre l'adresse"
     col1, col2, col3 = st.sidebar.columns([1, 3.5, 1])
     with col1:
@@ -226,49 +221,24 @@ def main():
                     if col not in dfDataDisplay.columns:
                         dfDataDisplay[col] = default_value
 
-                # Check if we have valid GPS coordinates
-                try:
-                    if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
-                        coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
-                        if isinstance(coords, (list, tuple)) and len(coords) == 2:
-                            lat, lon = coords
-                            if lat is not None and lon is not None:
-                                gpsHome = [float(lat), float(lon)]
-                            else:
-                                raise ValueError("Invalid coordinates")
-                        else:
-                            raise ValueError("Invalid coordinate format")
-                    else:
-                        raise ValueError("No valid coordinates found")
-                except (ValueError, TypeError, IndexError) as e:
-                    st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
-                    gpsHome = base_position  # Use default coordinates
-
-                #Display maps
-                m = folium.Map(location = gpsHome,
-                               zoom_start = 5)
-                #Petits ajouts
-                marker_cluster = MarkerCluster().add_to(m)
-                minimap = MiniMap(toggle_display = True)
-                draw = Draw()
-                
-                # Only add home marker if we have valid data
-                if not dfDataDisplay.empty and 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                # Update map location if we have valid coordinates
+                if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
                     try:
                         coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
                         if isinstance(coords, (list, tuple)) and len(coords) == 2:
                             lat, lon = coords
                             if lat is not None and lon is not None:
-                                popupHome = folium.Popup("💑 Maison",
-                                                         max_width = '150')
-                                folium.Marker(location = [float(lat), float(lon)],
-                                              popup = popupHome,
-                                              icon = folium.Icon(color = 'blue', icon = 'home')).add_to(m)
+                                m = folium.Map(location=[float(lat), float(lon)], zoom_start=5)
+                                # Add home marker
+                                popupHome = folium.Popup("💑 Maison", max_width='150')
+                                folium.Marker(
+                                    location=[float(lat), float(lon)],
+                                    popup=popupHome,
+                                    icon=folium.Icon(color='blue', icon='home')
+                                ).add_to(m)
                     except (ValueError, TypeError, IndexError) as e:
-                        pass  # Silently handle any errors when adding home marker
-                
-                minimap.add_to(m)
-                draw.add_to(m)
+                        st.error(f"Impossible de trouver les coordonnées GPS pour l'adresse '{address}'. Veuillez vérifier l'adresse et réessayer.")
+                        m = folium.Map(location=base_position, zoom_start=6)
 
                 #Ajout des données de forecast
                 try:
@@ -449,12 +419,17 @@ def main():
                     m = folium.Map(location=base_position, zoom_start=6)
                     st.sidebar.error("Aucun résultat trouvé")
     else:
-        m = folium.Map(location = base_position,
-                       zoom_start = 6)
         st.warning('Aucune adresse sélectionnée')
 
+    # Add map components
+    marker_cluster = MarkerCluster().add_to(m)
+    minimap = MiniMap(toggle_display=True)
+    draw = Draw()
+    minimap.add_to(m)
+    draw.add_to(m)
+
     # Display the map with all its components
-    st_folium(m, returned_objects=[], width=800, height=600)  # Added explicit dimensions
+    st_folium(m, returned_objects=[], width=800, height=600)
 
     # Add expander for failed spots information
     if failed_spots:
@@ -464,7 +439,6 @@ def main():
                 st.write(f"- {spot['name']} : {spot['reason']}")
 
     st.markdown("- - -")
-
     st.markdown(":copyright: 2021-2025 Paul Bâcle")
 
 main()
