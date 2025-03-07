@@ -273,13 +273,29 @@ def main():
                 #Ajout des données de forecast
                 try:
                     if not dfDataDisplay.empty and 'nomSurfForecast' in dfDataDisplay.columns and not dfDataDisplay['nomSurfForecast'].empty:
+                        # Get forecast data for all spots
                         forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
-                        dfDataDisplay.loc[:, 'forecast'] = [forecast_data.get(spot, {}).get(selectbox_daily_forecast, 0) for spot in dfDataDisplay['nomSurfForecast']]
+                        
+                        # Store both the rating and full forecast data
+                        dfDataDisplay.loc[:, 'forecast'] = [
+                            forecast_data.get(spot, {}).get(selectbox_daily_forecast, 0) 
+                            for spot in dfDataDisplay['nomSurfForecast']
+                        ]
+                        
+                        # Store the full forecast data for use in popups
+                        dfDataDisplay.loc[:, 'forecast_details'] = [
+                            forecast_data.get(spot, {}) 
+                            for spot in dfDataDisplay['nomSurfForecast']
+                        ]
+                        
                     else:
                         dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay) if not dfDataDisplay.empty else []
+                        dfDataDisplay.loc[:, 'forecast_details'] = [{}] * len(dfDataDisplay) if not dfDataDisplay.empty else []
+                        
                 except Exception as e:
-                    st.error("Erreur lors du chargement des prévisions de surf")
+                    logger.error(f"Error loading forecast data: {str(e)}")
                     dfDataDisplay.loc[:, 'forecast'] = [0] * len(dfDataDisplay) if not dfDataDisplay.empty else []
+                    dfDataDisplay.loc[:, 'forecast_details'] = [{}] * len(dfDataDisplay) if not dfDataDisplay.empty else []
 
                 if option_prix > 0 and not dfDataDisplay.empty:
                     try:
@@ -372,18 +388,35 @@ def main():
                                 else:  # Distance
                                     colorIcon = displaymap_config.color_rating_distance(driving_time)
                                 
-                                # Create popup text with explicit formatting
-                                try:
-                                    popupText = (
-                                        f'🌊 Spot : {nomSpot}<br>'
-                                        f'🏁 Distance : {driving_dist:.1f} km<br>'
-                                        f'⏳ Temps de trajet : {driving_time:.1f} h<br>'
-                                        f'💸 Prix (aller) : {prix:.2f} €<br>'
-                                        f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast:.1f} /10'
-                                    )
-                                except Exception as e:
-                                    popupText = f'🌊 Spot : {nomSpot}'
+                                # Get detailed forecast data
+                                spot_forecast_details = forecast_data.get(nomSpot, {})
+                                current_forecast = None
+                                if spot_forecast_details and isinstance(spot_forecast_details, dict):
+                                    for forecast in spot_forecast_details.get('forecasts', []):
+                                        if forecast.timestamp.strftime('%A %d') in selectbox_daily_forecast:
+                                            current_forecast = forecast
+                                            break
                                 
+                                # Create popup text with detailed forecast information
+                                popupText = (
+                                    f'🌊 Spot : {nomSpot}<br>'
+                                    f'🏁 Distance : {driving_dist:.1f} km<br>'
+                                    f'⏳ Temps de trajet : {driving_time:.1f} h<br>'
+                                    f'💸 Prix (aller) : {prix:.2f} €<br>'
+                                )
+                                
+                                if current_forecast:
+                                    popupText += (
+                                        f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}):<br>'
+                                        f'&nbsp;&nbsp;• Note : {current_forecast.rating}/10<br>'
+                                        f'&nbsp;&nbsp;• Hauteur : {current_forecast.wave_height}<br>'
+                                        f'&nbsp;&nbsp;• Période : {current_forecast.wave_period}<br>'
+                                        f'&nbsp;&nbsp;• Énergie : {current_forecast.wave_energy}<br>'
+                                        f'&nbsp;&nbsp;• Vent : {current_forecast.wind_speed}'
+                                    )
+                                else:
+                                    popupText += f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast:.1f}/10'
+                                    
                                 try:
                                     popupSpot = folium.Popup(popupText, max_width='220')
                                 except Exception as e:
