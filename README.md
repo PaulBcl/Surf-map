@@ -2,6 +2,8 @@
 
 A Streamlit application that helps surfers find and plan trips to surf spots, including route information and costs.
 
+We'll get there slowly!
+
 ## Features
 
 - Interactive map showing surf spots
