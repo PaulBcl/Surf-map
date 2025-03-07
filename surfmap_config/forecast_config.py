@@ -58,7 +58,10 @@ def setup_browser_context(playwright):
 # Fetch surf forecast data
 
 def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
-    url = f"https://fr.surf-forecast.com/breaks/{nomSurfForecast}/forecasts/latest/six_day"
+    """Get the surf forecast URL for a given spot."""
+    # Format the spot name for the URL (replace spaces with hyphens, lowercase)
+    formatted_spot = nomSurfForecast.strip().replace(' ', '-').lower()
+    url = f"https://www.surf-forecast.com/breaks/{formatted_spot}/forecasts/latest/six_day"
     
     if USE_PLAYWRIGHT:
         try:
@@ -76,7 +79,12 @@ def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
             logger.error(f"Error fetching data with Playwright: {str(e)}")
     
     session = create_session()
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+    }
     try:
         response = session.get(url, headers=headers, timeout=20)
         response.raise_for_status()
@@ -173,8 +181,13 @@ def validate_forecast_data(data: Dict[str, Any]) -> bool:
 
 def get_dayList_forecast() -> List[str]:
     """Get list of forecast days in the correct format."""
-    # List of sample spots to try
-    sample_spots = ["Penthievre", "Hossegor", "Lacanau"]
+    # List of sample spots to try (these are verified working spots)
+    sample_spots = [
+        "La-Torche",
+        "Biarritz-Grande-Plage",
+        "Hossegor-La-Graviere",
+        "Lacanau-Ocean"
+    ]
     
     for spot in sample_spots:
         try:
@@ -186,6 +199,7 @@ def get_dayList_forecast() -> List[str]:
                     if day_str not in days:
                         days.append(day_str)
                 if days:  # Only return if we got some days
+                    logger.info(f"Successfully got forecast days from {spot}")
                     return days
             logger.warning(f"Could not get forecast data for {spot}")
         except Exception as e:
