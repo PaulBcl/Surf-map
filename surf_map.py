@@ -147,6 +147,14 @@ def main():
     dfDataDisplay = pd.DataFrame()
     failed_spots = []
     
+    # Initialize map with default position
+    m = folium.Map(location=base_position, zoom_start=6)
+    marker_cluster = MarkerCluster().add_to(m)
+    minimap = MiniMap(toggle_display=True)
+    draw = Draw()
+    minimap.add_to(m)
+    draw.add_to(m)
+    
     # Process data if address is provided
     if address:
         if validation_button or option_prix >= 0 or option_distance_h >= 0 or option_forecast >= 0:
@@ -159,8 +167,30 @@ def main():
                     dfDataDisplay = process_spot_data(dfData, address, api_config.gmaps_api_key)
                 
                 if not dfDataDisplay.empty:
-                    # Create map and add markers
-                    m, marker_cluster = create_map_with_markers(dfDataDisplay, address, base_position)
+                    # Update map location if we have valid coordinates
+                    if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
+                        try:
+                            coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
+                            if isinstance(coords, (list, tuple)) and len(coords) == 2:
+                                lat, lon = coords
+                                if lat is not None and lon is not None:
+                                    m = folium.Map(location=[float(lat), float(lon)], zoom_start=5)
+                                    # Add home marker
+                                    popupHome = folium.Popup("💑 Maison", max_width='150')
+                                    folium.Marker(
+                                        location=[float(lat), float(lon)],
+                                        popup=popupHome,
+                                        icon=folium.Icon(color='blue', icon='home')
+                                    ).add_to(m)
+                                    
+                                    # Re-add map components after map reinitialization
+                                    marker_cluster = MarkerCluster().add_to(m)
+                                    minimap = MiniMap(toggle_display=True)
+                                    draw = Draw()
+                                    minimap.add_to(m)
+                                    draw.add_to(m)
+                        except Exception as e:
+                            st.error(f"Error updating map location: {str(e)}")
                     
                     # Load forecast data
                     forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
