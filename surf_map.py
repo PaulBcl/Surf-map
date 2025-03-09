@@ -238,73 +238,75 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
     """Add markers for all surf spots to the map."""
     marker_cluster = MarkerCluster().add_to(m)
     
-    st.write(f"Adding markers for {len(forecasts)} surf spots...")
-    added_markers = 0
-    
-    for spot_name, data in forecasts.items():
-        spot_info = data['info']
-        daily_forecasts = data['forecasts']
-        daily_rating = daily_forecasts.get(selected_day, 0.0)
+    # Create an expander for logging messages
+    with st.expander("Détails du chargement des spots", expanded=False):
+        st.write(f"Adding markers for {len(forecasts)} surf spots...")
+        added_markers = 0
         
-        # Apply filters
-        if daily_rating < min_rating:
-            st.write(f"Skipping {spot_name} due to low rating: {daily_rating}")
-            continue
+        for spot_name, data in forecasts.items():
+            spot_info = data['info']
+            daily_forecasts = data['forecasts']
+            daily_rating = daily_forecasts.get(selected_day, 0.0)
             
-        # Calculate travel time in hours (assuming average speed of 80 km/h)
-        travel_time = spot_info['distance_km'] / 80.0
-        # Only apply travel time filter if max_time is greater than 0
-        if max_time > 0 and travel_time > max_time:
-            st.write(f"Skipping {spot_name} due to long travel time: {travel_time:.1f} hours")
-            continue
+            # Apply filters
+            if daily_rating < min_rating:
+                st.write(f"Skipping {spot_name} due to low rating: {daily_rating}")
+                continue
+                
+            # Calculate travel time in hours (assuming average speed of 80 km/h)
+            travel_time = spot_info['distance_km'] / 80.0
+            # Only apply travel time filter if max_time is greater than 0
+            if max_time > 0 and travel_time > max_time:
+                st.write(f"Skipping {spot_name} due to long travel time: {travel_time:.1f} hours")
+                continue
+                
+            # Calculate travel cost (0.2€ per km)
+            travel_cost = spot_info['distance_km'] * 0.2  # Rough estimate
+            # Only apply cost filter if max_cost is greater than 0
+            if max_cost > 0 and travel_cost > max_cost:
+                st.write(f"Skipping {spot_name} due to high cost: {travel_cost:.2f} €")
+                continue
             
-        # Calculate travel cost (0.2€ per km)
-        travel_cost = spot_info['distance_km'] * 0.2  # Rough estimate
-        # Only apply cost filter if max_cost is greater than 0
-        if max_cost > 0 and travel_cost > max_cost:
-            st.write(f"Skipping {spot_name} due to high cost: {travel_cost:.2f} €")
-            continue
-        
-        # Determine marker color
-        if color_by == "🌊 Wave Rating":
-            color = color_by_rating(daily_rating, 10, "rating")
-        elif color_by == "⏱️ Travel Time":
-            if max_time > 0:
-                color = color_by_rating(travel_time, max_time, "time")
-            else:
-                # When max_time is 0, use a relative scale based on all spots
-                color = color_by_rating(travel_time, 10, "time")  # Using 10 hours as reference
-        else:  # "💰 Cost"
-            if max_cost > 0:
-                color = color_by_rating(travel_cost, max_cost, "cost")
-            else:
-                # When max_cost is 0, use a relative scale based on typical costs
-                color = color_by_rating(travel_cost, 100, "cost")  # Using 100€ as reference
-        
-        # Create and add marker
-        popup_text = create_popup_text(spot_info, daily_forecasts, selected_day)
-        
-        # Get spot coordinates directly from info dictionary
-        spot_lat = spot_info.get('latitude')
-        spot_lon = spot_info.get('longitude')
-        
-        if spot_lat is None or spot_lon is None:
-            st.write(f"Skipping {spot_name} due to missing coordinates")
-            continue
+            # Determine marker color
+            if color_by == "🌊 Wave Rating":
+                color = color_by_rating(daily_rating, 10, "rating")
+            elif color_by == "⏱️ Travel Time":
+                if max_time > 0:
+                    color = color_by_rating(travel_time, max_time, "time")
+                else:
+                    # When max_time is 0, use a relative scale based on all spots
+                    color = color_by_rating(travel_time, 10, "time")  # Using 10 hours as reference
+            else:  # "💰 Cost"
+                if max_cost > 0:
+                    color = color_by_rating(travel_cost, max_cost, "cost")
+                else:
+                    # When max_cost is 0, use a relative scale based on typical costs
+                    color = color_by_rating(travel_cost, 100, "cost")  # Using 100€ as reference
             
-        try:
-            marker = folium.Marker(
-                location=[spot_lat, spot_lon],
-                popup=folium.Popup(popup_text, max_width=220),
-                icon=folium.Icon(color=color, icon='info-sign')
-            )
-            marker.add_to(marker_cluster)
-            added_markers += 1
-            st.write(f"Added marker for {spot_name} at ({spot_lat}, {spot_lon})")
-        except Exception as e:
-            st.write(f"Error adding marker for {spot_name}: {str(e)}")
-    
-    st.write(f"Successfully added {added_markers} markers to the map")
+            # Create and add marker
+            popup_text = create_popup_text(spot_info, daily_forecasts, selected_day)
+            
+            # Get spot coordinates directly from info dictionary
+            spot_lat = spot_info.get('latitude')
+            spot_lon = spot_info.get('longitude')
+            
+            if spot_lat is None or spot_lon is None:
+                st.write(f"Skipping {spot_name} due to missing coordinates")
+                continue
+                
+            try:
+                marker = folium.Marker(
+                    location=[spot_lat, spot_lon],
+                    popup=folium.Popup(popup_text, max_width=220),
+                    icon=folium.Icon(color=color, icon='info-sign')
+                )
+                marker.add_to(marker_cluster)
+                added_markers += 1
+                st.write(f"Added marker for {spot_name} at ({spot_lat}, {spot_lon})")
+            except Exception as e:
+                st.write(f"Error adding marker for {spot_name}: {str(e)}")
+        
+        st.write(f"Successfully added {added_markers} markers to the map")
 
 def main():
     """Main application function."""
