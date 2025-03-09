@@ -22,39 +22,23 @@ if 'run_id' not in st.session_state:
 
 def setup_sidebar(dayList):
     """Set up the sidebar with all controls."""
-    # Welcome message and instructions
-    st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
-    st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
-    st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
+    # Welcome message and instructions in sidebar
+    st.sidebar.markdown("# 🌊 Surfmap")
+    st.sidebar.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
+    st.sidebar.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
 
-    # Guide d'utilisation
-    explication_expander = st.expander("Guide d'utilisation", key="guide_expander")
-    with explication_expander:
-        st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
-        st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
-        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
-
-    # Legend
-    couleur_radio_expander = st.expander("Légende de la carte", key="legend_expander")
-    with couleur_radio_expander:
-        st.markdown(":triangular_flag_on_post: représente un spot de surf")
-        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
-        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
-        list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
-        checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur, key="color_select")
-
-    # Address input
+    # Address input in sidebar
     label_address = "Renseignez votre ville"
     address = st.sidebar.text_input(label_address, value='', max_chars=None, key="address_input", type='default', help=None)
 
-    # Profile section
+    # Profile section in sidebar
     with st.sidebar.expander("Profil", key="profile_expander"):
         st.warning("Work in progress")
         label_transport = "Moyen(s) de transport(s) favori(s)"
         list_transport = ["🚗 Voiture", "🚝 Train", "🚲 Vélo", "⛵ Bateau"]
         multiselect_transport = st.multiselect(label_transport, list_transport, default=list_transport[0], key="transport_select")
 
-    # Advanced options section
+    # Advanced options section in sidebar
     with st.sidebar.expander("Options avancées", key="advanced_expander"):
         # Reset button
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -81,11 +65,28 @@ def setup_sidebar(dayList):
         list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
         multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=f"country_select_{st.session_state.run_id}")
 
-    # Submit button
+    # Submit button in sidebar
     st.sidebar.write("\n")
     col1, col2, col3 = st.sidebar.columns([1, 3.5, 1])
     with col2:
         validation_button = st.button("Soumettre l'adresse", key="submit_button", help=None)
+
+    # Main area content
+    st.title("🌊 Surfmap")
+
+    # Guide d'utilisation in main area
+    with st.expander("Guide d'utilisation", key="guide_expander"):
+        st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
+        st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
+        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
+
+    # Legend in main area
+    with st.expander("Légende de la carte", key="legend_expander"):
+        st.markdown(":triangular_flag_on_post: représente un spot de surf")
+        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
+        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
+        list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
+        checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur, key="color_select")
 
     return address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
 
