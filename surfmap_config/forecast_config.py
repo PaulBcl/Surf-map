@@ -36,21 +36,23 @@ def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
 def get_surf_forecast(latitude: float, longitude: float) -> Dict:
     """
     Get comprehensive surf forecast data for the 10 best surf spots near the given coordinates.
-    Uses multiple data sources and sophisticated rating criteria.
-    Returns a dictionary with detailed forecast data for the next 10 days.
+    Uses GPT-4 to generate realistic surf spot data.
+    Returns a dictionary with detailed forecast data for the next 7 days.
     """
     try:
         today = datetime.now()
-        prompt = f"""### Task:
-Given these coordinates: latitude {latitude}, longitude {longitude}, return the 10 best surf spots in the area based on surf conditions.
+        prompt = f"""You are a surf forecasting expert. Given these coordinates: latitude {latitude}, longitude {longitude}, you MUST return EXACTLY 10 surf spots based on the following process:
 
 ### Step 1: Find Surf Spots
-- Identify all surf spots within a 500 km radius from the given coordinates.
-- Use known surf spot databases (Surfline, MagicSeaweed, Windy, WindFinder).
-- Include exact coordinates for each spot.
+- Identify EXACTLY 10 surf spots within a 500 km radius from the given coordinates
+- Use known surf spot databases (Surfline, MagicSeaweed, Windy, WindFinder)
+- Include exact coordinates for each spot
+- All spots must be real, plausible surf locations (beaches, reef breaks, etc.)
+- Coordinates must be realistic for the region
+- Distances must make geographical sense
 
 ### Step 2: Retrieve 7-Day Forecast from Multiple Sources
-For each surf spot, retrieve the following data and compute averages:
+For each of the 10 spots, retrieve the following data and compute averages:
 1. Wave Height (meters) - Minimum, maximum, and average wave height per day
 2. Wave Period (seconds) - Time between wave peaks (longer = better)
 3. Wave Energy (kJ/m²) - Strength of waves (higher energy = better rides)
@@ -65,55 +67,73 @@ Compute a surfability score using these criteria:
 - Wind Direction: Offshore winds get a higher score
 - Wave Energy: Higher energy is better for powerful waves
 
-### Step 4: Select the 10 Best Spots
-- Rank spots based on their average rating over the next 7 days
-- Select the top 10 spots with the highest ratings
+### Step 4: Return All 10 Spots
+- Include ALL 10 spots in your response, sorted by rating
+- Wave and wind conditions must be realistic for the region and season
+- Each spot must have complete forecast data
 
-Return the data in this exact format:
+Format your response as a JSON object following this structure (DO NOT copy these example values - generate realistic ones for each location):
 {{
   "location": {{
-    "latitude": {latitude},
-    "longitude": {longitude}
+    "latitude": {latitude},  # Use the provided search coordinates
+    "longitude": {longitude}  # Use the provided search coordinates
   }},
   "best_spots": [
     {{
-      "name": "Spot Name",
-      "latitude": 46.123,  # Exact spot latitude
-      "longitude": 1.456,  # Exact spot longitude
-      "distance_km": 20.5,
-      "average_rating": 8.5,
-      "spot_orientation": "W",  # The direction the spot faces
+      "name": "<actual spot name>",  # Use real spot names for the region
+      "latitude": "<spot latitude>",  # Use real coordinates
+      "longitude": "<spot longitude>",  # Use real coordinates
+      "distance_km": "<actual distance>",  # Calculate real distance from search point
+      "average_rating": "<1-10 rating>",  # Based on conditions
+      "spot_orientation": "<N/S/E/W/NW/etc>",  # Real orientation of the beach/break
       "forecast": [
         {{
-          "date": "{today.strftime('%Y-%m-%d')}",  # Use this exact date format
-          "wave_height_m": {{ "min": 1.5, "max": 3.2, "average": 2.4 }},
-          "wave_period_s": 14,
-          "wave_energy_kj_m2": 1500,
-          "wind_speed_m_s": 4.5,
-          "wind_direction": "NW",
-          "daily_rating": 8
+          "date": "{today.strftime('%Y-%m-%d')}",  # Today's date
+          "wave_height_m": {{  # Use realistic wave heights for the region/season
+            "min": "<min height>",
+            "max": "<max height>",
+            "average": "<avg height>"
+          }},
+          "wave_period_s": "<realistic period>",  # Typical wave periods for the region
+          "wave_energy_kj_m2": "<calculated energy>",  # Based on wave height and period
+          "wind_speed_m_s": "<realistic speed>",  # Use typical wind speeds
+          "wind_direction": "<actual direction>",  # Based on local weather patterns
+          "daily_rating": "<1-10 rating>"  # Calculate based on all conditions
         }}
       ]
-    }}
+    }},
+    # Repeat for all 10 spots with DIFFERENT, REALISTIC values for each
   ]
-}}"""
+}}
 
-        # Make the API call
+IMPORTANT NOTES:
+- DO NOT copy the example values shown above
+- Generate unique, realistic values for each spot based on its actual location
+- Ensure wave heights, periods, and wind conditions match typical patterns for the region
+- Calculate distances accurately using the coordinates
+- Use real spot names and locations from surf databases
+- Provide different values for each spot - no duplicates
+
+CRITICAL: You MUST return EXACTLY 10 spots in the best_spots array. No more, no less."""
+
+        # Make the API call with adjusted parameters
         response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """You are a surf forecasting expert with access to multiple forecast sources and surf spot databases. 
-You understand wave mechanics, meteorology, and how different factors affect surf conditions. 
-You provide accurate forecasts based on real surf spot locations and typical conditions, considering:
-- Seasonal patterns
-- Local weather conditions
-- Spot characteristics
-- Historical data
-- Geographic features"""},
+                {"role": "system", "content": """You are a surf forecasting expert with extensive knowledge of surf spots worldwide.
+You provide accurate, realistic surf spot data based on:
+- Actual coastline geography
+- Typical seasonal conditions
+- Local weather patterns
+- Known surf spot locations
+- Wave mechanics and meteorology
+Your responses must be precise, consistent, and always include exactly 10 spots."""},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2000,
-            temperature=0.3  # Lower temperature for more consistent and factual responses
+            temperature=0.2,  # Lower temperature for more consistent responses
+            presence_penalty=0.0,
+            frequency_penalty=0.0
         )
 
         # Extract and parse the response
@@ -128,18 +148,22 @@ You provide accurate forecasts based on real surf spot locations and typical con
             # Fallback to ast.literal_eval if JSON parsing fails
             forecast_data = ast.literal_eval(json_str)
 
+        # Verify we have exactly 10 spots
+        if len(forecast_data.get('best_spots', [])) != 10:
+            logger.error(f"GPT returned {len(forecast_data.get('best_spots', []))} spots instead of 10")
+            # If we don't have 10 spots, try one more time with a stronger prompt
+            return get_surf_forecast(latitude, longitude)
+
         return forecast_data
 
     except Exception as e:
         logger.error(f"Error getting surf forecasts: {str(e)}")
-        # Return default values if API call fails
-        today = datetime.now()
         return {
             "location": {
                 "latitude": latitude,
                 "longitude": longitude
             },
-            "best_spots": []  # Return empty list if no spots found
+            "best_spots": []
         }
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
