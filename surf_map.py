@@ -184,7 +184,7 @@ def create_popup_text(spot_info: dict, forecast: dict, selected_day: str) -> str
         <div class="section">
             <div class="label">📍 Location & Travel</div>
             <div>Distance: <span class="value">{spot_info['distance_km']:.1f} km</span></div>
-            <div>Travel Time: <span class="value">{spot_info['distance_km'] / 60.0:.1f} hours</span></div>
+            <div>Travel Time: <span class="value">{spot_info['distance_km']:.1f} hours</span></div>
             <div>Est. Cost: <span class="value">{spot_info['distance_km'] * 0.2:.2f} €</span></div>
         </div>
         
