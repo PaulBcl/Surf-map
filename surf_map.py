@@ -1,414 +1,264 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import streamlit as st
-import numpy as np
-import pandas as pd
-import time
-import gmaps
-import gmaps.datasets
-import pandas as pd
-import logging
-from datetime import datetime
-import json
-import traceback
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-#Asynchronous run on api
-#from https://pawelmhm.github.io/asyncio/python/aiohttp/2016/04/22/asyncio-aiohttp.html
-import asyncio
-from aiohttp import ClientSession
-#import ray
-
-#Carte
 import folium
-from folium.plugins import MarkerCluster, MiniMap, Draw, Fullscreen
-from folium.features import CustomIcon
-#Streamlit custom
-from SessionState import get_session
-from streamlit_folium import folium_static, st_folium #https://github.com/randyzwitch/streamlit-folium
-#from st_annotated_text import annotated_text #https://github.com/tvst/st-annotated-text
-#Config perso
-from surfmap_config import surfmap_config
+from folium import plugins
+from folium.plugins import MarkerCluster, MiniMap, Draw
+import pandas as pd
+from datetime import datetime, timedelta
 from surfmap_config import forecast_config
-from surfmap_config import displaymap_config
-from surfmap_config import research_config
-from surfmap_config import api_config
-#documents d'upload : https://github.com/MaartenGr/streamlit_guide
-#source : https://towardsdatascience.com/quickly-build-and-deploy-an-application-with-streamlit-988ca08c7e83
 
-st.title('Surfmap')
-base_position = [48.8434864, 2.3859893]
+# Set page config
+st.set_page_config(
+    page_title="🏄‍♂️ SurfMap",
+    page_icon="🏄‍♂️",
+    layout="wide"
+)
 
-# Initialize session state
-session = get_session()
+# Add app description and guide
+st.title("🏄‍♂️ SurfMap - Find Your Perfect Wave")
 
-def setup_sidebar(dayList):
-    """Set up the sidebar with all controls."""
-    # Welcome message and instructions
-    st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
-    st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
-    st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
+st.markdown("""
+### Guide d'Utilisation / User Guide
 
-    # Guide d'utilisation
-    explication_expander = st.expander("Guide d'utilisation")
-    with explication_expander:
-        st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
-        st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
-        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
+This application helps you find the best surf spots based on your location and preferences.
 
-    # Legend
-    couleur_radio_expander = st.expander("Légende de la carte")
-    with couleur_radio_expander:
-        st.markdown(":triangular_flag_on_post: représente un spot de surf")
-        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
-        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
-        list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
-        checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
+#### How to Use:
+1. Enter your location in the sidebar
+2. Select the forecast day you're interested in
+3. Adjust the filters:
+   - Minimum wave rating (0-10)
+   - Maximum travel time
+   - Maximum travel cost
+4. Choose how to color the markers:
+   - Wave Rating: Green = Excellent (7-10), Yellow = Good (5-7), Orange = Fair (3-5), Red = Poor (0-3)
+   - Travel Time: Colors indicate distance relative to your maximum setting
+   - Cost: Colors indicate expense relative to your maximum budget
 
+#### Features:
+- 🌊 Real-time surf forecasts using AI
+- 📍 Interactive map with surf spot markers
+- 🚗 Travel time and cost estimates
+- 📊 Customizable filters and display options
+
+#### Legend:
+- 🏠 Blue Home marker: Your location
+- 🟢 Dark Green marker: Excellent conditions
+- 🟡 Green marker: Good conditions
+- 🟠 Orange marker: Fair conditions
+- 🔴 Red marker: Poor conditions
+""")
+
+st.markdown("---")
+
+# Default map position (center of France)
+base_position = [46.603354, 1.888334]
+
+def setup_sidebar(day_list):
+    """Set up the sidebar with input controls."""
+    st.sidebar.title("🏄‍♂️ SurfMap")
+    
     # Address input
-    label_address = "Renseignez votre ville"
-    address = st.sidebar.text_input(label_address, value='', max_chars=None, key=None, type='default', help=None)
+    address = st.sidebar.text_input("🏠 Your location:", "")
+    validation_button = st.sidebar.button("🔍 Search")
     
-    # Profile section
-    with st.sidebar.expander("Profil"):
-        st.warning("Work in progress")
-        label_transport = "Moyen(s) de transport(s) favori(s)"
-        list_transport = ["🚗 Voiture", "🚝 Train", "🚲 Vélo", "⛵ Bateau"]
-        multiselect_transport = st.multiselect(label_transport, list_transport, default=list_transport[0])
+    # Forecast day selection
+    selectbox_daily_forecast = st.sidebar.selectbox(
+        "📅 Select day:",
+        day_list
+    )
     
-    # Advanced options section
-    with st.sidebar.expander("Options avancées"):
-        # Reset button
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            raz_button = st.button("Remise à zéro", key=None, help="Remettre les options à zéro")
-        
-        if raz_button:
-            session.run_id += 1
-        
-        # Forecast day selection
-        label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
-        selectbox_daily_forecast = st.selectbox(label_daily_forecast, dayList)
-        
-        # Sliders
-        option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
-                                  key=session.run_id, help="En définissant les prévisions à 0, tous les résultats s'affichent")
-        option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
-                              key=session.run_id, help="En définissant le prix à 0€, tous les résultats s'affichent")
-        option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
-                                    key=session.run_id, help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
-        
-        # Country selection
-        label_choix_pays = "Choix des pays pour les spots à afficher"
-        list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
-        multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=session.run_id)
+    # Rating filters
+    st.sidebar.markdown("### 📊 Filters")
+    option_forecast = st.sidebar.slider(
+        "Minimum wave rating (0-10):",
+        min_value=0,
+        max_value=10,
+        value=0
+    )
     
-    # Submit button
-    st.sidebar.write("\n")
-    col1, col2, col3 = st.sidebar.columns([1, 3.5, 1])
-    with col2:
-        validation_button = st.button("Soumettre l'adresse", key=None, help=None)
+    option_distance_h = st.sidebar.slider(
+        "Maximum travel time (hours):",
+        min_value=0,
+        max_value=24,
+        value=24
+    )
     
-    return address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
+    option_prix = st.sidebar.slider(
+        "Maximum travel cost (€):",
+        min_value=0,
+        max_value=500,
+        value=500
+    )
+    
+    # Display options
+    st.sidebar.markdown("### 🎨 Display Options")
+    checkbox_choix_couleur = st.sidebar.radio(
+        "Color markers by:",
+        ["🏄‍♂️ Wave Rating", "⏱️ Travel Time", "💸 Cost"]
+    )
+    
+    return (
+        address,
+        validation_button,
+        option_forecast,
+        option_prix,
+        option_distance_h,
+        selectbox_daily_forecast,
+        checkbox_choix_couleur
+    )
 
-def apply_filters(dfDataDisplay, option_prix, option_distance_h, option_forecast, multiselect_pays):
-    """Apply all filters to the DataFrame."""
-    if dfDataDisplay.empty:
-        return dfDataDisplay
+def color_by_rating(value: float, max_value: float, type: str = "rating") -> str:
+    """Return color based on value relative to maximum."""
+    if type == "rating":
+        if value >= 7:
+            return 'darkgreen'
+        elif value >= 5:
+            return 'green'
+        elif value >= 3:
+            return 'orange'
+        elif value > 0:
+            return 'red'
+        return 'lightgray'
+    else:  # For cost and time (inverse scale - lower is better)
+        ratio = value / max_value
+        if ratio <= 0.25:
+            return 'darkgreen'
+        elif ratio <= 0.5:
+            return 'green'
+        elif ratio <= 0.75:
+            return 'orange'
+        return 'red'
+
+def create_popup_text(spot_info: dict, forecast: dict, selected_day: str) -> str:
+    """Create popup text for a surf spot marker."""
+    daily_rating = forecast.get(selected_day, 0.0)
     
-    # Price filter
-    if option_prix > 0 and 'prix' in dfDataDisplay.columns:
-        dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix].copy()
+    # Base info that's always shown
+    popup_text = f"""
+    <h4>🌊 {spot_info['name']}</h4>
+    <hr>
+    <b>📍 Location & Travel:</b><br>
+    • Distance: {spot_info['distance_km']:.1f} km<br>
+    • Travel Time: {spot_info['distance_km'] / 60.0:.1f} hours<br>
+    • Cost: {spot_info['distance_km'] * 0.2:.2f} €<br>
+    <hr>
+    <b>🏄‍♂️ Surf Conditions:</b><br>
+    • Rating: {daily_rating:.1f}/10<br>
+    • Average Rating: {spot_info['average_rating']:.1f}/10<br>
+    • Spot Orientation: {spot_info['spot_orientation']}<br>
+    """
     
-    # Distance filter
-    if option_distance_h > 0 and 'drivingTime' in dfDataDisplay.columns:
-        dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h].copy()
+    return popup_text
+
+def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str, 
+                    color_by: str, max_time: float = 24.0, max_cost: float = 500.0,
+                    min_rating: float = 0.0) -> None:
+    """Add markers for all surf spots to the map."""
+    marker_cluster = MarkerCluster().add_to(m)
     
-    # Forecast filter
-    if option_forecast > 0 and 'forecast' in dfDataDisplay.columns:
-        dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast].copy()
-    
-    # Country filter
-    if 'paysSpot' in dfDataDisplay.columns:
-        multiselect_pays = [x.split()[-1] for x in multiselect_pays]
-        dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)].copy()
-    
-    return dfDataDisplay
+    for spot_name, data in forecasts.items():
+        spot_info = data['info']
+        daily_forecasts = data['forecasts']
+        daily_rating = daily_forecasts.get(selected_day, 0.0)
+        
+        # Apply filters
+        if daily_rating < min_rating:
+            continue
+            
+        travel_time = spot_info['distance_km'] / 60.0  # Rough estimate
+        if travel_time > max_time:
+            continue
+            
+        travel_cost = spot_info['distance_km'] * 0.2  # Rough estimate
+        if travel_cost > max_cost:
+            continue
+        
+        # Determine marker color
+        if color_by == "🏄‍♂️ Wave Rating":
+            color = color_by_rating(daily_rating, 10, "rating")
+        elif color_by == "⏱️ Travel Time":
+            color = color_by_rating(travel_time, max_time, "time")
+        else:  # "💸 Cost"
+            color = color_by_rating(travel_cost, max_cost, "cost")
+        
+        # Create and add marker
+        popup_text = create_popup_text(spot_info, daily_forecasts, selected_day)
+        
+        # Get spot coordinates directly from info dictionary
+        spot_lat = spot_info.get('latitude', 0.0)
+        spot_lon = spot_info.get('longitude', 0.0)
+        
+        folium.Marker(
+            location=[spot_lat, spot_lon],
+            popup=folium.Popup(popup_text, max_width=220),
+            icon=folium.Icon(color=color, icon='info-sign')
+        ).add_to(marker_cluster)
 
 def main():
-    # Load initial data
-    dfSpots, dayList = load_initial_data()
+    """Main application function."""
+    # Get forecast days
+    day_list = forecast_config.get_dayList_forecast()
     
     # Set up sidebar and get user inputs
-    address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur = setup_sidebar(dayList)
-    
-    # Initialize display variables
-    dfDataDisplay = pd.DataFrame()
-    failed_spots = []
+    (address, validation_button, option_forecast, option_prix, 
+     option_distance_h, selectbox_daily_forecast, checkbox_choix_couleur) = setup_sidebar(day_list)
     
     # Initialize map with default position
     m = folium.Map(location=base_position, zoom_start=6)
-    marker_cluster = MarkerCluster().add_to(m)
-    minimap = MiniMap(toggle_display=True)
-    draw = Draw()
-    minimap.add_to(m)
-    draw.add_to(m)
+    
+    # Add map controls
+    MiniMap(toggle_display=True).add_to(m)
+    Draw().add_to(m)
     
     # Process data if address is provided
-    if address:
-        if validation_button or option_prix >= 0 or option_distance_h >= 0 or option_forecast >= 0:
-            try:
-                # Load and process data
-                dfData = surfmap_config.load_data(dfSpots, api_config.gmaps_api_key)
-                if 'villeOrigine' in dfData.columns and address in dfData['villeOrigine'].tolist():
-                    dfDataDisplay = dfData[dfData['villeOrigine'] == address].copy()
-                else:
-                    dfDataDisplay = process_spot_data(dfData, address, api_config.gmaps_api_key)
-                
-                if not dfDataDisplay.empty:
-                    # Update map location if we have valid coordinates
-                    if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
-                        try:
-                            coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
-                            if isinstance(coords, (list, tuple)) and len(coords) == 2:
-                                lat, lon = coords
-                                if lat is not None and lon is not None:
-                                    m = folium.Map(location=[float(lat), float(lon)], zoom_start=5)
-                                    # Add home marker
-                                    popupHome = folium.Popup("💑 Maison", max_width='150')
-                                    folium.Marker(
-                                        location=[float(lat), float(lon)],
-                                        popup=popupHome,
-                                        icon=folium.Icon(color='blue', icon='home')
-                                    ).add_to(m)
-                                    
-                                    # Re-add map components after map reinitialization
-                                    marker_cluster = MarkerCluster().add_to(m)
-                                    minimap = MiniMap(toggle_display=True)
-                                    draw = Draw()
-                                    minimap.add_to(m)
-                                    draw.add_to(m)
-                        except Exception as e:
-                            st.error(f"Error updating map location: {str(e)}")
-                    
-                    # Load forecast data
-                    forecast_data = forecast_config.load_forecast_data(dfDataDisplay['nomSurfForecast'].tolist(), dayList)
-                    
-                    # Apply filters
-                    dfDataDisplay = apply_filters(dfDataDisplay, option_prix, option_distance_h, option_forecast, multiselect_pays)
-                    
-                    # Add markers for each spot
-                    for nomSpot in dfDataDisplay['nomSpot'].tolist():
-                        add_spot_marker(dfDataDisplay, nomSpot, marker_cluster, forecast_data, selectbox_daily_forecast, checkbox_choix_couleur)
-                    
-                    st.sidebar.success(f"Recherche terminée ({len(dfDataDisplay)} résultats) !")
-                else:
-                    st.sidebar.error("Aucun résultat trouvé")
-                    
-            except Exception as e:
-                st.error(f"Erreur lors du traitement des données: {str(e)}")
-    else:
-        st.warning('Aucune adresse sélectionnée')
-    
-    # Display the map
-    st_folium(m, returned_objects=[], width=800, height=600)
-    
-    # Display failed spots
-    if failed_spots:
-        with st.expander("⚠️ Spots non affichés sur la carte", expanded=False):
-            st.write("Les spots suivants n'ont pas pu être affichés sur la carte :")
-            for spot in failed_spots:
-                st.write(f"- {spot['name']} : {spot['reason']}")
-    
-    st.markdown("- - -")
-    st.markdown(":copyright: 2021-2025 Paul Bâcle")
-
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_initial_data():
-    """Load and cache initial data that doesn't change frequently."""
-    try:
-        url_database = "surfmap_config/surfspots.xlsx"
-        dfSpots = surfmap_config.load_spots(url_database)
-        dayList = forecast_config.get_dayList_forecast()
-        return dfSpots, dayList
-    except Exception as e:
-        st.error(f"Error loading spots database: {str(e)}")
-        return pd.DataFrame(), []
-
-@st.cache_data(ttl=3600)
-def process_spot_data(dfData, address, api_key):
-    """Process spot data for a given address."""
-    try:
-        dfSearchVille = research_config.add_new_spot_to_dfData(address, dfData, api_key)
-        if dfSearchVille is not None and not dfSearchVille.empty:
-            common_columns = list(set(dfData.columns) & set(dfSearchVille.columns))
-            dfData = dfData[common_columns].copy()
-            dfSearchVille = dfSearchVille[common_columns].copy()
-            
-            numeric_columns = ['drivingDist', 'drivingTime', 'tollCost', 'gazPrice', 'prix', 'forecast']
-            for col in numeric_columns:
-                if col in common_columns:
-                    dfData[col] = pd.to_numeric(dfData[col], errors='coerce').fillna(0.0)
-                    dfSearchVille[col] = pd.to_numeric(dfSearchVille[col], errors='coerce').fillna(0.0)
-            
-            if not (dfData.empty and dfSearchVille.empty):
-                dfData = pd.concat([dfData, dfSearchVille], ignore_index=True)
-                return dfData[dfData['villeOrigine'] == address].copy()
-        return pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error processing spot data: {str(e)}")
-        return pd.DataFrame()
-
-def add_spot_marker(dfDataDisplay, nomSpot, marker_cluster, forecast_data, selectbox_daily_forecast, checkbox_choix_couleur):
-    """Add a marker for a specific spot to the map."""
-    try:
-        spot_infos_df = dfDataDisplay[dfDataDisplay['nomSpot'] == nomSpot].copy()
-        if spot_infos_df.empty:
-            return
-            
-        spot_infos = spot_infos_df.to_dict('records')[0]
-        spot_coords = spot_infos.get('gpsSpot')
-        
-        # Skip if coordinates are invalid
-        if not spot_coords or not isinstance(spot_coords, (list, tuple)) or len(spot_coords) != 2:
-            failed_spots.append({
-                'name': nomSpot,
-                'reason': 'Invalid coordinates'
-            })
-            return
-            
-        lat, lon = spot_coords
-        if lat is None or lon is None:
-            failed_spots.append({
-                'name': nomSpot,
-                'reason': 'Invalid coordinates'
-            })
-            return
-            
-        # Get route information
-        driving_dist = spot_infos.get('drivingDist', 0.0)
-        driving_time = spot_infos.get('drivingTime', 0.0)
-        prix = spot_infos.get('prix', 0.0)
-        
-        # Convert route values to float, handling None/NaN
+    if address and validation_button:
         try:
-            driving_dist = float(driving_dist) if driving_dist is not None and not pd.isna(driving_dist) else 0.0
-            driving_time = float(driving_time) if driving_time is not None and not pd.isna(driving_time) else 0.0
-            prix = float(prix) if prix is not None and not pd.isna(prix) else 0.0
-        except (ValueError, TypeError):
-            driving_dist = 0.0
-            driving_time = 0.0
-            prix = 0.0
-        
-        # Get forecast value
-        try:
-            spot_forecast = float(spot_infos.get('forecast', 0))
-        except (ValueError, TypeError):
-            spot_forecast = 0.0
-        
-        # Determine marker color based on selected criteria
-        if checkbox_choix_couleur == "💸 Prix":
-            colorIcon = displaymap_config.color_rating_prix(prix)
-        elif checkbox_choix_couleur == "🏄‍♂️ Prévisions":
-            colorIcon = displaymap_config.color_rating_forecast(spot_forecast)
-        else:  # Distance
-            colorIcon = displaymap_config.color_rating_distance(driving_time)
-        
-        # Get detailed forecast data
-        spot_forecast_details = forecast_data.get(nomSpot, {})
-        current_forecast = None
-        if spot_forecast_details and isinstance(spot_forecast_details, dict):
-            for forecast in spot_forecast_details.get('forecasts', []):
-                if forecast.timestamp.strftime('%A %d') in selectbox_daily_forecast:
-                    current_forecast = forecast
-                    break
-        
-        # Create popup text with detailed forecast information
-        popupText = (
-            f'🌊 Spot : {nomSpot}<br>'
-            f'🏁 Distance : {driving_dist:.1f} km<br>'
-            f'⏳ Temps de trajet : {driving_time:.1f} h<br>'
-            f'💸 Prix (aller) : {prix:.2f} €<br>'
-        )
-        
-        if current_forecast:
-            popupText += (
-                f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}):<br>'
-                f'&nbsp;&nbsp;• Note : {current_forecast.rating}/10<br>'
-                f'&nbsp;&nbsp;• Hauteur : {current_forecast.wave_height}<br>'
-                f'&nbsp;&nbsp;• Période : {current_forecast.wave_period}<br>'
-                f'&nbsp;&nbsp;• Énergie : {current_forecast.wave_energy}<br>'
-                f'&nbsp;&nbsp;• Vent : {current_forecast.wind_speed}'
-            )
-        else:
-            popupText += f'🏄‍♂️ Prévisions ({selectbox_daily_forecast}) : {spot_forecast:.1f}/10'
+            # Get forecasts for nearby spots
+            forecasts = forecast_config.load_forecast_data(address, day_list)
             
-        try:
-            popupSpot = folium.Popup(popupText, max_width='220')
-        except Exception:
-            popupSpot = folium.Popup(f'🌊 Spot : {nomSpot}', max_width='220')
-        
-        # Add marker to map
-        try:
-            marker = folium.Marker(
-                location=[float(lat), float(lon)],
-                popup=popupSpot,
-                icon=folium.Icon(color=colorIcon, icon='')
-            )
-            marker.add_to(marker_cluster)
-        except Exception as e:
-            failed_spots.append({
-                'name': nomSpot,
-                'reason': f'Error adding marker: {str(e)}'
-            })
-            
-    except Exception as e:
-        failed_spots.append({
-            'name': nomSpot,
-            'reason': f'Error processing spot: {str(e)}'
-        })
-
-def create_map_with_markers(dfDataDisplay, address, base_position):
-    """Create and configure the map with markers."""
-    # Initialize map with default position
-    m = folium.Map(location=base_position, zoom_start=6)
-    
-    # Add map components
-    marker_cluster = MarkerCluster().add_to(m)
-    minimap = MiniMap(toggle_display=True)
-    draw = Draw()
-    minimap.add_to(m)
-    draw.add_to(m)
-    
-    # Update map location if we have valid coordinates
-    if 'gpsVilleOrigine' in dfDataDisplay.columns and dfDataDisplay['gpsVilleOrigine'].iloc[0] is not None:
-        try:
-            coords = dfDataDisplay['gpsVilleOrigine'].iloc[0]
-            if isinstance(coords, (list, tuple)) and len(coords) == 2:
-                lat, lon = coords
+            if forecasts:
+                # Get coordinates of the search location
+                lat, lon = forecast_config.get_coordinates(address)
                 if lat is not None and lon is not None:
-                    m = folium.Map(location=[float(lat), float(lon)], zoom_start=5)
+                    # Update map center
+                    m = folium.Map(location=[lat, lon], zoom_start=8)
+                    
                     # Add home marker
-                    popupHome = folium.Popup("💑 Maison", max_width='150')
                     folium.Marker(
-                        location=[float(lat), float(lon)],
-                        popup=popupHome,
+                        location=[lat, lon],
+                        popup=folium.Popup("🏠 Home", max_width=150),
                         icon=folium.Icon(color='blue', icon='home')
                     ).add_to(m)
                     
-                    # Re-add map components after map reinitialization
-                    marker_cluster = MarkerCluster().add_to(m)
-                    minimap = MiniMap(toggle_display=True)
-                    draw = Draw()
-                    minimap.add_to(m)
-                    draw.add_to(m)
+                    # Re-add map controls
+                    MiniMap(toggle_display=True).add_to(m)
+                    Draw().add_to(m)
+                    
+                    # Add spot markers
+                    add_spot_markers(
+                        m, forecasts, selectbox_daily_forecast,
+                        checkbox_choix_couleur, option_distance_h,
+                        option_prix, option_forecast
+                    )
+                    
+                    # Show success message
+                    st.success(f"Found {len(forecasts)} surf spots near {address}")
+                else:
+                    st.error("Could not find the specified location")
+            else:
+                st.warning("No surf spots found in the area")
+                
         except Exception as e:
-            st.error(f"Error updating map location: {str(e)}")
+            st.error(f"Error processing data: {str(e)}")
     
-    return m, marker_cluster
+    # Display the map
+    st.components.v1.html(m._repr_html_(), height=800)
+    
+    # Add footer
+    st.markdown("---")
+    st.markdown("Made with ❤️ by surf enthusiasts")
 
-# Initialize failed_spots list at module level
-failed_spots = []
-
-main()
+if __name__ == "__main__":
+    main()

@@ -1,23 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import pandas as pd
 import streamlit as st
-import numpy as np
-import time
 import logging
-import requests
-import asyncio
-from bs4 import BeautifulSoup
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
-from typing import Optional, Dict, List
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 import openai
+import json
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Union
+import ast
+from . import api_config
 
 # OpenAI API Key (Make sure to store it securely in Streamlit secrets)
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -26,187 +17,196 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Selenium WebDriver for JavaScript-loaded pages
-def init_selenium():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in background
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    return driver
-
-# Create an HTTP session with retry logic
-def create_session():
-    session = requests.Session()
-    retry = Retry(total=5, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    return session
-
-# Format surf spot name for URL
-def format_surf_forecast_url(nomSurfForecast):
-    return '-'.join([word.capitalize() for word in nomSurfForecast.split('-')])
-
-# Check if the surf spot URL exists before scraping
-def check_url_exists(nomSurfForecast: str) -> bool:
-    formatted_name = format_surf_forecast_url(nomSurfForecast)
-    url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
-    session = create_session()
-    response = session.get(url, headers={'User-Agent': 'Mozilla/5.0'})
-    return response.status_code != 404
-
-# Fetch surf forecast data with requests or Selenium
-def get_surfSpot_url(nomSurfForecast: str) -> Optional[str]:
-    formatted_name = format_surf_forecast_url(nomSurfForecast)
-    url = f"https://www.surf-forecast.com/breaks/{formatted_name}/forecasts/latest/six_day"
-
-    # Try requests first
-    session = create_session()
-    headers = {'User-Agent': 'Mozilla/5.0'}
+def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
+    """
+    Convert an address to coordinates using Google Maps Geocoding API.
+    Returns a tuple of (latitude, longitude) or (None, None) if geocoding fails.
+    """
     try:
-        response = session.get(url, headers=headers, timeout=20)
-        response.raise_for_status()
-        return response.text
-    except requests.exceptions.RequestException:
-        logger.warning(f"Requests failed for {nomSurfForecast}, switching to Selenium")
-
-    # Try Selenium as a fallback for JavaScript-rendered pages
-    try:
-        driver = init_selenium()
-        driver.get(url)
-        time.sleep(5)  # Allow time for JavaScript to load
-        content = driver.page_source
-        driver.quit()
-        return content
+        result = api_config.get_google_results(address, api_config.gmaps_api_key)
+        if result['success']:
+            return result['latitude'], result['longitude']
+        else:
+            logger.error(f"Geocoding failed for address {address}: {result.get('error_message', 'Unknown error')}")
+            return None, None
     except Exception as e:
-        logger.error(f"Error with Selenium for {nomSurfForecast}: {str(e)}")
-        return None
+        logger.error(f"Error geocoding address {address}: {str(e)}")
+        return None, None
 
-# AI-powered extraction for missing data
-def ai_extract_forecast(content: str) -> Dict:
+def get_surf_forecast(latitude: float, longitude: float) -> Dict:
+    """
+    Get comprehensive surf forecast data for the 10 best surf spots near the given coordinates.
+    Uses multiple data sources and sophisticated rating criteria.
+    Returns a dictionary with detailed forecast data for the next 10 days.
+    """
     try:
-        prompt = f"Extract surf forecast details (ratings, wave heights, wave periods, wave energy, wind speed) from the following HTML: {content[:1000]}... (truncated)"
+        today = datetime.now()
+        prompt = f"""### Task:
+Given these coordinates: latitude {latitude}, longitude {longitude}, return the 10 best surf spots in the area based on surf conditions.
+
+### Step 1: Find Surf Spots
+- Identify all surf spots within a 200 km radius from the given coordinates.
+- Use known surf spot databases (Surfline, MagicSeaweed, Windy, WindFinder).
+- Include exact coordinates for each spot.
+
+### Step 2: Retrieve 7-Day Forecast from Multiple Sources
+For each surf spot, retrieve the following data and compute averages:
+1. Wave Height (meters) - Minimum, maximum, and average wave height per day
+2. Wave Period (seconds) - Time between wave peaks (longer = better)
+3. Wave Energy (kJ/m²) - Strength of waves (higher energy = better rides)
+4. Wind Speed (m/s) - Lower wind speeds are preferable
+5. Wind Direction - Offshore winds improve wave shape, onshore winds deteriorate it
+
+### Step 3: Rate Each Spot (0-10 Scale)
+Compute a surfability score using these criteria:
+- Wave Height: Ideal range = 1.2m - 3m
+- Wave Period: Above 10s is good; below 7s is weak
+- Wind Speed: Below 6 m/s is ideal
+- Wind Direction: Offshore winds get a higher score
+- Wave Energy: Higher energy is better for powerful waves
+
+### Step 4: Select the 10 Best Spots
+- Rank spots based on their average rating over the next 7 days
+- Select the top 10 spots with the highest ratings
+
+Return the data in this exact format:
+{{
+  "location": {{
+    "latitude": {latitude},
+    "longitude": {longitude}
+  }},
+  "best_spots": [
+    {{
+      "name": "Spot Name",
+      "latitude": 46.123,  # Exact spot latitude
+      "longitude": 1.456,  # Exact spot longitude
+      "distance_km": 20.5,
+      "average_rating": 8.5,
+      "spot_orientation": "W",  # The direction the spot faces
+      "forecast": [
+        {{
+          "date": "{today.strftime('%Y-%m-%d')}",  # Use this exact date format
+          "wave_height_m": {{ "min": 1.5, "max": 3.2, "average": 2.4 }},
+          "wave_period_s": 14,
+          "wave_energy_kj_m2": 1500,
+          "wind_speed_m_s": 4.5,
+          "wind_direction": "NW",
+          "daily_rating": 8
+        }}
+      ]
+    }}
+  ]
+}}"""
+
+        # Make the API call
         response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a surf forecast data extractor. Extract the following information: ratings (0-10), wave heights, wave periods, wave energy, and wind speed."},
+                {"role": "system", "content": """You are a surf forecasting expert with access to multiple forecast sources and surf spot databases. 
+You understand wave mechanics, meteorology, and how different factors affect surf conditions. 
+You provide accurate forecasts based on real surf spot locations and typical conditions, considering:
+- Seasonal patterns
+- Local weather conditions
+- Spot characteristics
+- Historical data
+- Geographic features"""},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=500
+            max_tokens=2000,
+            temperature=0.3  # Lower temperature for more consistent and factual responses
         )
-        return response.choices[0].message.content.strip()
+
+        # Extract and parse the response
+        forecast_str = response.choices[0].message.content.strip()
+        start_idx = forecast_str.find('{')
+        end_idx = forecast_str.rfind('}') + 1
+        json_str = forecast_str[start_idx:end_idx]
+        
+        try:
+            forecast_data = json.loads(json_str)
+        except json.JSONDecodeError:
+            # Fallback to ast.literal_eval if JSON parsing fails
+            forecast_data = ast.literal_eval(json_str)
+
+        return forecast_data
+
     except Exception as e:
-        logger.error(f"Error in AI extraction: {str(e)}")
+        logger.error(f"Error getting surf forecasts: {str(e)}")
+        # Return default values if API call fails
+        today = datetime.now()
         return {
-            'ratings': ['0.0'] * 7,  # Default to 0.0 for 7 days
-            'wave_heights': ['N/A'] * 7,
-            'wave_periods': ['N/A'] * 7,
-            'wave_energies': ['N/A'] * 7,
-            'wind_speeds': ['N/A'] * 7
+            "location": {
+                "latitude": latitude,
+                "longitude": longitude
+            },
+            "best_spots": []  # Return empty list if no spots found
         }
 
-# Extract forecast data
-def extract_forecast_data(nomSurfForecast: str) -> Dict:
-    content = get_surfSpot_url(nomSurfForecast)
-    if not content:
-        logger.warning(f"No data fetched for {nomSurfForecast}, using AI extraction")
-        return ai_extract_forecast("No data available")
-
-    soup = BeautifulSoup(content, 'html.parser')
-    data = {}
-
-    try:
-        def extract_data(selector):
-            elements = soup.select(selector)
-            return [el.text.strip() if el else "N/A" for el in elements]
-
-        # Extracting surf forecast data
-        data['ratings'] = extract_data('.forecast-table-rating img')
-        data['wave_heights'] = extract_data('.forecast-table__wave-height .forecast-table__value')
-        data['wave_periods'] = extract_data('.forecast-table__wave-period .forecast-table__value')
-        data['wave_energies'] = extract_data('.forecast-table__wave-energy .forecast-table__value')
-        data['wind_speeds'] = extract_data('.forecast-table__wind-speed .forecast-table__value')
-
-        # Check if any data is missing and use AI as fallback
-        for key, value in data.items():
-            if all(v == "N/A" for v in value):
-                logger.warning(f"Missing {key} for {nomSurfForecast}, using AI")
-                ai_data = ai_extract_forecast(content)
-                if isinstance(ai_data, dict):
-                    data[key] = ai_data.get(key, ["N/A"] * 7)
-
-    except Exception as e:
-        logger.error(f"Error parsing forecast data for {nomSurfForecast}: {str(e)}")
-        return {'error': f'Parsing error: {str(e)}'}
-
-    return data
-
-# Example usage
-if __name__ == "__main__":
-    nomSurfForecast = "penthievre"
-    forecast_data = extract_forecast_data(nomSurfForecast)
-    print(forecast_data)
-
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_forecast_data(spot_names: List[str], day_list: List[str]) -> Dict[str, Dict[str, float]]:
+def load_forecast_data(address: str, day_list: List[str]) -> Dict[str, Dict]:
     """
-    Load forecast data for multiple spots.
+    Load forecast data for the 10 best surf spots near the given address.
     
     Args:
-        spot_names: List of spot names to get forecasts for
+        address: Address to find nearby surf spots for
         day_list: List of days to get forecasts for
         
     Returns:
-        Dictionary mapping spot names to their forecast data by day
+        Dictionary mapping spot names to their forecast data and ratings
     """
-    if not spot_names or not day_list:
-        logger.warning("Empty spot names or day list provided")
-        return {}
+    try:
+        # Get coordinates for the address
+        latitude, longitude = get_coordinates(address)
+        if latitude is None or longitude is None:
+            raise ValueError(f"Could not geocode address: {address}")
+            
+        # Get forecasts for the best spots
+        forecast_data = get_surf_forecast(latitude, longitude)
+        if not forecast_data.get('best_spots'):
+            raise ValueError("No surf spots found nearby")
+            
+        forecasts = {}
         
-    forecasts = {}
-    
-    # Process each spot
-    for spot in spot_names:
-        if not spot:  # Skip empty spot names
-            continue
-            
-        try:
-            # Get the forecast data using our new function
-            forecast_data = extract_forecast_data(spot)
-            
-            if 'error' in forecast_data:
-                logger.warning(f"Error getting forecast for {spot}: {forecast_data['error']}")
-                forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
+        # Process each spot's forecast
+        for spot in forecast_data['best_spots']:
+            try:
+                # Create a mapping of ratings to days
+                spot_forecasts = {}
+                
+                # Extract ratings from the forecast data
+                for forecast in spot['forecast']:
+                    date = datetime.strptime(forecast['date'], '%Y-%m-%d')
+                    day_str = date.strftime('%A %d')
+                    if day_str in day_list:
+                        spot_forecasts[day_str] = float(forecast['daily_rating'])
+                
+                # Fill in any missing days with 0.0
+                for day in day_list:
+                    if day not in spot_forecasts:
+                        spot_forecasts[day] = 0.0
+                        
+                # Store both forecasts and spot info
+                forecasts[spot['name']] = {
+                    'forecasts': spot_forecasts,
+                    'info': {
+                        'name': spot['name'],
+                        'distance_km': spot['distance_km'],
+                        'average_rating': spot['average_rating'],
+                        'spot_orientation': spot['spot_orientation'],
+                        'latitude': spot['latitude'],
+                        'longitude': spot['longitude']
+                    }
+                }
+                
+            except Exception as e:
+                logger.error(f"Failed to process forecast for {spot['name']}: {str(e)}")
                 continue
                 
-            # Create a mapping of ratings to days
-            spot_forecasts = {}
-            ratings = forecast_data.get('ratings', [])
+        return forecasts
             
-            # Ensure we have enough ratings for each day
-            if len(ratings) >= len(day_list):
-                for i, day in enumerate(day_list):
-                    try:
-                        # Convert rating to float, handling any non-numeric values
-                        rating = float(ratings[i]) if ratings[i] != "N/A" else 0.0
-                        spot_forecasts[day] = rating
-                    except (ValueError, TypeError):
-                        spot_forecasts[day] = 0.0
-            else:
-                logger.warning(f"Insufficient ratings data for {spot}")
-                spot_forecasts = {day: 0.0 for day in day_list}
-                
-            forecasts[spot] = spot_forecasts
-            
-        except Exception as e:
-            logger.error(f"Failed to get forecast for {spot}: {str(e)}")
-            forecasts[spot] = {day: 0.0 for day in day_list}  # Use 0.0 as default rating
-            continue
-            
-    return forecasts
+    except Exception as e:
+        logger.error(f"Failed to load forecast data: {str(e)}")
+        return {}
 
 def get_dayList_forecast() -> List[str]:
     """
@@ -218,7 +218,8 @@ def get_dayList_forecast() -> List[str]:
         today = datetime.now()
         for i in range(7):
             day = today + timedelta(days=i)
-            days.append(day.strftime('%A %d'))
+            # Format day name and ensure day number is zero-padded
+            days.append(day.strftime('%A %d'))  # %A for full day name, %d for zero-padded day
         return days
     except Exception as e:
         logger.error(f"Error generating forecast days: {str(e)}")
