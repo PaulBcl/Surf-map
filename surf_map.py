@@ -128,15 +128,44 @@ def color_by_rating(value: float, max_value: float, type: str = "rating") -> str
         elif value > 0:
             return 'red'
         return 'lightgray'
-    else:  # For cost and time (inverse scale - lower is better)
-        ratio = value / max_value
-        if ratio <= 0.25:
-            return 'darkgreen'
-        elif ratio <= 0.5:
-            return 'green'
-        elif ratio <= 0.75:
-            return 'orange'
-        return 'red'
+    elif type == "time":  # For travel time (lower is better)
+        if max_value == 0:  # Using relative scale
+            if value <= 2:  # Under 2 hours
+                return 'darkgreen'
+            elif value <= 4:  # 2-4 hours
+                return 'green'
+            elif value <= 6:  # 4-6 hours
+                return 'orange'
+            else:  # Over 6 hours
+                return 'red'
+        else:  # Using max_value scale
+            ratio = value / max_value
+            if ratio <= 0.25:
+                return 'darkgreen'
+            elif ratio <= 0.5:
+                return 'green'
+            elif ratio <= 0.75:
+                return 'orange'
+            return 'red'
+    else:  # For cost (lower is better)
+        if max_value == 0:  # Using relative scale
+            if value <= 20:  # Under 20€
+                return 'darkgreen'
+            elif value <= 50:  # 20-50€
+                return 'green'
+            elif value <= 80:  # 50-80€
+                return 'orange'
+            else:  # Over 80€
+                return 'red'
+        else:  # Using max_value scale
+            ratio = value / max_value
+            if ratio <= 0.25:
+                return 'darkgreen'
+            elif ratio <= 0.5:
+                return 'green'
+            elif ratio <= 0.75:
+                return 'orange'
+            return 'red'
 
 def create_popup_text(spot_info: dict, forecast: dict, selected_day: str) -> str:
     """Create popup text for a surf spot marker."""
@@ -184,7 +213,7 @@ def create_popup_text(spot_info: dict, forecast: dict, selected_day: str) -> str
         <div class="section">
             <div class="label">📍 Location & Travel</div>
             <div>Distance: <span class="value">{spot_info['distance_km']:.1f} km</span></div>
-            <div>Travel Time: <span class="value">{spot_info['distance_km']:.1f} hours</span></div>
+            <div>Travel Time: <span class="value">{spot_info['distance_km'] / 80.0:.1f} hours</span></div>
             <div>Est. Cost: <span class="value">{spot_info['distance_km'] * 0.2:.2f} €</span></div>
         </div>
         
@@ -224,12 +253,15 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
             
         # Calculate travel time in hours (assuming average speed of 80 km/h)
         travel_time = spot_info['distance_km'] / 80.0
-        if travel_time > max_time:
+        # Only apply travel time filter if max_time is greater than 0
+        if max_time > 0 and travel_time > max_time:
             st.write(f"Skipping {spot_name} due to long travel time: {travel_time:.1f} hours")
             continue
             
+        # Calculate travel cost (0.2€ per km)
         travel_cost = spot_info['distance_km'] * 0.2  # Rough estimate
-        if travel_cost > max_cost:
+        # Only apply cost filter if max_cost is greater than 0
+        if max_cost > 0 and travel_cost > max_cost:
             st.write(f"Skipping {spot_name} due to high cost: {travel_cost:.2f} €")
             continue
         
@@ -237,9 +269,17 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
         if color_by == "🌊 Wave Rating":
             color = color_by_rating(daily_rating, 10, "rating")
         elif color_by == "⏱️ Travel Time":
-            color = color_by_rating(travel_time, max_time, "time")
+            if max_time > 0:
+                color = color_by_rating(travel_time, max_time, "time")
+            else:
+                # When max_time is 0, use a relative scale based on all spots
+                color = color_by_rating(travel_time, 10, "time")  # Using 10 hours as reference
         else:  # "💰 Cost"
-            color = color_by_rating(travel_cost, max_cost, "cost")
+            if max_cost > 0:
+                color = color_by_rating(travel_cost, max_cost, "cost")
+            else:
+                # When max_cost is 0, use a relative scale based on typical costs
+                color = color_by_rating(travel_cost, 100, "cost")  # Using 100€ as reference
         
         # Create and add marker
         popup_text = create_popup_text(spot_info, daily_forecasts, selected_day)
