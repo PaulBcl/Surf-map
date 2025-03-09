@@ -45,7 +45,7 @@ def get_surf_forecast(latitude: float, longitude: float) -> Dict:
 Given these coordinates: latitude {latitude}, longitude {longitude}, return the 10 best surf spots in the area based on surf conditions.
 
 ### Step 1: Find Surf Spots
-- Identify all surf spots within a 200 km radius from the given coordinates.
+- Identify all surf spots within a 500 km radius from the given coordinates.
 - Use known surf spot databases (Surfline, MagicSeaweed, Windy, WindFinder).
 - Include exact coordinates for each spot.
 
@@ -170,6 +170,7 @@ def load_forecast_data(address: str, day_list: List[str]) -> Dict[str, Dict]:
         # Process each spot's forecast
         for spot in forecast_data['best_spots']:
             try:
+                logger.info(f"Processing forecast for spot: {spot['name']} at ({spot['latitude']}, {spot['longitude']})")
                 # Create a mapping of ratings to days
                 spot_forecasts = {}
                 

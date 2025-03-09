@@ -209,6 +209,9 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
     """Add markers for all surf spots to the map."""
     marker_cluster = MarkerCluster().add_to(m)
     
+    st.write(f"Adding markers for {len(forecasts)} surf spots...")
+    added_markers = 0
+    
     for spot_name, data in forecasts.items():
         spot_info = data['info']
         daily_forecasts = data['forecasts']
@@ -216,14 +219,17 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
         
         # Apply filters
         if daily_rating < min_rating:
+            st.write(f"Skipping {spot_name} due to low rating: {daily_rating}")
             continue
             
         travel_time = spot_info['distance_km'] / 60.0  # Rough estimate
         if travel_time > max_time:
+            st.write(f"Skipping {spot_name} due to long travel time: {travel_time:.1f} hours")
             continue
             
         travel_cost = spot_info['distance_km'] * 0.2  # Rough estimate
         if travel_cost > max_cost:
+            st.write(f"Skipping {spot_name} due to high cost: {travel_cost:.2f} €")
             continue
         
         # Determine marker color
@@ -238,14 +244,26 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
         popup_text = create_popup_text(spot_info, daily_forecasts, selected_day)
         
         # Get spot coordinates directly from info dictionary
-        spot_lat = spot_info.get('latitude', 0.0)
-        spot_lon = spot_info.get('longitude', 0.0)
+        spot_lat = spot_info.get('latitude')
+        spot_lon = spot_info.get('longitude')
         
-        folium.Marker(
-            location=[spot_lat, spot_lon],
-            popup=folium.Popup(popup_text, max_width=220),
-            icon=folium.Icon(color=color, icon='info-sign')
-        ).add_to(marker_cluster)
+        if spot_lat is None or spot_lon is None:
+            st.write(f"Skipping {spot_name} due to missing coordinates")
+            continue
+            
+        try:
+            marker = folium.Marker(
+                location=[spot_lat, spot_lon],
+                popup=folium.Popup(popup_text, max_width=220),
+                icon=folium.Icon(color=color, icon='info-sign')
+            )
+            marker.add_to(marker_cluster)
+            added_markers += 1
+            st.write(f"Added marker for {spot_name} at ({spot_lat}, {spot_lon})")
+        except Exception as e:
+            st.write(f"Error adding marker for {spot_name}: {str(e)}")
+    
+    st.write(f"Successfully added {added_markers} markers to the map")
 
 def main():
     """Main application function."""
