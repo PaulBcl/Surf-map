@@ -19,76 +19,36 @@ st.set_page_config(
 # Add app description and guide
 st.title("🏄‍♂️ SurfMap - Find Your Perfect Wave")
 
-# Main description in an expander
-with st.expander("ℹ️ About SurfMap", expanded=True):
-    st.markdown("""
-    SurfMap helps you discover the best surf spots based on real-time conditions and your preferences. 
-    Using advanced AI and multiple data sources, we analyze wave conditions, wind patterns, and local factors 
-    to find perfect surf spots near you.
-    
-    ### 🎯 What Makes a Good Surf Spot?
-    - **Wave Quality**: Height, period, and energy
-    - **Wind Conditions**: Direction and speed
-    - **Accessibility**: Distance and travel time
-    - **Spot Characteristics**: Orientation and typical conditions
-    """)
+st.markdown("""
+### Guide d'Utilisation / User Guide
 
-# Guide in an expander
-with st.expander("📖 Guide d'Utilisation / User Guide", expanded=False):
-    st.markdown("""
-    ### How to Use SurfMap:
-    
-    1. **Enter Your Location** 🏠
-       - Type your address or city in the sidebar
-       - Click 'Search' to find nearby surf spots
-    
-    2. **Choose Your Day** 📅
-       - Select which day you want to surf
-       - We provide forecasts for the next 7 days
-    
-    3. **Adjust Filters** 📊
-       - Set minimum acceptable wave rating
-       - Define maximum travel time
-       - Set your budget limit
-    
-    4. **Understand the Colors** 🎨
-       Choose how to color the markers:
-       
-       **Wave Rating:**
-       - 🟢 Dark Green = Excellent (7-10)
-       - 🟡 Green = Good (5-7)
-       - 🟠 Orange = Fair (3-5)
-       - 🔴 Red = Poor (0-3)
-       
-       **Travel Time:**
-       - Colors show relative distance to your max setting
-       
-       **Cost:**
-       - Colors indicate expense relative to your budget
-    """)
+This application helps you find the best surf spots based on your location and preferences.
 
-# Technical details in an expander
-with st.expander("🔧 Technical Details", expanded=False):
-    st.markdown("""
-    ### How We Rate Surf Spots:
-    
-    **Wave Rating (0-10)** combines:
-    - 🌊 Wave Height: Ideal range 1.2m - 3m
-    - ⏱️ Wave Period: Best above 10s
-    - 💨 Wind Speed: Optimal below 6 m/s
-    - 🧭 Wind Direction: Offshore winds preferred
-    - ⚡ Wave Energy: Higher energy for better rides
-    
-    **Travel Estimates:**
-    - ⏰ Time: Based on distance and typical road conditions
-    - 💰 Cost: Includes estimated fuel and tolls
-    
-    **Data Sources:**
-    - Real-time surf forecasts
-    - Local weather conditions
-    - Historical spot data
-    - Geographic features
-    """)
+#### How to Use:
+1. Enter your location in the sidebar
+2. Select the forecast day you're interested in
+3. Adjust the filters:
+   - Minimum wave rating (0-10)
+   - Maximum travel time
+   - Maximum travel cost
+4. Choose how to color the markers:
+   - Wave Rating: Green = Excellent (7-10), Yellow = Good (5-7), Orange = Fair (3-5), Red = Poor (0-3)
+   - Travel Time: Colors indicate distance relative to your maximum setting
+   - Cost: Colors indicate expense relative to your maximum budget
+
+#### Features:
+- 🌊 Real-time surf forecasts using AI
+- 📍 Interactive map with surf spot markers
+- 🚗 Travel time and cost estimates
+- 📊 Customizable filters and display options
+
+#### Legend:
+- 🏠 Blue Home marker: Your location
+- 🟢 Dark Green marker: Excellent conditions
+- 🟡 Green marker: Good conditions
+- 🟠 Orange marker: Fair conditions
+- 🔴 Red marker: Poor conditions
+""")
 
 st.markdown("---")
 
@@ -99,61 +59,45 @@ def setup_sidebar(day_list):
     """Set up the sidebar with input controls."""
     st.sidebar.title("🏄‍♂️ SurfMap")
     
-    with st.sidebar.expander("🎯 Search Settings", expanded=True):
-        # Address input
-        address = st.text_input("🏠 Your location:", 
-                              help="Enter your starting point (city, address, etc.)")
-        validation_button = st.button("🔍 Find Surf Spots")
-        
-        # Forecast day selection
-        selectbox_daily_forecast = st.selectbox(
-            "📅 Select day:",
-            day_list,
-            help="Choose which day you want to surf"
-        )
+    # Address input
+    address = st.sidebar.text_input("🏠 Your location:", "")
+    validation_button = st.sidebar.button("🔍 Search")
+    
+    # Forecast day selection
+    selectbox_daily_forecast = st.sidebar.selectbox(
+        "📅 Select day:",
+        day_list
+    )
     
     # Rating filters
-    with st.sidebar.expander("📊 Filters", expanded=True):
-        option_forecast = st.slider(
-            "Minimum wave rating (0-10):",
-            min_value=0,
-            max_value=10,
-            value=0,
-            help="Filter spots based on wave quality"
-        )
-        
-        option_distance_h = st.slider(
-            "Maximum travel time (hours):",
-            min_value=0,
-            max_value=24,
-            value=24,
-            help="Limit how far you're willing to travel"
-        )
-        
-        option_prix = st.slider(
-            "Maximum travel cost (€):",
-            min_value=0,
-            max_value=500,
-            value=500,
-            help="Set your budget limit for travel costs"
-        )
+    st.sidebar.markdown("### 📊 Filters")
+    option_forecast = st.sidebar.slider(
+        "Minimum wave rating (0-10):",
+        min_value=0,
+        max_value=10,
+        value=0
+    )
+    
+    option_distance_h = st.sidebar.slider(
+        "Maximum travel time (hours):",
+        min_value=0,
+        max_value=24,
+        value=24
+    )
+    
+    option_prix = st.sidebar.slider(
+        "Maximum travel cost (€):",
+        min_value=0,
+        max_value=500,
+        value=500
+    )
     
     # Display options
-    with st.sidebar.expander("🎨 Display Options", expanded=True):
-        checkbox_choix_couleur = st.radio(
-            "Color markers by:",
-            ["🏄‍♂️ Wave Rating", "⏱️ Travel Time", "💸 Cost"],
-            help="Choose how to color the markers on the map"
-        )
-    
-    # Add tips in the sidebar
-    with st.sidebar.expander("💡 Tips", expanded=False):
-        st.markdown("""
-        - Try different days to find the best conditions
-        - Adjust filters to narrow down your options
-        - Click markers for detailed spot information
-        - Use the map controls to zoom and pan
-        """)
+    st.sidebar.markdown("### 🎨 Display Options")
+    checkbox_choix_couleur = st.sidebar.radio(
+        "Color markers by:",
+        ["🏄‍♂️ Wave Rating", "⏱️ Travel Time", "💸 Cost"]
+    )
     
     return (
         address,
