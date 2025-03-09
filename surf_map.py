@@ -222,7 +222,8 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
             st.write(f"Skipping {spot_name} due to low rating: {daily_rating}")
             continue
             
-        travel_time = spot_info['distance_km'] / 60.0  # Rough estimate
+        # The distance_km field actually contains the travel time in hours already
+        travel_time = spot_info['distance_km']  # No need to divide by 60 as it's already in hours
         if travel_time > max_time:
             st.write(f"Skipping {spot_name} due to long travel time: {travel_time:.1f} hours")
             continue
