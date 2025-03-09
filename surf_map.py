@@ -11,103 +11,110 @@ from surfmap_config import forecast_config
 
 # Set page config
 st.set_page_config(
-    page_title="🏄‍♂️ SurfMap",
+    page_title="🌴 SurfMap",
     page_icon="🏄‍♂️",
     layout="wide"
 )
 
-# Add app description and guide
-st.title("🏄‍♂️ SurfMap - Find Your Perfect Wave")
+# Create a session state for the reset functionality
+if 'run_id' not in st.session_state:
+    st.session_state.run_id = 0
 
-st.markdown("""
-### Guide d'Utilisation / User Guide
+def setup_sidebar(dayList):
+    """Set up the sidebar with all controls."""
+    # Welcome message and instructions
+    st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
+    st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
+    st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
 
-This application helps you find the best surf spots based on your location and preferences.
+    # Guide d'utilisation
+    explication_expander = st.expander("Guide d'utilisation")
+    with explication_expander:
+        st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
+        st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
+        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
 
-#### How to Use:
-1. Enter your location in the sidebar
-2. Select the forecast day you're interested in
-3. Adjust the filters:
-   - Minimum wave rating (0-10)
-   - Maximum travel time
-   - Maximum travel cost
-4. Choose how to color the markers:
-   - Wave Rating: Green = Excellent (7-10), Yellow = Good (5-7), Orange = Fair (3-5), Red = Poor (0-3)
-   - Travel Time: Colors indicate distance relative to your maximum setting
-   - Cost: Colors indicate expense relative to your maximum budget
+    # Legend
+    couleur_radio_expander = st.expander("Légende de la carte")
+    with couleur_radio_expander:
+        st.markdown(":triangular_flag_on_post: représente un spot de surf")
+        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
+        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
+        list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
+        checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
 
-#### Features:
-- 🌊 Real-time surf forecasts using AI
-- 📍 Interactive map with surf spot markers
-- 🚗 Travel time and cost estimates
-- 📊 Customizable filters and display options
+    # Address input
+    label_address = "Renseignez votre ville"
+    address = st.sidebar.text_input(label_address, value='', max_chars=None, key=None, type='default', help=None)
 
-#### Legend:
-- 🏠 Blue Home marker: Your location
-- 🟢 Dark Green marker: Excellent conditions
-- 🟡 Green marker: Good conditions
-- 🟠 Orange marker: Fair conditions
-- 🔴 Red marker: Poor conditions
-""")
+    # Profile section
+    with st.sidebar.expander("Profil"):
+        st.warning("Work in progress")
+        label_transport = "Moyen(s) de transport(s) favori(s)"
+        list_transport = ["🚗 Voiture", "🚝 Train", "🚲 Vélo", "⛵ Bateau"]
+        multiselect_transport = st.multiselect(label_transport, list_transport, default=list_transport[0])
 
-st.markdown("---")
+    # Advanced options section
+    with st.sidebar.expander("Options avancées"):
+        # Reset button
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            raz_button = st.button("Remise à zéro", key=None, help="Remettre les options à zéro")
+
+        if raz_button:
+            st.session_state.run_id += 1
+
+        # Forecast day selection
+        label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
+        selectbox_daily_forecast = st.selectbox(label_daily_forecast, dayList)
+
+        # Sliders
+        option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
+                                  key=st.session_state.run_id, help="En définissant les prévisions à 0, tous les résultats s'affichent")
+        option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
+                              key=st.session_state.run_id, help="En définissant le prix à 0€, tous les résultats s'affichent")
+        option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
+                                    key=st.session_state.run_id, help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
+
+        # Country selection
+        label_choix_pays = "Choix des pays pour les spots à afficher"
+        list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
+        multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=st.session_state.run_id)
+
+    # Submit button
+    st.sidebar.write("\n")
+    col1, col2, col3 = st.sidebar.columns([1, 3.5, 1])
+    with col2:
+        validation_button = st.button("Soumettre l'adresse", key=None, help=None)
+
+    return address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
+
+def apply_filters(dfDataDisplay, option_prix, option_distance_h, option_forecast, multiselect_pays):
+    """Apply all filters to the DataFrame."""
+    if dfDataDisplay.empty:
+        return dfDataDisplay
+
+    # Price filter
+    if option_prix > 0 and 'prix' in dfDataDisplay.columns:
+        dfDataDisplay = dfDataDisplay[dfDataDisplay['prix'].astype(float) <= option_prix].copy()
+
+    # Distance filter
+    if option_distance_h > 0 and 'drivingTime' in dfDataDisplay.columns:
+        dfDataDisplay = dfDataDisplay[dfDataDisplay['drivingTime'].astype(float) <= option_distance_h].copy()
+
+    # Forecast filter
+    if option_forecast > 0 and 'forecast' in dfDataDisplay.columns:
+        dfDataDisplay = dfDataDisplay[dfDataDisplay['forecast'].astype(float) >= option_forecast].copy()
+
+    # Country filter
+    if 'paysSpot' in dfDataDisplay.columns:
+        multiselect_pays = [x.split()[-1] for x in multiselect_pays]
+        dfDataDisplay = dfDataDisplay[dfDataDisplay['paysSpot'].isin(multiselect_pays)].copy()
+
+    return dfDataDisplay
 
 # Default map position (center of France)
 base_position = [46.603354, 1.888334]
-
-def setup_sidebar(day_list):
-    """Set up the sidebar with input controls."""
-    st.sidebar.title("🏄‍♂️ SurfMap")
-    
-    # Address input
-    address = st.sidebar.text_input("🏠 Your location:", "")
-    validation_button = st.sidebar.button("🔍 Search")
-    
-    # Forecast day selection
-    selectbox_daily_forecast = st.sidebar.selectbox(
-        "📅 Select day:",
-        day_list
-    )
-    
-    # Rating filters
-    st.sidebar.markdown("### 📊 Filters")
-    option_forecast = st.sidebar.slider(
-        "Minimum wave rating (0-10):",
-        min_value=0,
-        max_value=10,
-        value=0
-    )
-    
-    option_distance_h = st.sidebar.slider(
-        "Maximum travel time (hours):",
-        min_value=0,
-        max_value=24,
-        value=24
-    )
-    
-    option_prix = st.sidebar.slider(
-        "Maximum travel cost (€):",
-        min_value=0,
-        max_value=500,
-        value=500
-    )
-    
-    # Display options
-    st.sidebar.markdown("### 🎨 Display Options")
-    checkbox_choix_couleur = st.sidebar.radio(
-        "Color markers by:",
-        ["🏄‍♂️ Wave Rating", "⏱️ Travel Time", "💸 Cost"]
-    )
-    
-    return (
-        address,
-        validation_button,
-        option_forecast,
-        option_prix,
-        option_distance_h,
-        selectbox_daily_forecast,
-        checkbox_choix_couleur
-    )
 
 def color_by_rating(value: float, max_value: float, type: str = "rating") -> str:
     """Return color based on value relative to maximum."""
@@ -220,11 +227,11 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
             continue
         
         # Determine marker color
-        if color_by == "🏄‍♂️ Wave Rating":
+        if color_by == "🌊 Wave Rating":
             color = color_by_rating(daily_rating, 10, "rating")
         elif color_by == "⏱️ Travel Time":
             color = color_by_rating(travel_time, max_time, "time")
-        else:  # "💸 Cost"
+        else:  # "💰 Cost"
             color = color_by_rating(travel_cost, max_cost, "cost")
         
         # Create and add marker
@@ -247,7 +254,7 @@ def main():
     
     # Set up sidebar and get user inputs
     (address, validation_button, option_forecast, option_prix, 
-     option_distance_h, selectbox_daily_forecast, checkbox_choix_couleur) = setup_sidebar(day_list)
+     option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = setup_sidebar(day_list)
     
     # Initialize map with default position
     m = folium.Map(location=base_position, zoom_start=6)
