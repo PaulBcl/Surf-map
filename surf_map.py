@@ -191,19 +191,63 @@ def create_popup_text(spot_info: dict, forecast: dict, selected_day: str) -> str
     """Create popup text for a surf spot marker."""
     daily_rating = forecast.get(selected_day, 0.0)
     
+    # Get rating color class
+    rating_color = color_by_rating(daily_rating, 10, "rating")
+    rating_class = {
+        'darkgreen': 'excellent',
+        'green': 'good',
+        'orange': 'fair',
+        'red': 'poor',
+        'lightgray': 'no-data'
+    }[rating_color]
+    
+    # CSS for styling
+    style = """
+    <style>
+        .surf-popup h4 { margin-bottom: 5px; color: #2c3e50; }
+        .surf-popup hr { margin: 10px 0; border-color: #eee; }
+        .surf-popup .section { margin-bottom: 10px; }
+        .surf-popup .label { color: #7f8c8d; font-size: 0.9em; }
+        .surf-popup .value { color: #2c3e50; font-weight: bold; }
+        .surf-popup .rating { font-size: 1.2em; padding: 2px 5px; border-radius: 3px; }
+        .surf-popup .excellent { background: #27ae60; color: white; }
+        .surf-popup .good { background: #2ecc71; color: white; }
+        .surf-popup .fair { background: #f39c12; color: white; }
+        .surf-popup .poor { background: #e74c3c; color: white; }
+        .surf-popup .no-data { background: #95a5a6; color: white; }
+    </style>
+    """
+    
     # Base info that's always shown
     popup_text = f"""
-    <h4>🌊 {spot_info['name']}</h4>
-    <hr>
-    <b>📍 Location & Travel:</b><br>
-    • Distance: {spot_info['distance_km']:.1f} km<br>
-    • Travel Time: {spot_info['distance_km'] / 60.0:.1f} hours<br>
-    • Cost: {spot_info['distance_km'] * 0.2:.2f} €<br>
-    <hr>
-    <b>🏄‍♂️ Surf Conditions:</b><br>
-    • Rating: {daily_rating:.1f}/10<br>
-    • Average Rating: {spot_info['average_rating']:.1f}/10<br>
-    • Spot Orientation: {spot_info['spot_orientation']}<br>
+    {style}
+    <div class="surf-popup">
+        <h4>🌊 {spot_info['name']}</h4>
+        <hr>
+        
+        <div class="section">
+            <div class="label">📊 Today's Rating</div>
+            <span class="rating {rating_class}">{daily_rating:.1f}/10</span>
+        </div>
+        
+        <div class="section">
+            <div class="label">📍 Location & Travel</div>
+            <div>Distance: <span class="value">{spot_info['distance_km']:.1f} km</span></div>
+            <div>Travel Time: <span class="value">{spot_info['distance_km'] / 60.0:.1f} hours</span></div>
+            <div>Est. Cost: <span class="value">{spot_info['distance_km'] * 0.2:.2f} €</span></div>
+        </div>
+        
+        <div class="section">
+            <div class="label">🏄‍♂️ Spot Details</div>
+            <div>Orientation: <span class="value">{spot_info['spot_orientation']}</span></div>
+            <div>Avg Rating: <span class="value">{spot_info['average_rating']:.1f}/10</span></div>
+        </div>
+        
+        <hr>
+        <div style="font-size: 0.8em; color: #7f8c8d; text-align: center;">
+            Click map for more options
+        </div>
+    </div>
     """
     
     return popup_text
