@@ -22,71 +22,70 @@ if 'run_id' not in st.session_state:
 
 def setup_sidebar(dayList):
     """Set up the sidebar with all controls."""
-    # Welcome message and instructions in sidebar
-    st.sidebar.markdown("# 🌊 Surfmap")
-    st.sidebar.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
-    st.sidebar.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
+    # Welcome message and instructions
+    st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
+    st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
+    st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
 
-    # Address input in sidebar
+    # Guide d'utilisation
+    explication_expander = st.expander("Guide d'utilisation")
+    with explication_expander:
+        st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
+        st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
+        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
+
+    # Legend
+    couleur_radio_expander = st.expander("Légende de la carte")
+    with couleur_radio_expander:
+        st.markdown(":triangular_flag_on_post: représente un spot de surf")
+        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
+        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
+        list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
+        checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
+
+    # Address input
     label_address = "Renseignez votre ville"
-    address = st.sidebar.text_input(label_address, value='', max_chars=None, key="address_input", type='default', help=None)
+    address = st.sidebar.text_input(label_address, value='', max_chars=None, key=None, type='default', help=None)
 
-    # Profile section in sidebar
-    with st.sidebar.expander("Profil", key="profile_expander"):
+    # Profile section
+    with st.sidebar.expander("Profil"):
         st.warning("Work in progress")
         label_transport = "Moyen(s) de transport(s) favori(s)"
         list_transport = ["🚗 Voiture", "🚝 Train", "🚲 Vélo", "⛵ Bateau"]
-        multiselect_transport = st.multiselect(label_transport, list_transport, default=list_transport[0], key="transport_select")
+        multiselect_transport = st.multiselect(label_transport, list_transport, default=list_transport[0])
 
-    # Advanced options section in sidebar
-    with st.sidebar.expander("Options avancées", key="advanced_expander"):
+    # Advanced options section
+    with st.sidebar.expander("Options avancées"):
         # Reset button
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            raz_button = st.button("Remise à zéro", key="reset_button", help="Remettre les options à zéro")
+            raz_button = st.button("Remise à zéro", key=None, help="Remettre les options à zéro")
 
         if raz_button:
             st.session_state.run_id += 1
 
         # Forecast day selection
         label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
-        selectbox_daily_forecast = st.selectbox(label_daily_forecast, dayList, key="forecast_day_select")
+        selectbox_daily_forecast = st.selectbox(label_daily_forecast, dayList)
 
         # Sliders
         option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
-                                  key=f"forecast_slider_{st.session_state.run_id}", help="En définissant les prévisions à 0, tous les résultats s'affichent")
+                                  key=st.session_state.run_id, help="En définissant les prévisions à 0, tous les résultats s'affichent")
         option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
-                              key=f"price_slider_{st.session_state.run_id}", help="En définissant le prix à 0€, tous les résultats s'affichent")
+                              key=st.session_state.run_id, help="En définissant le prix à 0€, tous les résultats s'affichent")
         option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
-                                    key=f"time_slider_{st.session_state.run_id}", help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
+                                    key=st.session_state.run_id, help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
 
         # Country selection
         label_choix_pays = "Choix des pays pour les spots à afficher"
         list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
-        multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=f"country_select_{st.session_state.run_id}")
+        multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=st.session_state.run_id)
 
-    # Submit button in sidebar
+    # Submit button
     st.sidebar.write("\n")
     col1, col2, col3 = st.sidebar.columns([1, 3.5, 1])
     with col2:
-        validation_button = st.button("Soumettre l'adresse", key="submit_button", help=None)
-
-    # Main area content
-    st.title("🌊 Surfmap")
-
-    # Guide d'utilisation in main area
-    with st.expander("Guide d'utilisation", key="guide_expander"):
-        st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer dans la barre de gauche votre position et appuyer sur 'Soumettre l'adresse'.")
-        st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
-        st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
-
-    # Legend in main area
-    with st.expander("Légende de la carte", key="legend_expander"):
-        st.markdown(":triangular_flag_on_post: représente un spot de surf")
-        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
-        label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
-        list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
-        checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur, key="color_select")
+        validation_button = st.button("Soumettre l'adresse", key=None, help=None)
 
     return address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
 
