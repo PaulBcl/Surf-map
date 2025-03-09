@@ -70,16 +70,16 @@ def setup_sidebar(dayList):
 
         # Sliders
         option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
-                                  key=st.session_state.run_id, help="En définissant les prévisions à 0, tous les résultats s'affichent")
+                                  key=f"forecast_{st.session_state.run_id}", help="En définissant les prévisions à 0, tous les résultats s'affichent")
         option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
-                              key=st.session_state.run_id, help="En définissant le prix à 0€, tous les résultats s'affichent")
+                              key=f"prix_{st.session_state.run_id}", help="En définissant le prix à 0€, tous les résultats s'affichent")
         option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
-                                    key=st.session_state.run_id, help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
+                                    key=f"distance_{st.session_state.run_id}", help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
 
         # Country selection
         label_choix_pays = "Choix des pays pour les spots à afficher"
         list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
-        multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=st.session_state.run_id)
+        multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=f"pays_{st.session_state.run_id}")
 
     # Submit button
     st.sidebar.write("\n")
