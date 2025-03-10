@@ -55,13 +55,14 @@ You provide accurate, realistic surf spot data based on:
 - Wave mechanics and meteorology
 
 CRITICAL REQUIREMENTS:
-1. Return EXACTLY 10 spots, no more, no less
-2. All spots must be real, plausible surf locations (beaches, reef breaks, etc.)
-3. Coordinates must be realistic for the region
-4. Distances must make geographical sense
-5. Wave and wind conditions must be realistic for the region and season
-6. Generate unique values for each spot - no duplicates
-7. Sort spots by their overall rating
+1. ONLY return spots that are within 500 km of the given coordinates
+2. If no spots are found within 500 km, return an empty list
+3. Return up to 10 spots, but ONLY if they are within range
+4. All spots must be real, plausible surf locations (beaches, reef breaks, etc.)
+5. Coordinates must be realistic for the region
+6. Wave and wind conditions must be realistic for the region and season
+7. Generate unique values for each spot - no duplicates
+8. Sort spots by proximity to the search coordinates
 
 Rating System (0-10 Scale):
 - Wave Height (0-10): Ideal range 1.2m - 3m
@@ -81,18 +82,21 @@ Rating System (0-10 Scale):
   * 4-7: Cross-shore
   * 8-10: Offshore
 - Overall Rating: Weighted average of above factors"""},
-                {"role": "user", "content": f"""Given these coordinates: latitude {latitude}, longitude {longitude}, return EXACTLY 10 surf spots following this process:
+                {"role": "user", "content": f"""Given these coordinates: latitude {latitude}, longitude {longitude}, find surf spots following this process:
 
 ### Step 1: Find Surf Spots
-- Identify EXACTLY 10 surf spots within a 500 km radius from the given coordinates
+- Calculate the distance to known surf spots near the coordinates
+- ONLY include spots within 500 km of the given coordinates
+- If no spots are found within 500 km, return an empty list
+- Return up to 10 spots, sorted by proximity
 - Use known surf spot databases (Surfline, MagicSeaweed, Windy, WindFinder)
 - Include exact coordinates for each spot
 - All spots must be real, plausible surf locations (beaches, reef breaks, etc.)
 - Coordinates must be realistic for the region
-- Distances must make geographical sense
+- Sort by proximity to the given coordinates
 
 ### Step 2: Retrieve 7-Day Forecast from Multiple Sources
-For each of the 10 spots, retrieve the following data and compute averages:
+For each spot within range, retrieve the following data and compute averages:
 1. Wave Height (meters) - Minimum, maximum, and average wave height per day
 2. Wave Period (seconds) - Time between wave peaks (longer = better)
 3. Wave Energy (kJ/m²) - Strength of waves (higher energy = better rides)
@@ -103,6 +107,7 @@ For each of the 10 spots, retrieve the following data and compute averages:
 - Calculate ratings based on the rating system defined above
 - Ensure ratings reflect actual surfing conditions
 - Consider seasonal patterns and local characteristics
+- Account for regional wave and weather patterns
 
 Format as JSON:
 {{
@@ -117,7 +122,7 @@ Format as JSON:
       "spot_orientation": "<N/S/E/W/NW/etc>",
       "forecast": [
         {{
-          "date": "{today.strftime('%Y-%m-%d')}",
+          "date": "{today.strftime('%Y-%m-%d')}
           "wave_height_m": {{ "min": "<min>", "max": "<max>", "average": "<avg>" }},
           "wave_period_s": "<period>",
           "wave_energy_kj_m2": "<energy>",
@@ -133,10 +138,13 @@ Format as JSON:
 IMPORTANT:
 - DO NOT copy example values - generate real, accurate data
 - Ensure all coordinates and distances are geographically accurate
-- Ratings MUST reflect actual surfing conditions using the rating system"""}
+- Ratings MUST reflect actual surfing conditions using the rating system
+- ONLY return spots within 500 km of the given coordinates
+- If no spots are within 500 km, return an empty list
+- Sort spots by proximity to search location"""}
             ],
             max_tokens=2000,
-            temperature=0.2,
+            temperature=0.1,  # Reduced temperature for more consistent results
             presence_penalty=0.0,
             frequency_penalty=0.0
         )
@@ -153,11 +161,13 @@ IMPORTANT:
             # Fallback to ast.literal_eval if JSON parsing fails
             forecast_data = ast.literal_eval(json_str)
 
-        # Verify we have exactly 10 spots
-        if len(forecast_data.get('best_spots', [])) != 10:
-            logger.error(f"GPT returned {len(forecast_data.get('best_spots', []))} spots instead of 10")
-            # If we don't have 10 spots, try one more time with a stronger prompt
-            return get_surf_forecast(latitude, longitude)
+        # Verify all spots are within range
+        spots = forecast_data.get('best_spots', [])
+        valid_spots = [spot for spot in spots if float(spot['distance_km']) <= 500]
+        
+        if len(valid_spots) != len(spots):
+            logger.error(f"Removing {len(spots) - len(valid_spots)} spots that were beyond 500 km")
+            forecast_data['best_spots'] = valid_spots
 
         return forecast_data
 
