@@ -313,6 +313,10 @@ def main():
     # Get forecast days
     day_list = forecast_config.get_dayList_forecast()
     
+    # Initialize session state for forecasts if not exists
+    if 'forecasts' not in st.session_state:
+        st.session_state.forecasts = None
+    
     # Set up sidebar and get user inputs
     (address, validation_button, option_forecast, option_prix, 
      option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = setup_sidebar(day_list)
@@ -324,104 +328,108 @@ def main():
     MiniMap(toggle_display=True).add_to(m)
     Draw().add_to(m)
     
-    # Process data if address is provided
-    if address and validation_button:
+    # Process data if address is provided or forecasts exist in session state
+    if validation_button:
         try:
             # Get forecasts for nearby spots
-            forecasts = forecast_config.load_forecast_data(address, day_list)
-            
-            if forecasts:
-                # Get coordinates of the search location
-                home_lat, home_lon = forecast_config.get_coordinates(address)
-                if home_lat is not None and home_lon is not None:
-                    try:
-                        # Calculate bounds including home and all surf spots
-                        lats = [home_lat]
-                        lons = [home_lon]
-                        
-                        # Collect all valid coordinates
-                        valid_spots = 0
-                        for spot_data in forecasts.values():
-                            spot_info = spot_data['info']
-                            spot_lat = spot_info.get('latitude')
-                            spot_lon = spot_info.get('longitude')
-                            if (spot_lat is not None and spot_lon is not None and 
-                                isinstance(spot_lat, (int, float)) and isinstance(spot_lon, (int, float)) and
-                                -90 <= spot_lat <= 90 and -180 <= spot_lon <= 180):
-                                lats.append(spot_lat)
-                                lons.append(spot_lon)
-                                valid_spots += 1
-                        
-                        if valid_spots == 0:
-                            # If no valid spots found, center on home with default zoom
-                            m = folium.Map(location=[home_lat, home_lon], zoom_start=8)
-                        else:
-                            # Calculate center and bounds
-                            center_lat = (max(lats) + min(lats)) / 2
-                            center_lon = (max(lons) + min(lons)) / 2
-                            
-                            # Validate center coordinates
-                            if not (-90 <= center_lat <= 90 and -180 <= center_lon <= 180):
-                                # Fallback to home location if center is invalid
-                                center_lat, center_lon = home_lat, home_lon
-                            
-                            # Create map centered on calculated position
-                            m = folium.Map(location=[center_lat, center_lon])
-                            
-                            try:
-                                # Calculate the maximum distance between points
-                                lat_range = max(lats) - min(lats)
-                                lon_range = max(lons) - min(lons)
-                                
-                                # If points are too close, use a minimum range
-                                if lat_range < 0.1 and lon_range < 0.1:
-                                    # Add a small buffer for very close points
-                                    min_lats = min(lats) - 0.05
-                                    max_lats = max(lats) + 0.05
-                                    min_lons = min(lons) - 0.05
-                                    max_lons = max(lons) + 0.05
-                                else:
-                                    min_lats = min(lats)
-                                    max_lats = max(lats)
-                                    min_lons = min(lons)
-                                    max_lons = max(lons)
-                                
-                                # Fit bounds with padding
-                                m.fit_bounds([[min_lats, min_lons], [max_lats, max_lons]], padding=[50, 50])
-                            except Exception as e:
-                                st.warning(f"Could not optimize map view: {str(e)}. Using default zoom level.")
-                                m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
-                        
-                        # Add home marker
-                        folium.Marker(
-                            location=[home_lat, home_lon],
-                            popup=folium.Popup("🏠 Home", max_width=150),
-                            icon=folium.Icon(color='blue', icon='home')
-                        ).add_to(m)
-                        
-                        # Re-add map controls
-                        MiniMap(toggle_display=True).add_to(m)
-                        Draw().add_to(m)
-                        
-                        # Add spot markers
-                        add_spot_markers(
-                            m, forecasts, selectbox_daily_forecast,
-                            checkbox_choix_couleur, option_distance_h,
-                            option_prix, option_forecast
-                        )
-                        
-                        # Show success message
-                        st.success(f"Found {valid_spots} valid surf spots near {address}")
-                    except Exception as e:
-                        st.warning(f"Error calculating map bounds: {str(e)}. Using default view.")
-                        m = folium.Map(location=[home_lat, home_lon], zoom_start=8)
-                else:
-                    st.error("Could not find the specified location")
-            else:
-                st.warning("No surf spots found in the area")
-                
+            st.session_state.forecasts = forecast_config.load_forecast_data(address, day_list)
         except Exception as e:
             st.error(f"Error processing data: {str(e)}")
+            st.session_state.forecasts = None
+    
+    # If we have forecasts (either from this run or stored in session), display them
+    if st.session_state.forecasts:
+        try:
+            # Get coordinates of the search location
+            home_lat, home_lon = forecast_config.get_coordinates(address)
+            if home_lat is not None and home_lon is not None:
+                try:
+                    # Calculate bounds including home and all surf spots
+                    lats = [home_lat]
+                    lons = [home_lon]
+                    
+                    # Collect all valid coordinates
+                    valid_spots = 0
+                    for spot_data in st.session_state.forecasts.values():
+                        spot_info = spot_data['info']
+                        spot_lat = spot_info.get('latitude')
+                        spot_lon = spot_info.get('longitude')
+                        if (spot_lat is not None and spot_lon is not None and 
+                            isinstance(spot_lat, (int, float)) and isinstance(spot_lon, (int, float)) and
+                            -90 <= spot_lat <= 90 and -180 <= spot_lon <= 180):
+                            lats.append(spot_lat)
+                            lons.append(spot_lon)
+                            valid_spots += 1
+                    
+                    if valid_spots == 0:
+                        # If no valid spots found, center on home with default zoom
+                        m = folium.Map(location=[home_lat, home_lon], zoom_start=8)
+                    else:
+                        # Calculate center and bounds
+                        center_lat = (max(lats) + min(lats)) / 2
+                        center_lon = (max(lons) + min(lons)) / 2
+                        
+                        # Validate center coordinates
+                        if not (-90 <= center_lat <= 90 and -180 <= center_lon <= 180):
+                            # Fallback to home location if center is invalid
+                            center_lat, center_lon = home_lat, home_lon
+                        
+                        # Create map centered on calculated position
+                        m = folium.Map(location=[center_lat, center_lon])
+                        
+                        try:
+                            # Calculate the maximum distance between points
+                            lat_range = max(lats) - min(lats)
+                            lon_range = max(lons) - min(lons)
+                            
+                            # If points are too close, use a minimum range
+                            if lat_range < 0.1 and lon_range < 0.1:
+                                # Add a small buffer for very close points
+                                min_lats = min(lats) - 0.05
+                                max_lats = max(lats) + 0.05
+                                min_lons = min(lons) - 0.05
+                                max_lons = max(lons) + 0.05
+                            else:
+                                min_lats = min(lats)
+                                max_lats = max(lats)
+                                min_lons = min(lons)
+                                max_lons = max(lons)
+                            
+                            # Fit bounds with padding
+                            m.fit_bounds([[min_lats, min_lons], [max_lats, max_lons]], padding=[50, 50])
+                        except Exception as e:
+                            st.warning(f"Could not optimize map view: {str(e)}. Using default zoom level.")
+                            m = folium.Map(location=[center_lat, center_lon], zoom_start=8)
+                    
+                    # Add home marker
+                    folium.Marker(
+                        location=[home_lat, home_lon],
+                        popup=folium.Popup("🏠 Home", max_width=150),
+                        icon=folium.Icon(color='blue', icon='home')
+                    ).add_to(m)
+                    
+                    # Re-add map controls
+                    MiniMap(toggle_display=True).add_to(m)
+                    Draw().add_to(m)
+                    
+                    # Add spot markers
+                    add_spot_markers(
+                        m, st.session_state.forecasts, selectbox_daily_forecast,
+                        checkbox_choix_couleur, option_distance_h,
+                        option_prix, option_forecast
+                    )
+                    
+                    if validation_button:
+                        st.success(f"Found {valid_spots} valid surf spots near {address}")
+                except Exception as e:
+                    st.warning(f"Error calculating map bounds: {str(e)}. Using default view.")
+                    m = folium.Map(location=[home_lat, home_lon], zoom_start=8)
+            else:
+                st.error("Could not find the specified location")
+        except Exception as e:
+            st.error(f"Error processing data: {str(e)}")
+    elif validation_button:
+        st.warning("No surf spots found in the area")
     
     # Display the map
     st.components.v1.html(m._repr_html_(), height=800)
