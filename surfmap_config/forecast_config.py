@@ -216,7 +216,7 @@ def load_forecast_data(address: str, day_list: List[str]) -> Dict[str, Dict]:
                 # Extract ratings from the forecast data
                 for forecast in spot['forecast']:
                     date = datetime.strptime(forecast['date'], '%Y-%m-%d')
-                    day_str = date.strftime('%A %d')
+                    day_str = date.strftime('%A %d').replace('0', ' ').lstrip()
                     if day_str in day_list:
                         spot_forecasts[day_str] = float(forecast['daily_rating'])
                 
@@ -259,7 +259,7 @@ def get_dayList_forecast() -> List[str]:
         for i in range(7):
             day = today + timedelta(days=i)
             # Format day name and ensure day number is zero-padded
-            days.append(day.strftime('%A %d'))  # %A for full day name, %d for zero-padded day
+            days.append(day.strftime('%A %d').replace('0', ' ').lstrip())  # %A for full day name, %d for day
         return days
     except Exception as e:
         logger.error(f"Error generating forecast days: {str(e)}")

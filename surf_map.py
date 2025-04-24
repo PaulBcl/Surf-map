@@ -51,13 +51,18 @@ def create_responsive_layout(day_list):
     col1, col2 = st.columns(2)
     
     with col1:
-        # Date selection
+        # Date selection with calendar
         st.markdown("#### 📅 Sélectionnez votre journée")
-        selectbox_daily_forecast = st.selectbox(
+        today = datetime.now()
+        selected_date = st.date_input(
             "Choisissez le jour pour vos prévisions",
-            day_list,
-            label_visibility="visible"
+            min_value=today.date(),
+            max_value=today.date() + timedelta(days=6),
+            value=today.date(),
+            format="DD/MM/YYYY"
         )
+        # Convert the selected date to the format expected by the rest of the application
+        selectbox_daily_forecast = selected_date.strftime('%A %d').replace('0', ' ').lstrip()
     
     with col2:
         # Location input
