@@ -307,9 +307,20 @@ def load_lisbon_spots():
     Load the Lisbon area surf spots from the JSON file.
     """
     try:
-        with open('lisbon_area.json', 'r', encoding='utf-8') as f:
+        import os
+        # Get the directory containing this script
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up one level to the project root
+        project_root = os.path.dirname(current_dir)
+        # Construct the path to the JSON file
+        json_path = os.path.join(project_root, 'lisbon_area.json')
+        
+        logger.info(f"Loading spots from: {json_path}")
+        with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            return data['spots']
+            spots = data.get('spots', [])
+            logger.info(f"Successfully loaded {len(spots)} spots")
+            return spots
     except Exception as e:
         logger.error(f"Error loading Lisbon spots: {str(e)}")
         return []
