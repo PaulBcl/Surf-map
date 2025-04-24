@@ -182,71 +182,38 @@ IMPORTANT:
         }
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_forecast_data(address: str, day_list: List[str]) -> Dict[str, Dict]:
+def load_forecast_data(address: Optional[str] = None, day_list: Optional[List[str]] = None, coordinates: Optional[List[float]] = None) -> Dict[str, Dict]:
     """
-    Load forecast data for the 10 best surf spots near the given address.
+    Load forecast data for the 10 best surf spots near the given address or coordinates.
     
     Args:
-        address: Address to find nearby surf spots for
+        address: Address to find nearby surf spots for (optional if coordinates provided)
         day_list: List of days to get forecasts for
+        coordinates: List containing [latitude, longitude] (optional if address provided)
         
     Returns:
         Dictionary mapping spot names to their forecast data and ratings
     """
     try:
-        # Get coordinates for the address
-        latitude, longitude = get_coordinates(address)
+        # Get coordinates either from address or directly
+        if coordinates:
+            latitude, longitude = coordinates[0], coordinates[1]
+        else:
+            # Get coordinates for the address
+            latitude, longitude = get_coordinates(address)
+            
         if latitude is None or longitude is None:
-            raise ValueError(f"Could not geocode address: {address}")
-            
-        # Get forecasts for the best spots
+            raise ValueError(f"Could not get valid coordinates from input")
+
+        # Get surf forecast data
         forecast_data = get_surf_forecast(latitude, longitude)
-        if not forecast_data.get('best_spots'):
-            raise ValueError("No surf spots found nearby")
-            
-        forecasts = {}
         
-        # Process each spot's forecast
-        for spot in forecast_data['best_spots']:
-            try:
-                logger.info(f"Processing forecast for spot: {spot['name']} at ({spot['latitude']}, {spot['longitude']})")
-                # Create a mapping of ratings to days
-                spot_forecasts = {}
-                
-                # Extract ratings from the forecast data
-                for forecast in spot['forecast']:
-                    date = datetime.strptime(forecast['date'], '%Y-%m-%d')
-                    day_str = date.strftime('%A %d').replace('0', ' ').lstrip()
-                    if day_str in day_list:
-                        spot_forecasts[day_str] = float(forecast['daily_rating'])
-                
-                # Fill in any missing days with 0.0
-                for day in day_list:
-                    if day not in spot_forecasts:
-                        spot_forecasts[day] = 0.0
-                        
-                # Store both forecasts and spot info
-                forecasts[spot['name']] = {
-                    'forecasts': spot_forecasts,
-                    'info': {
-                        'name': spot['name'],
-                        'distance_km': spot['distance_km'],
-                        'average_rating': spot['average_rating'],
-                        'spot_orientation': spot['spot_orientation'],
-                        'latitude': spot['latitude'],
-                        'longitude': spot['longitude']
-                    }
-                }
-                
-            except Exception as e:
-                logger.error(f"Failed to process forecast for {spot['name']}: {str(e)}")
-                continue
-                
-        return forecasts
-            
+        # Process and return the data
+        return forecast_data.get('best_spots', [])
+
     except Exception as e:
-        logger.error(f"Failed to load forecast data: {str(e)}")
-        return {}
+        logger.error(f"Error loading forecast data: {str(e)}")
+        return []
 
 def get_dayList_forecast() -> List[str]:
     """
