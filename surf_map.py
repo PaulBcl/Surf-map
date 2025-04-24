@@ -59,20 +59,13 @@ def create_responsive_layout(day_list):
     # Single expander for both legend and guide
     with st.expander("ℹ️ Guide et légende", expanded=False):
         st.markdown("""
-        ##### Comment lire la carte
-        
-        - 🏠 Votre position
-        - 🚩 Spot de surf
-        
-        ##### Qualité des spots
-        Les spots sont colorés selon leur qualité :
-        - 🟢 Parfait pour surfer
-        - 🟡 Conditions moyennes
-        - 🔴 Déconseillé
-        
-        ##### Utilisation
-        1. La carte est centrée sur votre position
-        2. Cliquez sur un spot pour voir ses détails
+        La carte affiche votre position (🏠) et les spots de surf (🚩) autour de vous. Pour chaque spot, la couleur indique les conditions de surf :
+
+        • Un spot **vert** 🟢 signale des conditions parfaites pour surfer
+        • Un spot **jaune** 🟡 indique des conditions moyennes mais surfables
+        • Un spot **rouge** 🔴 vous alerte de conditions déconseillées
+
+        Pour plus de détails sur un spot qui vous intéresse, cliquez simplement dessus sur la carte.
         """)
     
     # Return default values for removed UI elements
