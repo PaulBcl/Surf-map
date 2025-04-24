@@ -13,6 +13,7 @@ import streamlit as st
 
 # Get API key from Streamlit secrets
 gmaps_api_key = st.secrets["google_maps_api_key"]
+st.write("API Key length:", len(gmaps_api_key) if gmaps_api_key else "No API key found")  # Debug line
 gmaps = googlemaps.Client(key=gmaps_api_key)
 
 #Variables
@@ -29,14 +30,21 @@ def get_google_results(address, key_api_gmaps, return_full_response = False):
     Get geocode results from Google Maps Geocoding API.
     """
     try:
+        st.write("Attempting geocoding for address:", address)  # Debug line
+        
         geocode_url = "https://maps.googleapis.com/maps/api/geocode/json?address={}".format(address)
         if key_api_gmaps is not None:
             geocode_url = geocode_url + "&key={}".format(key_api_gmaps)
+            st.write("API URL constructed (showing first 50 chars):", geocode_url[:50] + "...")  # Debug line
         
         results = requests.get(geocode_url)
+        st.write("API Response Status Code:", results.status_code)  # Debug line
         results = results.json()
+        st.write("API Response Status:", results.get('status'))  # Debug line
         
         if results.get('status') != 'OK':
+            st.error(f"Geocoding failed with status: {results.get('status')}")  # Debug line
+            st.error(f"Error message: {results.get('error_message')}")  # Debug line
             return {
                 "formatted_address": None,
                 "latitude": None,
@@ -51,6 +59,7 @@ def get_google_results(address, key_api_gmaps, return_full_response = False):
             }
 
         if len(results['results']) == 0:
+            st.warning("No results found for the address")  # Debug line
             return {
                 "formatted_address": None,
                 "latitude": None,
@@ -76,12 +85,16 @@ def get_google_results(address, key_api_gmaps, return_full_response = False):
             "success": True
         }
 
+        st.write("Successfully geocoded:", output['formatted_address'])  # Debug line
+        st.write("Coordinates:", output['latitude'], output['longitude'])  # Debug line
+
         output['input_string'] = address
         output['number_of_results'] = len(results['results'])
         output['status'] = results.get('status')
         if return_full_response is True:
             output['response'] = results
     except Exception as e:
+        st.error(f"Exception occurred during geocoding: {str(e)}")  # Debug line
         return {
             "formatted_address": None,
             "latitude": None,
