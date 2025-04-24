@@ -8,7 +8,6 @@ from folium.plugins import MarkerCluster, MiniMap, Draw
 import pandas as pd
 from datetime import datetime, timedelta
 from surfmap_config import forecast_config
-import geocoder
 
 # Set page config
 st.set_page_config(
@@ -22,12 +21,12 @@ if 'run_id' not in st.session_state:
     st.session_state.run_id = 0
 
 def get_user_location():
-    """Get user's current location using geocoder."""
+    """Get user's current location using Streamlit's geolocation."""
     try:
-        # Get location from IP
-        g = geocoder.ip('me')
-        if g.latlng:
-            return g.latlng
+        # Get location from Streamlit's geolocation
+        location = st.session_state.get('location')
+        if location and 'latitude' in location and 'longitude' in location:
+            return [location['latitude'], location['longitude']]
         return None
     except Exception as e:
         st.warning(f"Could not get location: {str(e)}")
