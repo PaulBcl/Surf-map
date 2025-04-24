@@ -4,18 +4,24 @@
 import streamlit as st
 import logging
 import openai
+from openai import OpenAI
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 import ast
 from . import api_config
 
-# OpenAI API Key (Make sure to store it securely in Streamlit secrets)
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-# Set up logging
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize OpenAI client
+try:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    logger.info("OpenAI client initialized successfully")
+except Exception as e:
+    logger.error(f"Error initializing OpenAI client: {str(e)}")
+    client = None
 
 def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
     """
@@ -39,10 +45,21 @@ def get_surf_forecast(spot):
     Returns None if no valid forecast can be generated.
     """
     try:
+        if not client:
+            logger.error("OpenAI client not initialized")
+            return None
+            
         today = datetime.now()
+        days = []
+        forecasts = []
+        
+        # Generate next 7 days
+        for i in range(7):
+            day = today + timedelta(days=i)
+            days.append(day)
         
         # Get GPT-generated forecast
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
@@ -52,11 +69,11 @@ You provide accurate, realistic surf forecasts based on:
 - Local weather systems
 - Ocean and coastal dynamics"""},
                 {"role": "user", "content": f"""Generate a 7-day forecast for:
-Location: {spot['name']}, {spot['region']}
-Coordinates: {spot['latitude']}, {spot['longitude']}
-Type: {spot['type']}
-Orientation: {spot['orientation']}
-Best Season: {spot['best_season']}
+Location: {spot.get('name', 'Unknown')}, {spot.get('region', 'Unknown')}
+Coordinates: {spot.get('latitude', 0)}, {spot.get('longitude', 0)}
+Type: {spot.get('type', 'Unknown')}
+Orientation: {spot.get('orientation', 'Unknown')}
+Best Season: {spot.get('best_season', 'Unknown')}
 
 Return forecast data in this format:
 {{
@@ -68,7 +85,8 @@ Return forecast data in this format:
       "wave_energy_kj_m2": float,
       "wind_speed_m_s": float,
       "wind_direction": "direction",
-      "tide_state": "low/rising/high/falling"
+      "tide_state": "low/rising/high/falling",
+      "daily_rating": float
     }}
   ]
 }}
@@ -78,7 +96,8 @@ IMPORTANT:
 - Consider seasonal patterns and local geography
 - All numeric values must be realistic and in metric units
 - Wind directions must be cardinal points (N, NE, E, SE, etc.)
-- Tide states must be one of: low/rising/high/falling"""}
+- Tide states must be one of: low/rising/high/falling
+- Daily rating must be between 0 and 10"""}
             ],
             max_tokens=1000,
             temperature=0.7
@@ -88,61 +107,36 @@ IMPORTANT:
         forecast_str = response.choices[0].message.content.strip()
         start_idx = forecast_str.find('{')
         end_idx = forecast_str.rfind('}') + 1
-        if start_idx != -1 and end_idx > start_idx:
-            json_str = forecast_str[start_idx:end_idx]
-            gpt_forecast = json.loads(json_str)
-            if 'forecast' in gpt_forecast and len(gpt_forecast['forecast']) > 0:
-                # Validate and fix forecast data
-                fixed_forecast = []
-                for day_idx in range(7):  # Ensure exactly 7 days
-                    if day_idx >= len(gpt_forecast['forecast']):
-                        logger.warning(f"Incomplete forecast for {spot['name']}, missing day {day_idx}")
-                        return None
-                        
-                    day = gpt_forecast['forecast'][day_idx]
-                    
-                    # Validate required fields
-                    required_fields = ['wave_height_m', 'wave_period_s', 'wave_energy_kj_m2', 
-                                     'wind_speed_m_s', 'wind_direction', 'tide_state']
-                    if not all(field in day for field in required_fields):
-                        logger.warning(f"Missing required fields in forecast for {spot['name']}")
-                        return None
-                    
-                    # Validate wave height format
-                    if not isinstance(day['wave_height_m'], dict) or \
-                       not all(k in day['wave_height_m'] for k in ['min', 'max', 'average']):
-                        logger.warning(f"Invalid wave height format in forecast for {spot['name']}")
-                        return None
-                    
-                    try:
-                        fixed_day = {
-                            'date': (today + timedelta(days=day_idx)).strftime('%Y-%m-%d'),
-                            'wave_height_m': {
-                                'min': float(str(day['wave_height_m']['min']).replace(',', '.')),
-                                'max': float(str(day['wave_height_m']['max']).replace(',', '.')),
-                                'average': float(str(day['wave_height_m']['average']).replace(',', '.'))
-                            },
-                            'wave_period_s': float(str(day['wave_period_s']).replace(',', '.')),
-                            'wave_energy_kj_m2': float(str(day['wave_energy_kj_m2']).replace(',', '.')),
-                            'wind_speed_m_s': float(str(day['wind_speed_m_s']).replace(',', '.')),
-                            'wind_direction': day['wind_direction'],
-                            'tide_state': day['tide_state']
-                        }
-                        fixed_forecast.append(fixed_day)
-                    except (ValueError, KeyError) as e:
-                        logger.warning(f"Error converting forecast values for {spot['name']}: {str(e)}")
-                        return None
-                
-                return fixed_forecast
-            else:
-                logger.warning(f"No forecast data in GPT response for {spot['name']}")
-                return None
-        else:
-            logger.warning(f"Could not find JSON in GPT response for {spot['name']}")
+        if start_idx == -1 or end_idx <= start_idx:
+            logger.error(f"Invalid forecast format for {spot.get('name', 'Unknown')}")
             return None
-
+            
+        try:
+            forecast_data = json.loads(forecast_str[start_idx:end_idx])
+            if not isinstance(forecast_data, dict) or 'forecast' not in forecast_data:
+                logger.error(f"Missing forecast data for {spot.get('name', 'Unknown')}")
+                return None
+            
+            # Validate and process each day's forecast
+            for day_forecast in forecast_data['forecast']:
+                if not all(key in day_forecast for key in ['date', 'wave_height_m', 'wave_period_s', 'wind_speed_m_s', 'wind_direction', 'tide_state', 'daily_rating']):
+                    logger.error(f"Missing required fields in forecast for {spot.get('name', 'Unknown')}")
+                    return None
+                
+                # Ensure wave height has all required fields
+                wave_height = day_forecast['wave_height_m']
+                if not all(key in wave_height for key in ['min', 'max', 'average']):
+                    logger.error(f"Invalid wave height format for {spot.get('name', 'Unknown')}")
+                    return None
+            
+            return forecast_data['forecast']
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing forecast JSON for {spot.get('name', 'Unknown')}: {str(e)}")
+            return None
+            
     except Exception as e:
-        logger.error(f"Error getting surf forecast for {spot['name']}: {str(e)}")
+        logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
         return None
 
 def analyze_spot_conditions(spot, all_forecasts):
@@ -213,7 +207,7 @@ def get_conditions_analysis(spot, forecast):
     Generate a detailed analysis of how well the forecasted conditions match the spot's characteristics.
     """
     try:
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": """You are a surf spot analysis expert.
@@ -304,6 +298,9 @@ def load_lisbon_spots():
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             spots = data.get('spots', [])
+            if not spots:
+                logger.error("No spots found in JSON data")
+                return []
             logger.info(f"Successfully loaded {len(spots)} spots")
             return spots
     except Exception as e:
@@ -361,7 +358,7 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         spots = load_lisbon_spots()
         if not spots:
             logger.error("No spots found in Lisbon area data")
-            raise ValueError("No spots found in Lisbon area data")
+            return []
         
         logger.info(f"Loaded {len(spots)} spots from Lisbon area data")
         
@@ -369,19 +366,19 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         processed_spots = []
         for spot in spots:
             try:
-                logger.info(f"Processing spot: {spot['name']}")
+                logger.info(f"Processing spot: {spot.get('name', 'Unknown')}")
                 
                 # Get forecast data using GPT
-                forecasts = get_surf_forecast(spot)
-                if not forecasts:
-                    logger.warning(f"No valid forecast data for {spot['name']}, skipping")
+                forecast = get_surf_forecast(spot)
+                if not forecast:
+                    logger.warning(f"No valid forecast data for {spot.get('name', 'Unknown')}, skipping")
                     continue
                 
-                logger.info(f"Got valid forecast for {spot['name']}")
+                logger.info(f"Got valid forecast for {spot.get('name', 'Unknown')}")
                 
-                # Add forecasts to spot data
+                # Add forecast to spot data
                 spot_with_forecast = spot.copy()
-                spot_with_forecast['forecast'] = forecasts
+                spot_with_forecast['forecast'] = forecast
                 
                 # Calculate distance if coordinates provided
                 if coordinates:
@@ -405,30 +402,19 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                             coordinates[0], coordinates[1],
                             float(spot['latitude']), float(spot['longitude'])
                         )
-                        logger.info(f"Distance to {spot['name']}: {distance} km")
+                        logger.info(f"Distance to {spot.get('name', 'Unknown')}: {distance} km")
                         spot_with_forecast['distance_km'] = distance
                     except Exception as e:
-                        logger.error(f"Error calculating distance for {spot['name']}: {str(e)}")
-                        continue  # Skip spots where we can't calculate distance
-                else:
-                    spot_with_forecast['distance_km'] = 0
+                        logger.error(f"Error calculating distance for {spot.get('name', 'Unknown')}: {str(e)}")
+                        continue
                 
                 processed_spots.append(spot_with_forecast)
                 
             except Exception as e:
-                logger.error(f"Error processing spot {spot['name']}: {str(e)}")
+                logger.error(f"Error processing spot: {str(e)}")
                 continue
         
-        if not processed_spots:
-            logger.warning("No spots with valid forecasts found")
-            return []
-        
-        # Sort spots by distance if coordinates provided
-        if coordinates:
-            processed_spots.sort(key=lambda x: x['distance_km'])
-            logger.info("Sorted spots by distance")
-        
-        logger.info(f"Successfully processed {len(processed_spots)} spots with valid forecasts")
+        logger.info(f"Successfully processed {len(processed_spots)} spots")
         return processed_spots
         
     except Exception as e:
