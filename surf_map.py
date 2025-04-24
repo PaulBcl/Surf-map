@@ -54,9 +54,9 @@ def create_responsive_layout(day_list):
         # Date selection
         st.markdown("#### 📅 Sélectionnez votre journée")
         selectbox_daily_forecast = st.selectbox(
-            "Jour souhaité pour l'affichage des prévisions de surf",
+            "Choisissez le jour pour vos prévisions",
             day_list,
-            label_visibility="collapsed"
+            label_visibility="visible"
         )
     
     with col2:
@@ -139,15 +139,19 @@ def main():
     
     # Handle location logic
     if user_location:
+        # Use browser geolocation
         base_position = user_location
         st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, user_location)
     elif address:
-        # Use the manually entered address
+        # Use manually entered address with Google Maps geocoding
         try:
-            geocoded_location = forecast_config.geocode_address(address)
-            if geocoded_location:
-                base_position = geocoded_location
-                st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, geocoded_location)
+            from surfmap_config import api_config
+            geocode_result = api_config.get_google_results(address, api_config.gmaps_api_key)
+            
+            if geocode_result['success']:
+                base_position = [geocode_result['latitude'], geocode_result['longitude']]
+                st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, base_position)
+                st.success(f"📍 Position trouvée : {geocode_result['formatted_address']}")
             else:
                 base_position = [46.603354, 1.888334]  # Center of France
                 st.error("❌ Adresse non trouvée. Veuillez vérifier votre saisie.")
