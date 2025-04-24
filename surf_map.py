@@ -27,11 +27,8 @@ def get_user_location():
         location = st.experimental_get_user_location()
         if location and location['coords']['latitude'] and location['coords']['longitude']:
             return [location['coords']['latitude'], location['coords']['longitude']]
-        
-        st.info("📍 Pour une meilleure expérience, autorisez l'accès à votre localisation dans votre navigateur.")
         return None
     except Exception as e:
-        st.warning("❌ Impossible d'accéder à votre position. Vérifiez les permissions de votre navigateur.")
         return None
 
 def create_responsive_layout(day_list):
@@ -50,13 +47,26 @@ def create_responsive_layout(day_list):
     </div>
     """, unsafe_allow_html=True)
     
-    # Date selection - outside of dropdown
-    st.markdown("#### 📅 Sélectionnez votre journée")
-    selectbox_daily_forecast = st.selectbox(
-        "Jour souhaité pour l'affichage des prévisions de surf",
-        day_list,
-        label_visibility="collapsed"
-    )
+    # Create two columns for date selection and location input
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Date selection
+        st.markdown("#### 📅 Sélectionnez votre journée")
+        selectbox_daily_forecast = st.selectbox(
+            "Jour souhaité pour l'affichage des prévisions de surf",
+            day_list,
+            label_visibility="collapsed"
+        )
+    
+    with col2:
+        # Location input
+        st.markdown("#### 📍 Votre position")
+        address = st.text_input(
+            "Entrez votre ville ou adresse",
+            placeholder="ex: Biarritz, France",
+            help="Si la géolocalisation ne fonctionne pas, entrez votre position manuellement"
+        )
     
     # Single expander for both legend and guide
     with st.expander("ℹ️ Guide et légende", expanded=False):
@@ -64,8 +74,7 @@ def create_responsive_layout(day_list):
         La carte interactive affiche votre position actuelle (🏠) et les spots de surf à proximité (🚩). Chaque spot est marqué d'un point coloré indiquant la qualité attendue du surf : vert (🟢) pour des conditions idéales avec des vagues propres et puissantes ; jaune (🟡) pour des conditions surfables mais moins constantes ou légèrement agitées ; et rouge (🔴) lorsque les conditions sont défavorables, comme en cas de vent fort, de marées inadaptées ou de risques pour la sécurité. Cliquez sur n'importe quel marqueur pour voir les informations détaillées sur la marée, le vent et la compatibilité de la houle de ce spot. Ce système vous aide à évaluer rapidement quels spots méritent d'être visités près de chez vous, vous faisant gagner du temps et rendant la planification de vos sessions sans effort.
         """)
     
-    # Return default values for removed UI elements
-    address = None
+    # Return values including the address
     validation_button = True  # Always true since we're using geolocation
     option_forecast = 0
     option_prix = 0
@@ -127,14 +136,28 @@ def main():
     
     # Get user's location
     user_location = get_user_location()
+    
+    # Handle location logic
     if user_location:
-        # Use user's location as the base position
         base_position = user_location
         st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, user_location)
+    elif address:
+        # Use the manually entered address
+        try:
+            geocoded_location = forecast_config.geocode_address(address)
+            if geocoded_location:
+                base_position = geocoded_location
+                st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, geocoded_location)
+            else:
+                base_position = [46.603354, 1.888334]  # Center of France
+                st.error("❌ Adresse non trouvée. Veuillez vérifier votre saisie.")
+        except Exception as e:
+            base_position = [46.603354, 1.888334]  # Center of France
+            st.error("❌ Erreur lors de la géolocalisation. Veuillez réessayer.")
     else:
-        # Fallback to default position
+        # No location available
         base_position = [46.603354, 1.888334]  # Center of France
-        st.warning("Could not get your location. Using default position.")
+        st.warning("❌ Impossible d'accéder à votre position. Veuillez entrer votre position manuellement ou vérifier les permissions de votre navigateur.")
     
     # Initialize map with user's position
     m = folium.Map(location=base_position, zoom_start=8)
