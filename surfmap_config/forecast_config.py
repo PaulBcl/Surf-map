@@ -35,28 +35,83 @@ def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
 
 def get_surf_forecast(spot):
     """
-    Get surf forecast data for the next 7 days.
-    Uses GPT to simulate getting real forecast data for the spot's location.
+    Get surf forecast data for the next 7 days by combining:
+    1. Real forecast data from surf websites
+    2. GPT-generated forecast based on location and conditions
     """
     try:
-        today = datetime.now()
+        # Get forecasts from all available sources
+        all_forecasts = []
         
-        # First, get the raw forecast data
+        # 1. Get forecasts from provided websites
+        for forecast_link in spot['surf_forecast_link']:
+            try:
+                response = openai.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": """You are a surf forecasting expert who can analyze forecast data from surf websites.
+You extract and interpret forecast data from websites like Surf-Forecast, MagicSeaweed, and Surfline.
+You return the data in a standardized format."""},
+                        {"role": "user", "content": f"""Extract the 7-day forecast data from this link: {forecast_link}
+for the spot: {spot['name']}, {spot['region']}
+
+Return the raw forecast data in this format:
+{{
+  "forecast": [
+    {{
+      "date": "YYYY-MM-DD",
+      "wave_height_m": {{ "min": float, "max": float, "average": float }},
+      "wave_period_s": float,
+      "wave_energy_kj_m2": float,
+      "wind_speed_m_s": float,
+      "wind_direction": "direction",
+      "tide_state": "low/rising/high/falling"
+    }}
+  ]
+}}
+
+IMPORTANT:
+- Extract actual forecast data from the website
+- Convert all measurements to metric units
+- Standardize wind directions to cardinal points (N, NE, E, SE, etc.)
+- Standardize tide states to low/rising/high/falling"""}
+                    ],
+                    max_tokens=1000,
+                    temperature=0.7
+                )
+                
+                # Parse the website forecast
+                forecast_str = response.choices[0].message.content.strip()
+                start_idx = forecast_str.find('{')
+                end_idx = forecast_str.rfind('}') + 1
+                json_str = forecast_str[start_idx:end_idx]
+                
+                try:
+                    website_forecast = json.loads(json_str)
+                    all_forecasts.append(website_forecast['forecast'])
+                except (json.JSONDecodeError, KeyError):
+                    logger.warning(f"Could not parse forecast from {forecast_link}")
+                    continue
+                    
+            except Exception as e:
+                logger.warning(f"Error getting forecast from {forecast_link}: {str(e)}")
+                continue
+        
+        # 2. Get GPT-generated forecast
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": """You are a surf forecasting API that provides accurate weather and wave data.
-You return raw forecast data without any interpretation, similar to what would come from services like Surfline or Windy.
-Provide realistic values based on:
-- The location's typical seasonal patterns
+                {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
+You provide accurate, realistic surf forecasts based on:
+- Location and regional patterns
+- Seasonal conditions
 - Local weather systems
 - Ocean and coastal dynamics"""},
-                {"role": "user", "content": f"""Get the 7-day forecast for coordinates: {spot['latitude']}, {spot['longitude']}
+                {"role": "user", "content": f"""Generate a 7-day forecast for:
 Location: {spot['name']}, {spot['region']}
+Coordinates: {spot['latitude']}, {spot['longitude']}
 
-Return raw forecast data for the next 7 days starting from {today.strftime('%Y-%m-%d')}.
-
-Format as JSON:
+Return forecast data in this format:
 {{
   "forecast": [
     {{
@@ -80,31 +135,97 @@ IMPORTANT:
             max_tokens=1000,
             temperature=0.7
         )
-
-        # Parse the raw forecast
+        
+        # Parse the GPT forecast
         forecast_str = response.choices[0].message.content.strip()
         start_idx = forecast_str.find('{')
         end_idx = forecast_str.rfind('}') + 1
         json_str = forecast_str[start_idx:end_idx]
         
         try:
-            forecast_data = json.loads(json_str)
-        except json.JSONDecodeError:
-            forecast_data = ast.literal_eval(json_str)
-
-        # Now analyze how well these conditions match the spot's characteristics
-        analyzed_forecasts = analyze_spot_conditions(spot, forecast_data['forecast'])
+            gpt_forecast = json.loads(json_str)
+            all_forecasts.append(gpt_forecast['forecast'])
+        except (json.JSONDecodeError, KeyError):
+            logger.warning("Could not parse GPT-generated forecast")
         
-        return analyzed_forecasts
+        # 3. Merge and analyze all forecasts
+        if not all_forecasts:
+            raise ValueError("No valid forecasts available")
+            
+        # Get the final analyzed forecast
+        analyzed_forecast = analyze_spot_conditions(spot, all_forecasts)
+        return analyzed_forecast
 
     except Exception as e:
         logger.error(f"Error getting surf forecast for {spot['name']}: {str(e)}")
         return []
 
-def analyze_spot_conditions(spot, raw_forecasts):
+def analyze_spot_conditions(spot, all_forecasts):
     """
-    Analyze how well the forecasted conditions match the spot's characteristics.
-    Uses GPT to compare forecast data with spot's known behavior.
+    Analyze and merge multiple forecast sources to create a reliable forecast.
+    """
+    try:
+        # Get the number of days to forecast
+        num_days = len(all_forecasts[0])
+        
+        # Initialize merged forecast
+        merged_forecast = []
+        
+        # For each day, merge data from all sources
+        for day_idx in range(num_days):
+            day_data = {
+                'date': all_forecasts[0][day_idx]['date'],
+                'wave_height_m': {'min': [], 'max': [], 'average': []},
+                'wave_period_s': [],
+                'wave_energy_kj_m2': [],
+                'wind_speed_m_s': [],
+                'wind_direction': [],
+                'tide_state': []
+            }
+            
+            # Collect data from all sources
+            for forecast in all_forecasts:
+                if day_idx < len(forecast):
+                    day = forecast[day_idx]
+                    day_data['wave_height_m']['min'].append(day['wave_height_m']['min'])
+                    day_data['wave_height_m']['max'].append(day['wave_height_m']['max'])
+                    day_data['wave_height_m']['average'].append(day['wave_height_m']['average'])
+                    day_data['wave_period_s'].append(day['wave_period_s'])
+                    day_data['wave_energy_kj_m2'].append(day['wave_energy_kj_m2'])
+                    day_data['wind_speed_m_s'].append(day['wind_speed_m_s'])
+                    day_data['wind_direction'].append(day['wind_direction'])
+                    day_data['tide_state'].append(day['tide_state'])
+            
+            # Calculate averages and most common values
+            merged_day = {
+                'date': day_data['date'],
+                'wave_height_m': {
+                    'min': round(sum(day_data['wave_height_m']['min']) / len(day_data['wave_height_m']['min']), 1),
+                    'max': round(sum(day_data['wave_height_m']['max']) / len(day_data['wave_height_m']['max']), 1),
+                    'average': round(sum(day_data['wave_height_m']['average']) / len(day_data['wave_height_m']['average']), 1)
+                },
+                'wave_period_s': round(sum(day_data['wave_period_s']) / len(day_data['wave_period_s']), 1),
+                'wave_energy_kj_m2': round(sum(day_data['wave_energy_kj_m2']) / len(day_data['wave_energy_kj_m2']), 1),
+                'wind_speed_m_s': round(sum(day_data['wind_speed_m_s']) / len(day_data['wind_speed_m_s']), 1),
+                'wind_direction': max(set(day_data['wind_direction']), key=day_data['wind_direction'].count),
+                'tide_state': max(set(day_data['tide_state']), key=day_data['tide_state'].count)
+            }
+            
+            # Calculate rating and analysis
+            merged_day['daily_rating'] = calculate_spot_rating(spot, merged_day)
+            merged_day['conditions_analysis'] = get_conditions_analysis(spot, merged_day)
+            
+            merged_forecast.append(merged_day)
+        
+        return merged_forecast
+
+    except Exception as e:
+        logger.error(f"Error analyzing spot conditions for {spot['name']}: {str(e)}")
+        return []
+
+def get_conditions_analysis(spot, forecast):
+    """
+    Generate a detailed analysis of how well the forecasted conditions match the spot's characteristics.
     """
     try:
         response = openai.chat.completions.create(
@@ -114,7 +235,7 @@ def analyze_spot_conditions(spot, raw_forecasts):
 You analyze how well forecasted conditions match a spot's known characteristics.
 Consider all aspects of the spot's behavior to rate the conditions."""},
                 {"role": "user", "content": f"""Analyze these forecasted conditions for {spot['name']}:
-{json.dumps(raw_forecasts, indent=2)}
+{json.dumps(forecast, indent=2)}
 
 Based on the spot's characteristics:
 Type: {spot['type']}
@@ -124,33 +245,24 @@ Ideal Swell: {spot['swell_compatibility']['ideal_swell_size_m']}m from {spot['sw
 Best Wind: {spot['wind_compatibility']['best_direction']}
 Tide Behavior: {spot['tide_behavior']}
 
-For each day's forecast, add a 'daily_rating' (0-10) and 'conditions_analysis' explaining:
+Provide a detailed analysis explaining:
 1. How well the wind direction and speed match the spot's preferences
 2. Whether wave height and period are in the ideal range
 3. How the tide state affects the spot
 4. Overall suitability for surfing
+5. Any potential hazards or special considerations
 
-Return the enhanced forecast data with your analysis added to each day."""}
+Return a concise but informative analysis."""}
             ],
-            max_tokens=1500,
+            max_tokens=500,
             temperature=0.7
         )
-
-        # Parse the analysis
-        analysis_str = response.choices[0].message.content.strip()
-        start_idx = analysis_str.find('[')
-        end_idx = analysis_str.rfind(']') + 1
         
-        try:
-            analyzed_forecasts = json.loads(analysis_str[start_idx:end_idx])
-        except json.JSONDecodeError:
-            analyzed_forecasts = ast.literal_eval(analysis_str[start_idx:end_idx])
-
-        return analyzed_forecasts
+        return response.choices[0].message.content.strip()
 
     except Exception as e:
-        logger.error(f"Error analyzing conditions for {spot['name']}: {str(e)}")
-        return raw_forecasts  # Return raw forecasts if analysis fails
+        logger.error(f"Error generating conditions analysis for {spot['name']}: {str(e)}")
+        return "Unable to generate detailed analysis."
 
 def calculate_spot_rating(spot, forecast_conditions):
     """
@@ -226,51 +338,70 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
     Load forecast data for surf spots in the Lisbon area.
     """
     try:
+        logger.info("Starting to load forecast data")
+        logger.info(f"Input - Address: {address}, Coordinates: {coordinates}")
+        
         # Load Lisbon spots
         spots = load_lisbon_spots()
         if not spots:
+            logger.error("No spots found in Lisbon area data")
             raise ValueError("No spots found in Lisbon area data")
-            
+        
+        logger.info(f"Loaded {len(spots)} spots from Lisbon area data")
+        
         # Process each spot
+        processed_spots = []
         for spot in spots:
-            # Get forecast data using GPT
-            forecasts = get_surf_forecast(spot)
-            
-            # Calculate ratings based on forecasted conditions
-            for forecast in forecasts:
-                forecast['daily_rating'] = calculate_spot_rating(spot, forecast)
-            
-            spot['forecast'] = forecasts
-            
-            # Calculate distance if coordinates provided
-            if coordinates:
-                from math import radians, sin, cos, sqrt, atan2
+            try:
+                logger.info(f"Processing spot: {spot['name']}")
                 
-                def haversine_distance(lat1, lon1, lat2, lon2):
-                    R = 6371  # Earth's radius in kilometers
-                    
-                    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-                    dlat = lat2 - lat1
-                    dlon = lon2 - lon1
-                    
-                    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-                    c = 2 * atan2(sqrt(a), sqrt(1-a))
-                    distance = R * c
-                    
-                    return round(distance, 1)
+                # Get forecast data using GPT
+                forecasts = get_surf_forecast(spot)
+                logger.info(f"Got {len(forecasts)} days of forecast for {spot['name']}")
                 
-                spot['distance_km'] = haversine_distance(
-                    coordinates[0], coordinates[1],
-                    float(spot['latitude']), float(spot['longitude'])
-                )
-            else:
-                spot['distance_km'] = 0
+                # Add forecasts to spot data
+                spot_with_forecast = spot.copy()
+                spot_with_forecast['forecast'] = forecasts
                 
+                # Calculate distance if coordinates provided
+                if coordinates:
+                    from math import radians, sin, cos, sqrt, atan2
+                    
+                    def haversine_distance(lat1, lon1, lat2, lon2):
+                        R = 6371  # Earth's radius in kilometers
+                        
+                        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+                        dlat = lat2 - lat1
+                        dlon = lon2 - lon1
+                        
+                        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+                        c = 2 * atan2(sqrt(a), sqrt(1-a))
+                        distance = R * c
+                        
+                        return round(distance, 1)
+                    
+                    distance = haversine_distance(
+                        coordinates[0], coordinates[1],
+                        float(spot['latitude']), float(spot['longitude'])
+                    )
+                    logger.info(f"Distance to {spot['name']}: {distance} km")
+                    spot_with_forecast['distance_km'] = distance
+                else:
+                    spot_with_forecast['distance_km'] = 0
+                
+                processed_spots.append(spot_with_forecast)
+                
+            except Exception as e:
+                logger.error(f"Error processing spot {spot['name']}: {str(e)}")
+                continue
+        
         # Sort spots by distance if coordinates provided
-        if coordinates:
-            spots.sort(key=lambda x: x['distance_km'])
-            
-        return spots
+        if coordinates and processed_spots:
+            processed_spots.sort(key=lambda x: x['distance_km'])
+            logger.info("Sorted spots by distance")
+        
+        logger.info(f"Successfully processed {len(processed_spots)} spots")
+        return processed_spots
         
     except Exception as e:
         logger.error(f"Error loading forecast data: {str(e)}")

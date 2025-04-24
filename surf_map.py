@@ -135,75 +135,95 @@ def create_suggestions_section():
 def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=0, min_rating=0):
     """
     Add markers for surf spots to the map.
-    
-    Args:
-        m: folium Map object
-        forecasts: List of surf spot forecasts
-        selected_day: Selected day for forecasts
-        color_by: What to color the markers by ('rating', 'time', or 'cost')
-        max_time: Maximum travel time filter (0 for no filter)
-        max_cost: Maximum cost filter (0 for no filter)
-        min_rating: Minimum rating filter
     """
     try:
+        logger.info(f"Starting to add markers for {len(forecasts)} spots")
+        logger.info(f"Parameters: selected_day={selected_day}, color_by={color_by}, max_time={max_time}, max_cost={max_cost}, min_rating={min_rating}")
+        
         # Create a marker cluster
         marker_cluster = MarkerCluster().add_to(m)
+        markers_added = 0
         
-        # Create an expander for logging messages
-        with st.expander("Debug Logs", expanded=False):
-            st.write(f"Processing {len(forecasts)} spots...")
+        # Convert selected_day to the format used in forecasts (YYYY-MM-DD)
+        try:
+            # Parse the date from format "Day DD" (e.g., "Monday 15")
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+            day_num = int(selected_day.split()[1])
+            # If the day number is less than today's day, it's next month
+            if day_num < datetime.now().day:
+                if current_month == 12:
+                    current_month = 1
+                    current_year += 1
+                else:
+                    current_month += 1
+            forecast_date = datetime(current_year, current_month, day_num).strftime('%Y-%m-%d')
+            logger.info(f"Converted selected_day '{selected_day}' to forecast date format: {forecast_date}")
+        except Exception as e:
+            logger.error(f"Error converting date format: {str(e)}")
+            forecast_date = selected_day
         
         # Process each spot
         for spot in forecasts:
             try:
                 # Extract spot information
                 spot_info = spot
-                spot_name = spot_info['name']
-                spot_lat = float(spot_info['latitude'])
-                spot_lon = float(spot_info['longitude'])
-                distance = float(spot_info['distance_km'])
-                rating = float(spot_info['average_rating'])
+                spot_name = spot_info.get('name', 'Unknown Spot')
+                distance = spot_info.get('distance_km', 0)
+                travel_time = distance / 60  # Rough estimate: 60 km/h average speed
                 
-                # Get the forecast for the selected day
-                spot_forecast = next((f for f in spot_info['forecast'] if f['date']), None)
-                if spot_forecast:
-                    daily_rating = float(spot_forecast['daily_rating'])
-                else:
-                    daily_rating = 0.0
+                # Find the forecast for the selected day
+                daily_forecast = None
+                if 'forecast' in spot_info:
+                    for day_forecast in spot_info['forecast']:
+                        if day_forecast.get('date') == forecast_date:
+                            daily_forecast = day_forecast
+                            break
                 
-                # Calculate travel time (rough estimate: 60 km/h average speed)
-                travel_time = distance / 60  # Convert to hours
+                if not daily_forecast:
+                    logger.warning(f"No forecast found for {spot_name} on {forecast_date}")
+                    continue
                 
-                # Calculate cost (rough estimate: 0.5€/km)
-                travel_cost = distance * 0.5
+                # Get the rating for the day
+                rating = daily_forecast.get('daily_rating', 0)
+                if rating < min_rating:
+                    logger.info(f"Skipping {spot_name} due to low rating: {rating}")
+                    continue
                 
-                # Apply filters
+                # Skip if travel time exceeds max_time (if specified)
                 if max_time > 0 and travel_time > max_time:
-                    continue
-                if max_cost > 0 and travel_cost > max_cost:
-                    continue
-                if daily_rating < min_rating:
+                    logger.info(f"Skipping {spot_name} due to travel time: {travel_time}h > {max_time}h")
                     continue
                 
-                # Determine marker color based on selection
-                if color_by == "🏄‍♂️ Prévisions":
-                    # Color based on rating
-                    if daily_rating >= 8:
+                # Calculate travel cost (rough estimate)
+                fuel_cost_per_km = 0.15  # €/km
+                toll_cost = distance * 0.10  # Rough estimate for toll costs
+                travel_cost = (distance * fuel_cost_per_km) + toll_cost
+                
+                # Skip if travel cost exceeds max_cost (if specified)
+                if max_cost > 0 and travel_cost > max_cost:
+                    logger.info(f"Skipping {spot_name} due to travel cost: {travel_cost}€ > {max_cost}€")
+                    continue
+                
+                # Determine marker color based on selected criteria
+                if color_by == 'rating':
+                    color = 'lightgray'
+                    if rating >= 7:
                         color = 'darkgreen'
-                    elif daily_rating >= 6:
+                    elif rating >= 5:
                         color = 'green'
-                    elif daily_rating >= 4:
+                    elif rating >= 3:
                         color = 'orange'
-                    else:
+                    elif rating > 0:
                         color = 'red'
-                elif color_by == "⏱️ Temps de trajet":
-                    # Color based on travel time
+                
+                elif color_by == 'travel_time':
                     if max_time == 0:  # Use absolute scale
-                        if travel_time <= 2:
+                        if travel_time <= 1:
                             color = 'darkgreen'
-                        elif travel_time <= 4:
+                        elif travel_time <= 2:
                             color = 'green'
-                        elif travel_time <= 6:
+                        elif travel_time <= 3:
                             color = 'orange'
                         else:
                             color = 'red'
@@ -216,8 +236,8 @@ def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=
                             color = 'orange'
                         else:
                             color = 'red'
-                else:  # "💶 Coût"
-                    # Color based on cost
+                
+                else:  # color_by == 'cost'
                     if max_cost == 0:  # Use absolute scale
                         if travel_cost <= 20:
                             color = 'darkgreen'
@@ -237,53 +257,53 @@ def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=
                         else:
                             color = 'red'
                 
-                # Create popup content
-                popup_content = f"""
-                <div style='min-width: 300px'>
-                    <h4>{spot_name}</h4>
-                    <p><b>Region:</b> {spot_info['region']}</p>
-                    <p><b>Type:</b> {spot_info['type']}</p>
-                    <p><b>Distance:</b> {distance:.1f} km</p>
-                    <p><b>Temps de trajet estimé:</b> {travel_time:.1f}h</p>
-                    <p><b>Coût estimé:</b> {travel_cost:.2f}€</p>
-                    <p><b>Note:</b> {daily_rating}/10</p>
-                    <hr>
-                    <p><b>Best Season:</b> {spot_info['best_season']}</p>
-                    <p><b>Difficulty:</b> {', '.join(spot_info['difficulty'])}</p>
-                    <p><b>Orientation:</b> {spot_info['orientation']}</p>
-                    <p><b>Wave Description:</b> {spot_info['wave_description']}</p>
-                    <hr>
-                    <p><b>Current Conditions:</b></p>
-                    <p><b>Vagues:</b> {spot_forecast['wave_height_m']['min']}-{spot_forecast['wave_height_m']['max']}m</p>
-                    <p><b>Période:</b> {spot_forecast['wave_period_s']}s</p>
-                    <p><b>Vent:</b> {spot_forecast['wind_speed_m_s']}m/s {spot_forecast['wind_direction']}</p>
-                    <hr>
-                    <p><b>Local Tips:</b> {spot_info['local_tips']}</p>
-                    <p><b>Access:</b> {spot_info['access']}</p>
-                    <p><b>Gear Rental:</b> {spot_info['gear_rental']}</p>
-                    <p><b>Nearby Lodging:</b> {spot_info['nearby_lodging']}</p>
-                    <hr>
-                    <p><b>Forecast Links:</b></p>
-                    {''.join(f'<a href="{link}" target="_blank">Forecast {i+1}</a><br>' for i, link in enumerate(spot_info['surf_forecast_link']))}
-                </div>
-                """
+                logger.info(f"Adding marker for {spot_name} with color {color}")
                 
-                # Add marker to cluster
-                folium.Marker(
-                    location=[spot_lat, spot_lon],
-                    popup=folium.Popup(popup_content, max_width=300),
-                    icon=folium.Icon(color=color, icon='info-sign')
-                ).add_to(marker_cluster)
+                # Create popup content with error handling
+                try:
+                    wave_height = daily_forecast.get('wave_height_m', {})
+                    wave_height_str = f"{wave_height.get('min', 0)}-{wave_height.get('max', 0)}m"
+                    
+                    popup_content = f"""
+                    <div style='min-width: 300px'>
+                        <h4>{spot_name}</h4>
+                        <p><b>Region:</b> {spot_info.get('region', 'N/A')}</p>
+                        <p><b>Type:</b> {spot_info.get('type', 'N/A')}</p>
+                        <p><b>Distance:</b> {distance:.1f} km</p>
+                        <p><b>Travel Time:</b> {travel_time:.1f}h</p>
+                        <p><b>Travel Cost:</b> {travel_cost:.2f}€</p>
+                        <p><b>Wave Height:</b> {wave_height_str}</p>
+                        <p><b>Wave Period:</b> {daily_forecast.get('wave_period_s', 'N/A')}s</p>
+                        <p><b>Wind Speed:</b> {daily_forecast.get('wind_speed_m_s', 'N/A')}m/s</p>
+                        <p><b>Wind Direction:</b> {daily_forecast.get('wind_direction', 'N/A')}</p>
+                        <p><b>Tide State:</b> {daily_forecast.get('tide_state', 'N/A')}</p>
+                        <p><b>Rating:</b> {rating}/10</p>
+                    </div>
+                    """
+                    
+                    # Create marker with popup
+                    folium.Marker(
+                        location=[float(spot_info['latitude']), float(spot_info['longitude'])],
+                        popup=folium.Popup(popup_content, max_width=300),
+                        icon=folium.Icon(color=color, icon='info-sign'),
+                    ).add_to(marker_cluster)
+                    
+                    markers_added += 1
+                    
+                except Exception as e:
+                    logger.error(f"Error creating popup for {spot_name}: {str(e)}")
+                    continue
                 
             except Exception as e:
-                with st.expander("Debug Logs", expanded=False):
-                    st.error(f"Error processing spot {spot_name}: {str(e)}")
+                logger.error(f"Error processing spot: {str(e)}")
                 continue
         
-        return marker_cluster
+        logger.info(f"Successfully added {markers_added} markers to the map")
+        return markers_added
+        
     except Exception as e:
-        st.error(f"Error adding markers: {str(e)}")
-        return None
+        logger.error(f"Error in add_spot_markers: {str(e)}")
+        return 0
 
 def main():
     """Main application function."""
@@ -301,36 +321,49 @@ def main():
     # Get user's location
     user_location = get_user_location()
     
+    # Debug logging for location
+    logger.info(f"User location: {user_location}")
+    logger.info(f"Address entered: {address}")
+    
     # Handle location logic
     if user_location:
         # Use browser geolocation
         base_position = user_location
+        logger.info(f"Using browser geolocation: {base_position}")
         st.session_state.forecasts = forecast_config.load_forecast_data(coordinates=user_location)
+        logger.info(f"Loaded {len(st.session_state.forecasts) if st.session_state.forecasts else 0} forecasts from geolocation")
     elif address:
         # Use manually entered address with Google Maps geocoding
         try:
             from surfmap_config import api_config
             geocode_result = api_config.get_google_results(address, api_config.gmaps_api_key)
-            logger.info(f"Geocode result: {geocode_result}")  # Debug log
+            logger.info(f"Geocode result: {geocode_result}")
             
             if geocode_result and geocode_result.get('success'):
                 base_position = [geocode_result['latitude'], geocode_result['longitude']]
-                logger.info(f"Setting base position to: {base_position}")  # Debug log
+                logger.info(f"Setting base position to: {base_position}")
                 
                 try:
+                    # Load forecasts with coordinates
                     st.session_state.forecasts = forecast_config.load_forecast_data(coordinates=base_position)
+                    logger.info(f"Loaded {len(st.session_state.forecasts) if st.session_state.forecasts else 0} forecasts")
+                    
+                    # Debug log the first forecast if available
+                    if st.session_state.forecasts and len(st.session_state.forecasts) > 0:
+                        logger.info(f"First forecast: {st.session_state.forecasts[0]}")
+                    
                     st.success(f"📍 Position trouvée : {geocode_result['formatted_address']}")
                 except Exception as forecast_error:
-                    logger.error(f"Error loading forecast data: {forecast_error}")  # Debug log
+                    logger.error(f"Error loading forecast data: {forecast_error}")
                     st.error(f"❌ Erreur lors du chargement des prévisions: {str(forecast_error)}")
-                    base_position = [geocode_result['latitude'], geocode_result['longitude']]  # Still use the geocoded position
+                    base_position = [geocode_result['latitude'], geocode_result['longitude']]
             else:
                 error_msg = geocode_result.get('error_message', 'Unknown error') if geocode_result else 'No result'
-                logger.error(f"Geocoding failed: {error_msg}")  # Debug log
+                logger.error(f"Geocoding failed: {error_msg}")
                 base_position = [46.603354, 1.888334]  # Center of France
                 st.error("❌ Adresse non trouvée. Veuillez vérifier votre saisie.")
         except Exception as e:
-            logger.error(f"Exception in geocoding: {str(e)}")  # Debug log
+            logger.error(f"Exception in geocoding: {str(e)}")
             base_position = [46.603354, 1.888334]  # Center of France
             st.error(f"❌ Erreur lors de la géolocalisation: {str(e)}")
     else:
@@ -339,12 +372,17 @@ def main():
         st.warning("❌ Impossible d'accéder à votre position. Veuillez entrer votre position manuellement ou vérifier les permissions de votre navigateur.")
     
     # Initialize map with user's position
-    logger.info(f"Initializing map with position: {base_position}")  # Debug log
+    logger.info(f"Initializing map with position: {base_position}")
     m = folium.Map(location=base_position, zoom_start=8)
     
     # Add map controls
     MiniMap(toggle_display=True).add_to(m)
     Draw().add_to(m)
+    
+    # Debug log before adding markers
+    logger.info(f"Forecasts in session state: {bool(st.session_state.forecasts)}")
+    if st.session_state.forecasts:
+        logger.info(f"Number of forecasts: {len(st.session_state.forecasts)}")
     
     # If we have forecasts, display them
     if st.session_state.forecasts:
@@ -356,8 +394,13 @@ def main():
                 icon=folium.Icon(color='blue', icon='home')
             ).add_to(m)
             
+            # Debug log before adding spot markers
+            logger.info(f"Adding spot markers for {len(st.session_state.forecasts)} spots")
+            logger.info(f"Selected day: {selectbox_daily_forecast}")
+            logger.info(f"Color by: {checkbox_choix_couleur}")
+            
             # Add spot markers
-            add_spot_markers(
+            markers_added = add_spot_markers(
                 m=m,
                 forecasts=st.session_state.forecasts,
                 selected_day=selectbox_daily_forecast,
@@ -367,6 +410,9 @@ def main():
                 min_rating=option_forecast
             )
             
+            # Debug log after adding markers
+            logger.info(f"Markers added: {markers_added}")
+            
             # Add suggestions section before the map
             st.markdown("---")
             create_suggestions_section()
@@ -374,7 +420,7 @@ def main():
             
             st.success(f"Found {len(st.session_state.forecasts)} surf spots near your location")
         except Exception as e:
-            logger.error(f"Error processing map data: {str(e)}")  # Debug log
+            logger.error(f"Error processing map data: {str(e)}")
             st.error(f"Error processing data: {str(e)}")
     
     # Display the map in the map container
