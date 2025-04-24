@@ -42,10 +42,14 @@ def create_responsive_layout(day_list):
     footer_container = st.container()
     
     with header_container:
-        # Welcome message and instructions
-        st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
-        st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
-        st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
+        # Compact header block
+        st.markdown("""
+        <div style='margin-bottom: 0.5rem;'>
+            <h1 style='margin-bottom: 0.2rem; font-size: 1.5rem;'>Bienvenue dans l'application :ocean: Surfmap !</h1>
+            <p style='margin-bottom: 0.2rem; font-size: 0.9rem; color: #666;'>Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:</p>
+            <div style='padding: 0.5rem; background-color: #e6ffe6; border-radius: 0.25rem; font-size: 0.9rem;'>New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !</div>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Guide d'utilisation
         explication_expander = st.expander("Guide d'utilisation")
@@ -54,17 +58,11 @@ def create_responsive_layout(day_list):
             st.write("La carte indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗) et en affichant les informations du spot lorsque vous cliquez dessus.")
     
     with filters_container:
-        # Create a card-like container for filters
-        with st.container():
-            st.markdown("### 🔍 Filtres de recherche")
-            
-            # Create columns for filters - responsive layout
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                # Forecast day selection
-                label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
-                selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
+        # Create a collapsible filter section
+        with st.expander("🔍 Filtrer les prévisions", expanded=True):
+            # Forecast day selection
+            label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
+            selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
     
     # Legend in a collapsible section
     with st.expander("Légende de la carte", expanded=False):
