@@ -41,12 +41,21 @@ def create_responsive_layout(day_list):
     suggestions_container = st.container()
     footer_container = st.container()
     
-    # Create two columns for the top section
-    col1, col2 = st.columns([0.6, 0.4])
+    with header_container:
+        # Top section with centered text
+        st.markdown("""
+        <div style='text-align: center; margin-bottom: 1rem;'>
+            <h1 style='margin-bottom: 0.5rem; font-size: 1.8rem;'>Bienvenue dans l'application 🌊 Surfmap !</h1>
+            <p style='margin-bottom: 0.5rem; font-size: 1rem; color: #666;'>Trouvez le spot de surf parfait près de chez vous</p>
+            <div style='display: inline-block; padding: 0.5rem 1rem; background-color: #e6ffe6; border-radius: 0.5rem; font-size: 0.9rem; margin-bottom: 1rem;'>
+                New release🌴! Les conditions de surf sont désormais disponibles
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    with col1:
-        # Left column: Filters and legend
-        with st.expander("🔍 Filtrer les prévisions", expanded=True):
+    with filters_container:
+        # Filter panel
+        with st.expander("📅 Choisir la journée pour vos prévisions", expanded=True):
             # Forecast day selection
             label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
             selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
@@ -56,21 +65,10 @@ def create_responsive_layout(day_list):
             st.markdown(":triangular_flag_on_post: représente un spot de surf")
             st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
     
-    with col2:
-        # Right column: Welcome message and guide
-        st.markdown("""
-        <div style='margin-bottom: 0.5rem;'>
-            <h1 style='margin-bottom: 0.2rem; font-size: 1.5rem;'>Bienvenue dans l'application :ocean: Surfmap !</h1>
-            <p style='margin-bottom: 0.2rem; font-size: 0.9rem; color: #666;'>Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:</p>
-            <div style='padding: 0.5rem; background-color: #e6ffe6; border-radius: 0.25rem; font-size: 0.9rem;'>New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Guide d'utilisation
-        explication_expander = st.expander("Guide d'utilisation")
-        with explication_expander:
-            st.write("La carte s'affiche automatiquement centrée sur votre position. Vous pouvez sélectionner le jour pour lequel vous souhaitez voir les prévisions de surf.")
-            st.write("La carte indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗) et en affichant les informations du spot lorsque vous cliquez dessus.")
+    # Guide d'utilisation in a collapsible section
+    with st.expander("Guide d'utilisation", expanded=False):
+        st.write("La carte s'affiche automatiquement centrée sur votre position. Vous pouvez sélectionner le jour pour lequel vous souhaitez voir les prévisions de surf.")
+        st.write("La carte indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗) et en affichant les informations du spot lorsque vous cliquez dessus.")
     
     # Return default values for removed UI elements
     address = None
