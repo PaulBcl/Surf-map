@@ -41,48 +41,39 @@ def create_responsive_layout(day_list):
     suggestions_container = st.container()
     footer_container = st.container()
     
-    # Welcome block - full width
+    # Welcome block - full width, simplified
     st.markdown("""
     <div style='text-align: center; margin-bottom: 1.5rem;'>
-        <h1 style='margin-bottom: 0.5rem; font-size: 1.8rem;'>Bienvenue dans l'application 🌊 Surfmap !</h1>
-        <p style='margin-bottom: 0.5rem; font-size: 1rem; color: #666;'>Trouvez le spot de surf parfait près de chez vous</p>
-        <div style='display: inline-block; padding: 0.5rem 1rem; background-color: #e6ffe6; border-radius: 0.5rem; font-size: 0.9rem; margin-bottom: 1rem;'>
-            New release🌴! Les conditions de surf sont désormais disponibles
-        </div>
+        <h1 style='margin-bottom: 1rem; font-size: 1.8rem;'>Bienvenue dans l'application 🌊 Surfmap !</h1>
     </div>
     """, unsafe_allow_html=True)
     
-    # Create two equal-height columns for the controls
-    col1, col2 = st.columns([1, 1])
+    # Date selection - outside of dropdown
+    st.markdown("#### 📅 Sélectionnez votre journée")
+    selectbox_daily_forecast = st.selectbox(
+        "Jour souhaité pour l'affichage des prévisions de surf",
+        day_list,
+        label_visibility="collapsed"
+    )
     
-    with col1:
-        # Date selection
-        with st.expander("📅 Choisir la journée pour vos prévisions", expanded=True):
-            label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
-            selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
-            
-            # Legend integrated within date selection
-            st.markdown("---")
-            st.markdown("##### 🗺️ Légende de la carte")
-            st.markdown(":triangular_flag_on_post: représente un spot de surf")
-            st.markdown("La couleur donne la qualité du spot à partir de vos critères :")
-            st.markdown("- :green_book: Parfait pour surfer")
-            st.markdown("- :orange_book: Conditions moyennes")
-            st.markdown("- :closed_book: Déconseillé")
-    
-    with col2:
-        # Guide d'utilisation with improved content
-        with st.expander("ℹ️ Guide d'utilisation", expanded=True):
-            st.markdown("##### Comment utiliser Surfmap")
-            st.markdown("""
-            1. 📍 La carte s'affiche automatiquement centrée sur votre position (🏠)
-            2. 📅 Sélectionnez le jour souhaité pour voir les prévisions
-            3. 🎯 Les spots sont affichés par couleur selon leur qualité :
-               - 🟢 Vert : conditions idéales
-               - 🟡 Orange : conditions acceptables
-               - 🔴 Rouge : conditions déconseillées
-            4. ℹ️ Cliquez sur un spot pour voir ses détails
-            """)
+    # Single expander for both legend and guide
+    with st.expander("ℹ️ Guide et légende", expanded=False):
+        st.markdown("""
+        ##### Comment lire la carte
+        
+        - 🏠 Votre position
+        - 🚩 Spot de surf
+        
+        ##### Qualité des spots
+        Les spots sont colorés selon leur qualité :
+        - 🟢 Parfait pour surfer
+        - 🟡 Conditions moyennes
+        - 🔴 Déconseillé
+        
+        ##### Utilisation
+        1. La carte est centrée sur votre position
+        2. Cliquez sur un spot pour voir ses détails
+        """)
     
     # Return default values for removed UI elements
     address = None
