@@ -35,69 +35,13 @@ def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
 
 def get_surf_forecast(spot):
     """
-    Get surf forecast data for the next 7 days by combining:
-    1. Real forecast data from surf websites
-    2. GPT-generated forecast based on location and conditions
+    Get surf forecast data for the next 7 days using ChatGPT.
+    Returns None if no valid forecast can be generated.
     """
     try:
-        # Get forecasts from all available sources
-        all_forecasts = []
+        today = datetime.now()
         
-        # 1. Get forecasts from provided websites
-        for forecast_link in spot['surf_forecast_link']:
-            try:
-                response = openai.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": """You are a surf forecasting expert who can analyze forecast data from surf websites.
-You extract and interpret forecast data from websites like Surf-Forecast, MagicSeaweed, and Surfline.
-You return the data in a standardized format."""},
-                        {"role": "user", "content": f"""Extract the 7-day forecast data from this link: {forecast_link}
-for the spot: {spot['name']}, {spot['region']}
-
-Return the raw forecast data in this format:
-{{
-  "forecast": [
-    {{
-      "date": "YYYY-MM-DD",
-      "wave_height_m": {{ "min": float, "max": float, "average": float }},
-      "wave_period_s": float,
-      "wave_energy_kj_m2": float,
-      "wind_speed_m_s": float,
-      "wind_direction": "direction",
-      "tide_state": "low/rising/high/falling"
-    }}
-  ]
-}}
-
-IMPORTANT:
-- Extract actual forecast data from the website
-- Convert all measurements to metric units
-- Standardize wind directions to cardinal points (N, NE, E, SE, etc.)
-- Standardize tide states to low/rising/high/falling"""}
-                    ],
-                    max_tokens=1000,
-                    temperature=0.7
-                )
-                
-                # Parse the website forecast
-                forecast_str = response.choices[0].message.content.strip()
-                start_idx = forecast_str.find('{')
-                end_idx = forecast_str.rfind('}') + 1
-                json_str = forecast_str[start_idx:end_idx]
-                
-                try:
-                    website_forecast = json.loads(json_str)
-                    all_forecasts.append(website_forecast['forecast'])
-                except (json.JSONDecodeError, KeyError):
-                    logger.warning(f"Could not parse forecast from {forecast_link}")
-                    continue
-                    
-            except Exception as e:
-                logger.warning(f"Error getting forecast from {forecast_link}: {str(e)}")
-                continue
-        
-        # 2. Get GPT-generated forecast
+        # Get GPT-generated forecast
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -110,6 +54,9 @@ You provide accurate, realistic surf forecasts based on:
                 {"role": "user", "content": f"""Generate a 7-day forecast for:
 Location: {spot['name']}, {spot['region']}
 Coordinates: {spot['latitude']}, {spot['longitude']}
+Type: {spot['type']}
+Orientation: {spot['orientation']}
+Best Season: {spot['best_season']}
 
 Return forecast data in this format:
 {{
@@ -127,10 +74,11 @@ Return forecast data in this format:
 }}
 
 IMPORTANT:
-- Provide realistic values for this location and season
-- Consider typical local wind patterns
-- Account for seasonal swell patterns
-- Include accurate tide cycles"""}
+- Provide realistic values based on current conditions and weather patterns
+- Consider seasonal patterns and local geography
+- All numeric values must be realistic and in metric units
+- Wind directions must be cardinal points (N, NE, E, SE, etc.)
+- Tide states must be one of: low/rising/high/falling"""}
             ],
             max_tokens=1000,
             temperature=0.7
@@ -140,25 +88,62 @@ IMPORTANT:
         forecast_str = response.choices[0].message.content.strip()
         start_idx = forecast_str.find('{')
         end_idx = forecast_str.rfind('}') + 1
-        json_str = forecast_str[start_idx:end_idx]
-        
-        try:
+        if start_idx != -1 and end_idx > start_idx:
+            json_str = forecast_str[start_idx:end_idx]
             gpt_forecast = json.loads(json_str)
-            all_forecasts.append(gpt_forecast['forecast'])
-        except (json.JSONDecodeError, KeyError):
-            logger.warning("Could not parse GPT-generated forecast")
-        
-        # 3. Merge and analyze all forecasts
-        if not all_forecasts:
-            raise ValueError("No valid forecasts available")
-            
-        # Get the final analyzed forecast
-        analyzed_forecast = analyze_spot_conditions(spot, all_forecasts)
-        return analyzed_forecast
+            if 'forecast' in gpt_forecast and len(gpt_forecast['forecast']) > 0:
+                # Validate and fix forecast data
+                fixed_forecast = []
+                for day_idx in range(7):  # Ensure exactly 7 days
+                    if day_idx >= len(gpt_forecast['forecast']):
+                        logger.warning(f"Incomplete forecast for {spot['name']}, missing day {day_idx}")
+                        return None
+                        
+                    day = gpt_forecast['forecast'][day_idx]
+                    
+                    # Validate required fields
+                    required_fields = ['wave_height_m', 'wave_period_s', 'wave_energy_kj_m2', 
+                                     'wind_speed_m_s', 'wind_direction', 'tide_state']
+                    if not all(field in day for field in required_fields):
+                        logger.warning(f"Missing required fields in forecast for {spot['name']}")
+                        return None
+                    
+                    # Validate wave height format
+                    if not isinstance(day['wave_height_m'], dict) or \
+                       not all(k in day['wave_height_m'] for k in ['min', 'max', 'average']):
+                        logger.warning(f"Invalid wave height format in forecast for {spot['name']}")
+                        return None
+                    
+                    try:
+                        fixed_day = {
+                            'date': (today + timedelta(days=day_idx)).strftime('%Y-%m-%d'),
+                            'wave_height_m': {
+                                'min': float(str(day['wave_height_m']['min']).replace(',', '.')),
+                                'max': float(str(day['wave_height_m']['max']).replace(',', '.')),
+                                'average': float(str(day['wave_height_m']['average']).replace(',', '.'))
+                            },
+                            'wave_period_s': float(str(day['wave_period_s']).replace(',', '.')),
+                            'wave_energy_kj_m2': float(str(day['wave_energy_kj_m2']).replace(',', '.')),
+                            'wind_speed_m_s': float(str(day['wind_speed_m_s']).replace(',', '.')),
+                            'wind_direction': day['wind_direction'],
+                            'tide_state': day['tide_state']
+                        }
+                        fixed_forecast.append(fixed_day)
+                    except (ValueError, KeyError) as e:
+                        logger.warning(f"Error converting forecast values for {spot['name']}: {str(e)}")
+                        return None
+                
+                return fixed_forecast
+            else:
+                logger.warning(f"No forecast data in GPT response for {spot['name']}")
+                return None
+        else:
+            logger.warning(f"Could not find JSON in GPT response for {spot['name']}")
+            return None
 
     except Exception as e:
         logger.error(f"Error getting surf forecast for {spot['name']}: {str(e)}")
-        return []
+        return None
 
 def analyze_spot_conditions(spot, all_forecasts):
     """
@@ -328,25 +313,45 @@ def load_lisbon_spots():
 def get_spot_forecast(spot):
     """
     Generate a forecast for a spot.
-    This can be enhanced later with real API data.
+    Returns a forecast in the standard format.
     """
-    ideal_swell = spot['swell_compatibility']['ideal_swell_size_m']
-    return {
-        'wave_height_m': {
-            'min': ideal_swell[0],
-            'max': ideal_swell[1],
-            'average': sum(ideal_swell) / 2
-        },
-        'wave_period_s': '12',  # Default value, can be updated with real data
-        'wind_speed_m_s': '5',  # Default value, can be updated with real data
-        'wind_direction': spot['wind_compatibility']['best_direction'],
-        'daily_rating': calculate_spot_rating(spot, spot)
-    }
+    try:
+        today = datetime.now()
+        ideal_swell = spot['swell_compatibility']['ideal_swell_size_m']
+        
+        return {
+            'date': today.strftime('%Y-%m-%d'),
+            'wave_height_m': {
+                'min': float(ideal_swell[0]),
+                'max': float(ideal_swell[1]),
+                'average': sum(ideal_swell) / 2
+            },
+            'wave_period_s': 12.0,
+            'wave_energy_kj_m2': 25.0,
+            'wind_speed_m_s': 5.0,
+            'wind_direction': spot['wind_compatibility']['best_direction'],
+            'tide_state': 'rising',
+            'daily_rating': calculate_spot_rating(spot, {
+                'wave_height_m': {
+                    'min': float(ideal_swell[0]),
+                    'max': float(ideal_swell[1]),
+                    'average': sum(ideal_swell) / 2
+                },
+                'wave_period_s': 12.0,
+                'wind_speed_m_s': 5.0,
+                'wind_direction': spot['wind_compatibility']['best_direction'],
+                'tide_state': 'rising'
+            })
+        }
+    except Exception as e:
+        logger.error(f"Error generating spot forecast for {spot.get('name', 'unknown')}: {str(e)}")
+        return None
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None) -> list:
     """
     Load forecast data for surf spots in the Lisbon area.
+    Only returns spots that have valid forecast data.
     """
     try:
         logger.info("Starting to load forecast data")
@@ -368,7 +373,11 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                 
                 # Get forecast data using GPT
                 forecasts = get_surf_forecast(spot)
-                logger.info(f"Got {len(forecasts)} days of forecast for {spot['name']}")
+                if not forecasts:
+                    logger.warning(f"No valid forecast data for {spot['name']}, skipping")
+                    continue
+                
+                logger.info(f"Got valid forecast for {spot['name']}")
                 
                 # Add forecasts to spot data
                 spot_with_forecast = spot.copy()
@@ -391,12 +400,16 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                         
                         return round(distance, 1)
                     
-                    distance = haversine_distance(
-                        coordinates[0], coordinates[1],
-                        float(spot['latitude']), float(spot['longitude'])
-                    )
-                    logger.info(f"Distance to {spot['name']}: {distance} km")
-                    spot_with_forecast['distance_km'] = distance
+                    try:
+                        distance = haversine_distance(
+                            coordinates[0], coordinates[1],
+                            float(spot['latitude']), float(spot['longitude'])
+                        )
+                        logger.info(f"Distance to {spot['name']}: {distance} km")
+                        spot_with_forecast['distance_km'] = distance
+                    except Exception as e:
+                        logger.error(f"Error calculating distance for {spot['name']}: {str(e)}")
+                        continue  # Skip spots where we can't calculate distance
                 else:
                     spot_with_forecast['distance_km'] = 0
                 
@@ -406,12 +419,16 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                 logger.error(f"Error processing spot {spot['name']}: {str(e)}")
                 continue
         
+        if not processed_spots:
+            logger.warning("No spots with valid forecasts found")
+            return []
+        
         # Sort spots by distance if coordinates provided
-        if coordinates and processed_spots:
+        if coordinates:
             processed_spots.sort(key=lambda x: x['distance_km'])
             logger.info("Sorted spots by distance")
         
-        logger.info(f"Successfully processed {len(processed_spots)} spots")
+        logger.info(f"Successfully processed {len(processed_spots)} spots with valid forecasts")
         return processed_spots
         
     except Exception as e:
