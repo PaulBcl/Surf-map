@@ -45,7 +45,17 @@ def create_responsive_layout(day_list):
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        # Left column: Inputs
+        # Left column: Welcome block and Inputs
+        st.markdown("""
+        <div style='text-align: center; margin-bottom: 1.5rem;'>
+            <h1 style='margin-bottom: 0.5rem; font-size: 1.8rem;'>Bienvenue dans l'application 🌊 Surfmap !</h1>
+            <p style='margin-bottom: 0.5rem; font-size: 1rem; color: #666;'>Trouvez le spot de surf parfait près de chez vous</p>
+            <div style='display: inline-block; padding: 0.5rem 1rem; background-color: #e6ffe6; border-radius: 0.5rem; font-size: 0.9rem; margin-bottom: 1rem;'>
+                New release🌴! Les conditions de surf sont désormais disponibles
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         with st.expander("📅 Choisir la journée pour vos prévisions", expanded=True):
             # Forecast day selection
             label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
@@ -57,18 +67,7 @@ def create_responsive_layout(day_list):
             st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
     
     with col2:
-        # Right column: Info
-        st.markdown("""
-        <div style='text-align: center;'>
-            <h1 style='margin-bottom: 0.5rem; font-size: 1.8rem;'>Bienvenue dans l'application 🌊 Surfmap !</h1>
-            <p style='margin-bottom: 0.5rem; font-size: 1rem; color: #666;'>Trouvez le spot de surf parfait près de chez vous</p>
-            <div style='display: inline-block; padding: 0.5rem 1rem; background-color: #e6ffe6; border-radius: 0.5rem; font-size: 0.9rem; margin-bottom: 1rem;'>
-                New release🌴! Les conditions de surf sont désormais disponibles
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Guide d'utilisation in a collapsible section
+        # Right column: Guide d'utilisation
         with st.expander("Guide d'utilisation", expanded=False):
             st.write("La carte s'affiche automatiquement centrée sur votre position. Vous pouvez sélectionner le jour pour lequel vous souhaitez voir les prévisions de surf.")
             st.write("La carte indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗) et en affichant les informations du spot lorsque vous cliquez dessus.")
