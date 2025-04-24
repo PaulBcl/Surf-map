@@ -132,6 +132,144 @@ def create_suggestions_section():
         </div>
         """, unsafe_allow_html=True)
 
+def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=0, min_rating=0):
+    """
+    Add markers for surf spots to the map.
+    
+    Args:
+        m: folium Map object
+        forecasts: List of surf spot forecasts
+        selected_day: Selected day for forecasts
+        color_by: What to color the markers by ('rating', 'time', or 'cost')
+        max_time: Maximum travel time filter (0 for no filter)
+        max_cost: Maximum cost filter (0 for no filter)
+        min_rating: Minimum rating filter
+    """
+    try:
+        # Create a marker cluster
+        marker_cluster = MarkerCluster().add_to(m)
+        
+        # Create an expander for logging messages
+        with st.expander("Debug Logs", expanded=False):
+            st.write(f"Processing {len(forecasts)} spots...")
+        
+        # Process each spot
+        for spot in forecasts:
+            try:
+                # Extract spot information
+                spot_info = spot
+                spot_name = spot_info['name']
+                spot_lat = float(spot_info['latitude'])
+                spot_lon = float(spot_info['longitude'])
+                distance = float(spot_info['distance_km'])
+                rating = float(spot_info['average_rating'])
+                
+                # Get the forecast for the selected day
+                spot_forecast = next((f for f in spot_info['forecast'] if f['date']), None)
+                if spot_forecast:
+                    daily_rating = float(spot_forecast['daily_rating'])
+                else:
+                    daily_rating = 0.0
+                
+                # Calculate travel time (rough estimate: 60 km/h average speed)
+                travel_time = distance / 60  # Convert to hours
+                
+                # Calculate cost (rough estimate: 0.5€/km)
+                travel_cost = distance * 0.5
+                
+                # Apply filters
+                if max_time > 0 and travel_time > max_time:
+                    continue
+                if max_cost > 0 and travel_cost > max_cost:
+                    continue
+                if daily_rating < min_rating:
+                    continue
+                
+                # Determine marker color based on selection
+                if color_by == "🏄‍♂️ Prévisions":
+                    # Color based on rating
+                    if daily_rating >= 8:
+                        color = 'darkgreen'
+                    elif daily_rating >= 6:
+                        color = 'green'
+                    elif daily_rating >= 4:
+                        color = 'orange'
+                    else:
+                        color = 'red'
+                elif color_by == "⏱️ Temps de trajet":
+                    # Color based on travel time
+                    if max_time == 0:  # Use absolute scale
+                        if travel_time <= 2:
+                            color = 'darkgreen'
+                        elif travel_time <= 4:
+                            color = 'green'
+                        elif travel_time <= 6:
+                            color = 'orange'
+                        else:
+                            color = 'red'
+                    else:  # Use relative scale
+                        if travel_time <= max_time * 0.25:
+                            color = 'darkgreen'
+                        elif travel_time <= max_time * 0.5:
+                            color = 'green'
+                        elif travel_time <= max_time * 0.75:
+                            color = 'orange'
+                        else:
+                            color = 'red'
+                else:  # "💶 Coût"
+                    # Color based on cost
+                    if max_cost == 0:  # Use absolute scale
+                        if travel_cost <= 20:
+                            color = 'darkgreen'
+                        elif travel_cost <= 50:
+                            color = 'green'
+                        elif travel_cost <= 80:
+                            color = 'orange'
+                        else:
+                            color = 'red'
+                    else:  # Use relative scale
+                        if travel_cost <= max_cost * 0.25:
+                            color = 'darkgreen'
+                        elif travel_cost <= max_cost * 0.5:
+                            color = 'green'
+                        elif travel_cost <= max_cost * 0.75:
+                            color = 'orange'
+                        else:
+                            color = 'red'
+                
+                # Create popup content
+                popup_content = f"""
+                <div style='min-width: 200px'>
+                    <h4>{spot_name}</h4>
+                    <p><b>Distance:</b> {distance:.1f} km</p>
+                    <p><b>Temps de trajet estimé:</b> {travel_time:.1f}h</p>
+                    <p><b>Coût estimé:</b> {travel_cost:.2f}€</p>
+                    <p><b>Note:</b> {daily_rating}/10</p>
+                    <hr>
+                    <p><b>Orientation:</b> {spot_info['spot_orientation']}</p>
+                    <p><b>Vagues:</b> {spot_forecast['wave_height_m']['min']}-{spot_forecast['wave_height_m']['max']}m</p>
+                    <p><b>Période:</b> {spot_forecast['wave_period_s']}s</p>
+                    <p><b>Vent:</b> {spot_forecast['wind_speed_m_s']}m/s {spot_forecast['wind_direction']}</p>
+                </div>
+                """
+                
+                # Add marker to cluster
+                folium.Marker(
+                    location=[spot_lat, spot_lon],
+                    popup=folium.Popup(popup_content, max_width=300),
+                    icon=folium.Icon(color=color, icon='info-sign')
+                ).add_to(marker_cluster)
+                
+            except Exception as e:
+                with st.expander("Debug Logs", expanded=False):
+                    st.error(f"Error processing spot {spot_name}: {str(e)}")
+                continue
+        
+        return marker_cluster
+    except Exception as e:
+        st.error(f"Error adding markers: {str(e)}")
+        return None
+
 def main():
     """Main application function."""
     # Get forecast days
@@ -152,7 +290,7 @@ def main():
     if user_location:
         # Use browser geolocation
         base_position = user_location
-        st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, user_location)
+        st.session_state.forecasts = forecast_config.load_forecast_data(coordinates=user_location)
     elif address:
         # Use manually entered address with Google Maps geocoding
         try:
@@ -165,7 +303,7 @@ def main():
                 logger.info(f"Setting base position to: {base_position}")  # Debug log
                 
                 try:
-                    st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, base_position)
+                    st.session_state.forecasts = forecast_config.load_forecast_data(coordinates=base_position)
                     st.success(f"📍 Position trouvée : {geocode_result['formatted_address']}")
                 except Exception as forecast_error:
                     logger.error(f"Error loading forecast data: {forecast_error}")  # Debug log
@@ -205,9 +343,13 @@ def main():
             
             # Add spot markers
             add_spot_markers(
-                m, st.session_state.forecasts, selectbox_daily_forecast,
-                checkbox_choix_couleur, option_distance_h,
-                option_prix, option_forecast
+                m=m,
+                forecasts=st.session_state.forecasts,
+                selected_day=selectbox_daily_forecast,
+                color_by=checkbox_choix_couleur,
+                max_time=option_distance_h,
+                max_cost=option_prix,
+                min_rating=option_forecast
             )
             
             # Add suggestions section before the map
