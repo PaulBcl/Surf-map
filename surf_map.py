@@ -16,6 +16,11 @@ from folium.plugins import MarkerCluster, MiniMap, Draw
 import pandas as pd
 from datetime import datetime, timedelta
 from surfmap_config import forecast_config
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create a session state for the reset functionality
 if 'run_id' not in st.session_state:
@@ -153,23 +158,35 @@ def main():
         try:
             from surfmap_config import api_config
             geocode_result = api_config.get_google_results(address, api_config.gmaps_api_key)
+            logger.info(f"Geocode result: {geocode_result}")  # Debug log
             
-            if geocode_result['success']:
+            if geocode_result and geocode_result.get('success'):
                 base_position = [geocode_result['latitude'], geocode_result['longitude']]
-                st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, base_position)
-                st.success(f"📍 Position trouvée : {geocode_result['formatted_address']}")
+                logger.info(f"Setting base position to: {base_position}")  # Debug log
+                
+                try:
+                    st.session_state.forecasts = forecast_config.load_forecast_data(None, day_list, base_position)
+                    st.success(f"📍 Position trouvée : {geocode_result['formatted_address']}")
+                except Exception as forecast_error:
+                    logger.error(f"Error loading forecast data: {forecast_error}")  # Debug log
+                    st.error(f"❌ Erreur lors du chargement des prévisions: {str(forecast_error)}")
+                    base_position = [geocode_result['latitude'], geocode_result['longitude']]  # Still use the geocoded position
             else:
+                error_msg = geocode_result.get('error_message', 'Unknown error') if geocode_result else 'No result'
+                logger.error(f"Geocoding failed: {error_msg}")  # Debug log
                 base_position = [46.603354, 1.888334]  # Center of France
                 st.error("❌ Adresse non trouvée. Veuillez vérifier votre saisie.")
         except Exception as e:
+            logger.error(f"Exception in geocoding: {str(e)}")  # Debug log
             base_position = [46.603354, 1.888334]  # Center of France
-            st.error("❌ Erreur lors de la géolocalisation. Veuillez réessayer.")
+            st.error(f"❌ Erreur lors de la géolocalisation: {str(e)}")
     else:
         # No location available
         base_position = [46.603354, 1.888334]  # Center of France
         st.warning("❌ Impossible d'accéder à votre position. Veuillez entrer votre position manuellement ou vérifier les permissions de votre navigateur.")
     
     # Initialize map with user's position
+    logger.info(f"Initializing map with position: {base_position}")  # Debug log
     m = folium.Map(location=base_position, zoom_start=8)
     
     # Add map controls
@@ -200,6 +217,7 @@ def main():
             
             st.success(f"Found {len(st.session_state.forecasts)} surf spots near your location")
         except Exception as e:
+            logger.error(f"Error processing map data: {str(e)}")  # Debug log
             st.error(f"Error processing data: {str(e)}")
     
     # Display the map in the map container
