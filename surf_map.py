@@ -2,19 +2,20 @@
 # coding: utf-8
 
 import streamlit as st
+
+# Set page config - MUST BE FIRST STREAMLIT COMMAND
+st.set_page_config(
+    page_title="🌴 SurfMap",
+    page_icon="🏄‍♂️",
+    layout="wide"
+)
+
 import folium
 from folium import plugins
 from folium.plugins import MarkerCluster, MiniMap, Draw
 import pandas as pd
 from datetime import datetime, timedelta
 from surfmap_config import forecast_config
-
-# Set page config
-st.set_page_config(
-    page_title="🌴 SurfMap",
-    page_icon="🏄‍♂️",
-    layout="wide"
-)
 
 # Create a session state for the reset functionality
 if 'run_id' not in st.session_state:
