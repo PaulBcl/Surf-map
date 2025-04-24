@@ -33,123 +33,55 @@ def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
         logger.error(f"Error geocoding address {address}: {str(e)}")
         return None, None
 
-def get_surf_forecast(latitude: float, longitude: float) -> Dict:
+def get_surf_forecast(spot):
     """
-    Get comprehensive surf forecast data for the 10 best surf spots near the given coordinates.
-    Uses GPT-3.5-turbo to generate realistic surf spot data.
-    Returns a dictionary with detailed forecast data for the next 7 days.
+    Get surf forecast data for the next 7 days.
+    Uses GPT to simulate getting real forecast data for the spot's location.
     """
     try:
         today = datetime.now()
         
-        # Make the API call with adjusted parameters
+        # First, get the raw forecast data
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": """You are a surf forecasting expert with extensive knowledge of surf spots worldwide.
-You provide accurate, realistic surf spot data based on:
-- Actual coastline geography
-- Typical seasonal conditions
-- Local weather patterns
-- Known surf spot locations
-- Wave mechanics and meteorology
+                {"role": "system", "content": """You are a surf forecasting API that provides accurate weather and wave data.
+You return raw forecast data without any interpretation, similar to what would come from services like Surfline or Windy.
+Provide realistic values based on:
+- The location's typical seasonal patterns
+- Local weather systems
+- Ocean and coastal dynamics"""},
+                {"role": "user", "content": f"""Get the 7-day forecast for coordinates: {spot['latitude']}, {spot['longitude']}
+Location: {spot['name']}, {spot['region']}
 
-CRITICAL REQUIREMENTS:
-1. ONLY return spots that are within 500 km of the given coordinates
-2. If no spots are found within 500 km, return an empty list
-3. Return up to 10 spots, but ONLY if they are within range
-4. All spots must be real, plausible surf locations (beaches, reef breaks, etc.)
-5. Coordinates must be realistic for the region
-6. Wave and wind conditions must be realistic for the region and season
-7. Generate unique values for each spot - no duplicates
-8. Sort spots by proximity to the search coordinates
-
-Rating System (0-10 Scale):
-- Wave Height (0-10): Ideal range 1.2m - 3m
-  * 0: No waves or dangerous conditions
-  * 5: Acceptable conditions (0.5-1m or 3-4m)
-  * 10: Perfect conditions (1.2-3m)
-- Wave Period:
-  * 0-3: Below 7s (weak waves)
-  * 4-7: 7-10s (moderate)
-  * 8-10: Above 10s (strong, clean waves)
-- Wind Speed:
-  * 0-3: Strong winds (>12 m/s)
-  * 4-7: Moderate winds (6-12 m/s)
-  * 8-10: Light winds (<6 m/s)
-- Wind Direction:
-  * 0-3: Strong onshore
-  * 4-7: Cross-shore
-  * 8-10: Offshore
-- Overall Rating: Weighted average of above factors"""},
-                {"role": "user", "content": f"""Given these coordinates: latitude {latitude}, longitude {longitude}, find surf spots following this process:
-
-### Step 1: Find Surf Spots
-- Calculate the distance to known surf spots near the coordinates
-- ONLY include spots within 500 km of the given coordinates
-- If no spots are found within 500 km, return an empty list
-- Return up to 10 spots, sorted by proximity
-- Use known surf spot databases (Surfline, MagicSeaweed, Windy, WindFinder)
-- Include exact coordinates for each spot
-- All spots must be real, plausible surf locations (beaches, reef breaks, etc.)
-- Coordinates must be realistic for the region
-- Sort by proximity to the given coordinates
-
-### Step 2: Retrieve 7-Day Forecast from Multiple Sources
-For each spot within range, retrieve the following data and compute averages:
-1. Wave Height (meters) - Minimum, maximum, and average wave height per day
-2. Wave Period (seconds) - Time between wave peaks (longer = better)
-3. Wave Energy (kJ/m²) - Strength of waves (higher energy = better rides)
-4. Wind Speed (m/s) - Lower wind speeds are preferable
-5. Wind Direction - Offshore winds improve wave shape, onshore winds deteriorate it
-
-### Step 3: Rate Each Spot
-- Calculate ratings based on the rating system defined above
-- Ensure ratings reflect actual surfing conditions
-- Consider seasonal patterns and local characteristics
-- Account for regional wave and weather patterns
+Return raw forecast data for the next 7 days starting from {today.strftime('%Y-%m-%d')}.
 
 Format as JSON:
 {{
-  "location": {{ "latitude": {latitude}, "longitude": {longitude} }},
-  "best_spots": [
+  "forecast": [
     {{
-      "name": "<real spot name>",
-      "latitude": "<actual lat>",
-      "longitude": "<actual lon>",
-      "distance_km": "<calculated distance>",
-      "average_rating": "<0-10 rating>",
-      "spot_orientation": "<N/S/E/W/NW/etc>",
-      "forecast": [
-        {{
-          "date": "{today.strftime('%Y-%m-%d')}
-          "wave_height_m": {{ "min": "<min>", "max": "<max>", "average": "<avg>" }},
-          "wave_period_s": "<period>",
-          "wave_energy_kj_m2": "<energy>",
-          "wind_speed_m_s": "<speed>",
-          "wind_direction": "<dir>",
-          "daily_rating": "<0-10 rating>"
-        }}
-      ]
+      "date": "YYYY-MM-DD",
+      "wave_height_m": {{ "min": float, "max": float, "average": float }},
+      "wave_period_s": float,
+      "wave_energy_kj_m2": float,
+      "wind_speed_m_s": float,
+      "wind_direction": "direction",
+      "tide_state": "low/rising/high/falling"
     }}
   ]
 }}
 
 IMPORTANT:
-- DO NOT copy example values - generate real, accurate data
-- Ensure all coordinates and distances are geographically accurate
-- Ratings MUST reflect actual surfing conditions using the rating system
-- ONLY return spots within 500 km of the given coordinates
-- If no spots are within 500 km, return an empty list
-- Sort spots by proximity to search location"""}
+- Provide realistic values for this location and season
+- Consider typical local wind patterns
+- Account for seasonal swell patterns
+- Include accurate tide cycles"""}
             ],
-            max_tokens=2000,
-            temperature=0.1,  # Reduced temperature for more consistent results
-            presence_penalty=0.0,
-            frequency_penalty=0.0
+            max_tokens=1000,
+            temperature=0.7
         )
 
-        # Extract and parse the response
+        # Parse the raw forecast
         forecast_str = response.choices[0].message.content.strip()
         start_idx = forecast_str.find('{')
         end_idx = forecast_str.rfind('}') + 1
@@ -158,78 +90,197 @@ IMPORTANT:
         try:
             forecast_data = json.loads(json_str)
         except json.JSONDecodeError:
-            # Fallback to ast.literal_eval if JSON parsing fails
             forecast_data = ast.literal_eval(json_str)
 
-        # Verify all spots are within range
-        spots = forecast_data.get('best_spots', [])
-        valid_spots = [spot for spot in spots if float(spot['distance_km']) <= 500]
+        # Now analyze how well these conditions match the spot's characteristics
+        analyzed_forecasts = analyze_spot_conditions(spot, forecast_data['forecast'])
         
-        if len(valid_spots) != len(spots):
-            logger.error(f"Removing {len(spots) - len(valid_spots)} spots that were beyond 500 km")
-            forecast_data['best_spots'] = valid_spots
-
-        return forecast_data
+        return analyzed_forecasts
 
     except Exception as e:
-        logger.error(f"Error getting surf forecasts: {str(e)}")
-        return {
-            "location": {
-                "latitude": latitude,
-                "longitude": longitude
-            },
-            "best_spots": []
-        }
+        logger.error(f"Error getting surf forecast for {spot['name']}: {str(e)}")
+        return []
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_forecast_data(address: Optional[str] = None, day_list: Optional[List[str]] = None, coordinates: Optional[List[float]] = None) -> Dict[str, Dict]:
+def analyze_spot_conditions(spot, raw_forecasts):
     """
-    Load forecast data for the 10 best surf spots near the given address or coordinates.
-    
-    Args:
-        address: Address to find nearby surf spots for (optional if coordinates provided)
-        day_list: List of days to get forecasts for
-        coordinates: List containing [latitude, longitude] (optional if address provided)
-        
-    Returns:
-        Dictionary mapping spot names to their forecast data and ratings
+    Analyze how well the forecasted conditions match the spot's characteristics.
+    Uses GPT to compare forecast data with spot's known behavior.
     """
     try:
-        # Get coordinates either from address or directly
-        if coordinates:
-            latitude, longitude = coordinates[0], coordinates[1]
-        else:
-            # Get coordinates for the address
-            latitude, longitude = get_coordinates(address)
-            
-        if latitude is None or longitude is None:
-            raise ValueError(f"Could not get valid coordinates from input")
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": """You are a surf spot analysis expert.
+You analyze how well forecasted conditions match a spot's known characteristics.
+Consider all aspects of the spot's behavior to rate the conditions."""},
+                {"role": "user", "content": f"""Analyze these forecasted conditions for {spot['name']}:
+{json.dumps(raw_forecasts, indent=2)}
 
-        # Get surf forecast data
-        forecast_data = get_surf_forecast(latitude, longitude)
+Based on the spot's characteristics:
+Type: {spot['type']}
+Orientation: {spot['orientation']}
+Best Season: {spot['best_season']}
+Ideal Swell: {spot['swell_compatibility']['ideal_swell_size_m']}m from {spot['swell_compatibility']['ideal_swell_direction']}
+Best Wind: {spot['wind_compatibility']['best_direction']}
+Tide Behavior: {spot['tide_behavior']}
+
+For each day's forecast, add a 'daily_rating' (0-10) and 'conditions_analysis' explaining:
+1. How well the wind direction and speed match the spot's preferences
+2. Whether wave height and period are in the ideal range
+3. How the tide state affects the spot
+4. Overall suitability for surfing
+
+Return the enhanced forecast data with your analysis added to each day."""}
+            ],
+            max_tokens=1500,
+            temperature=0.7
+        )
+
+        # Parse the analysis
+        analysis_str = response.choices[0].message.content.strip()
+        start_idx = analysis_str.find('[')
+        end_idx = analysis_str.rfind(']') + 1
         
-        # Process and return the data
-        return forecast_data.get('best_spots', [])
+        try:
+            analyzed_forecasts = json.loads(analysis_str[start_idx:end_idx])
+        except json.JSONDecodeError:
+            analyzed_forecasts = ast.literal_eval(analysis_str[start_idx:end_idx])
 
+        return analyzed_forecasts
+
+    except Exception as e:
+        logger.error(f"Error analyzing conditions for {spot['name']}: {str(e)}")
+        return raw_forecasts  # Return raw forecasts if analysis fails
+
+def calculate_spot_rating(spot, forecast_conditions):
+    """
+    Calculate a spot's rating based on how well current conditions match its ideal characteristics.
+    """
+    try:
+        # Get spot's ideal conditions
+        ideal_wind = spot['wind_compatibility']['best_direction']
+        ideal_swell = spot['swell_compatibility']
+        tide_behavior = spot['tide_behavior']
+        
+        # Calculate wind rating
+        wind_rating = spot['wind_compatibility']['quality']
+        if forecast_conditions['wind_direction'] not in ideal_wind:
+            wind_rating *= 0.5  # Reduce rating if wind direction is not ideal
+        
+        # Calculate swell rating
+        swell_rating = spot['swell_compatibility']['quality']
+        current_swell = forecast_conditions['wave_height_m']['average']
+        ideal_swell_range = spot['swell_compatibility']['ideal_swell_size_m']
+        if not (ideal_swell_range[0] <= current_swell <= ideal_swell_range[1]):
+            swell_rating *= 0.5  # Reduce rating if swell size is outside ideal range
+        
+        # Calculate tide rating (using rising tide as default if no tide info in forecast)
+        tide_rating = spot['tide_behavior']['rising']['quality']
+        
+        # Calculate overall rating
+        overall_rating = (
+            wind_rating * 0.3 +
+            swell_rating * 0.4 +
+            tide_rating * 0.3
+        )
+        
+        return round(overall_rating, 1)
+        
+    except Exception as e:
+        logger.error(f"Error calculating rating for {spot['name']}: {str(e)}")
+        return 0.0
+
+def load_lisbon_spots():
+    """
+    Load the Lisbon area surf spots from the JSON file.
+    """
+    try:
+        with open('lisbon_area.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data['spots']
+    except Exception as e:
+        logger.error(f"Error loading Lisbon spots: {str(e)}")
+        return []
+
+def get_spot_forecast(spot):
+    """
+    Generate a forecast for a spot.
+    This can be enhanced later with real API data.
+    """
+    ideal_swell = spot['swell_compatibility']['ideal_swell_size_m']
+    return {
+        'wave_height_m': {
+            'min': ideal_swell[0],
+            'max': ideal_swell[1],
+            'average': sum(ideal_swell) / 2
+        },
+        'wave_period_s': '12',  # Default value, can be updated with real data
+        'wind_speed_m_s': '5',  # Default value, can be updated with real data
+        'wind_direction': spot['wind_compatibility']['best_direction'],
+        'daily_rating': calculate_spot_rating(spot, spot)
+    }
+
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None) -> list:
+    """
+    Load forecast data for surf spots in the Lisbon area.
+    """
+    try:
+        # Load Lisbon spots
+        spots = load_lisbon_spots()
+        if not spots:
+            raise ValueError("No spots found in Lisbon area data")
+            
+        # Process each spot
+        for spot in spots:
+            # Get forecast data using GPT
+            forecasts = get_surf_forecast(spot)
+            
+            # Calculate ratings based on forecasted conditions
+            for forecast in forecasts:
+                forecast['daily_rating'] = calculate_spot_rating(spot, forecast)
+            
+            spot['forecast'] = forecasts
+            
+            # Calculate distance if coordinates provided
+            if coordinates:
+                from math import radians, sin, cos, sqrt, atan2
+                
+                def haversine_distance(lat1, lon1, lat2, lon2):
+                    R = 6371  # Earth's radius in kilometers
+                    
+                    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+                    dlat = lat2 - lat1
+                    dlon = lon2 - lon1
+                    
+                    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+                    c = 2 * atan2(sqrt(a), sqrt(1-a))
+                    distance = R * c
+                    
+                    return round(distance, 1)
+                
+                spot['distance_km'] = haversine_distance(
+                    coordinates[0], coordinates[1],
+                    float(spot['latitude']), float(spot['longitude'])
+                )
+            else:
+                spot['distance_km'] = 0
+                
+        # Sort spots by distance if coordinates provided
+        if coordinates:
+            spots.sort(key=lambda x: x['distance_km'])
+            
+        return spots
+        
     except Exception as e:
         logger.error(f"Error loading forecast data: {str(e)}")
         return []
 
-def get_dayList_forecast() -> List[str]:
-    """
-    Get list of forecast days in the correct format.
-    Returns a list of the next 7 days in the format 'Day DD' (e.g., 'Monday 15').
-    """
-    try:
-        days = []
-        today = datetime.now()
-        for i in range(7):
-            day = today + timedelta(days=i)
-            # Format day name and ensure day number is zero-padded
-            days.append(day.strftime('%A %d').replace('0', ' ').lstrip())  # %A for full day name, %d for day
-        return days
-    except Exception as e:
-        logger.error(f"Error generating forecast days: {str(e)}")
-        # Return default days if there's an error
-        return ['Monday 01', 'Tuesday 02', 'Wednesday 03', 'Thursday 04', 
-                'Friday 05', 'Saturday 06', 'Sunday 07']
+def get_dayList_forecast():
+    """Get list of forecast days."""
+    today = datetime.now()
+    days = []
+    for i in range(7):
+        day = today + timedelta(days=i)
+        days.append(day.strftime('%A %d').replace('0', ' ').lstrip())
+    return days

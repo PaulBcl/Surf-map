@@ -239,17 +239,32 @@ def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=
                 
                 # Create popup content
                 popup_content = f"""
-                <div style='min-width: 200px'>
+                <div style='min-width: 300px'>
                     <h4>{spot_name}</h4>
+                    <p><b>Region:</b> {spot_info['region']}</p>
+                    <p><b>Type:</b> {spot_info['type']}</p>
                     <p><b>Distance:</b> {distance:.1f} km</p>
                     <p><b>Temps de trajet estimé:</b> {travel_time:.1f}h</p>
                     <p><b>Coût estimé:</b> {travel_cost:.2f}€</p>
                     <p><b>Note:</b> {daily_rating}/10</p>
                     <hr>
-                    <p><b>Orientation:</b> {spot_info['spot_orientation']}</p>
+                    <p><b>Best Season:</b> {spot_info['best_season']}</p>
+                    <p><b>Difficulty:</b> {', '.join(spot_info['difficulty'])}</p>
+                    <p><b>Orientation:</b> {spot_info['orientation']}</p>
+                    <p><b>Wave Description:</b> {spot_info['wave_description']}</p>
+                    <hr>
+                    <p><b>Current Conditions:</b></p>
                     <p><b>Vagues:</b> {spot_forecast['wave_height_m']['min']}-{spot_forecast['wave_height_m']['max']}m</p>
                     <p><b>Période:</b> {spot_forecast['wave_period_s']}s</p>
                     <p><b>Vent:</b> {spot_forecast['wind_speed_m_s']}m/s {spot_forecast['wind_direction']}</p>
+                    <hr>
+                    <p><b>Local Tips:</b> {spot_info['local_tips']}</p>
+                    <p><b>Access:</b> {spot_info['access']}</p>
+                    <p><b>Gear Rental:</b> {spot_info['gear_rental']}</p>
+                    <p><b>Nearby Lodging:</b> {spot_info['nearby_lodging']}</p>
+                    <hr>
+                    <p><b>Forecast Links:</b></p>
+                    {''.join(f'<a href="{link}" target="_blank">Forecast {i+1}</a><br>' for i, link in enumerate(spot_info['surf_forecast_link']))}
                 </div>
                 """
                 
