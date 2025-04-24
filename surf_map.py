@@ -308,6 +308,69 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
         
         st.write(f"Successfully added {added_markers} markers to the map")
 
+def create_main_layout(day_list):
+    """Create the main layout of the application."""
+    # Create containers for different sections
+    header_container = st.container()
+    map_container = st.container()
+    controls_container = st.container()
+    footer_container = st.container()
+    
+    with header_container:
+        # Welcome message and instructions
+        st.markdown("Bienvenue dans l'application :ocean: Surfmap !")
+        st.markdown("Cette application a pour but de vous aider à identifier le meilleur spot de surf accessible depuis votre ville ! Bon ride :surfer:")
+        st.success("New release🌴! Les conditions de surf sont désormais disponibles pour optimiser votre recherche !")
+        
+        # Guide d'utilisation
+        explication_expander = st.expander("Guide d'utilisation")
+        with explication_expander:
+            st.write("Vous pourrez trouver ci-dessous une carte affichant les principaux spots de surf accessibles depuis votre ville. Pour cela, il suffit d'indiquer votre position et appuyer sur 'Soumettre l'adresse'.")
+            st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
+            st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
+    
+    with controls_container:
+        # Create columns for controls
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            # Address input
+            address = st.text_input("Renseignez votre ville", value='', max_chars=None, key=None, type='default', help=None)
+            
+            # Legend
+            couleur_radio_expander = st.expander("Légende de la carte")
+            with couleur_radio_expander:
+                st.markdown(":triangular_flag_on_post: représente un spot de surf")
+                st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
+                label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
+                list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
+                checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
+        
+        with col2:
+            # Forecast day selection
+            label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
+            selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
+            
+            # Sliders
+            option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
+                                      key=f"forecast_{st.session_state.run_id}", help="En définissant les prévisions à 0, tous les résultats s'affichent")
+            option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
+                                  key=f"prix_{st.session_state.run_id}", help="En définissant le prix à 0€, tous les résultats s'affichent")
+        
+        with col3:
+            # Country selection
+            label_choix_pays = "Choix des pays pour les spots à afficher"
+            list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
+            multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=f"pays_{st.session_state.run_id}")
+            
+            option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
+                                        key=f"distance_{st.session_state.run_id}", help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
+            
+            # Submit button
+            validation_button = st.button("Soumettre l'adresse", key=None, help=None)
+    
+    return address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
+
 def main():
     """Main application function."""
     # Get forecast days
@@ -317,9 +380,9 @@ def main():
     if 'forecasts' not in st.session_state:
         st.session_state.forecasts = None
     
-    # Set up sidebar and get user inputs
+    # Create main layout and get inputs
     (address, validation_button, option_forecast, option_prix, 
-     option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = setup_sidebar(day_list)
+     option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = create_main_layout(day_list)
     
     # Initialize map with default position
     m = folium.Map(location=base_position, zoom_start=6)
@@ -431,8 +494,9 @@ def main():
     elif validation_button:
         st.warning("No surf spots found in the area")
     
-    # Display the map
-    st.components.v1.html(m._repr_html_(), height=800)
+    # Display the map in the map container
+    with st.container():
+        st.components.v1.html(m._repr_html_(), height=600)
     
     # Add footer
     st.markdown("---")
