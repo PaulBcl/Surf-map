@@ -23,13 +23,15 @@ if 'run_id' not in st.session_state:
 def get_user_location():
     """Get user's current location using Streamlit's geolocation."""
     try:
-        # Get location from Streamlit's geolocation
-        location = st.session_state.get('location')
-        if location and 'latitude' in location and 'longitude' in location:
-            return [location['latitude'], location['longitude']]
+        # Request location from user
+        location = st.experimental_get_user_location()
+        if location and location['coords']['latitude'] and location['coords']['longitude']:
+            return [location['coords']['latitude'], location['coords']['longitude']]
+        
+        st.info("📍 Pour une meilleure expérience, autorisez l'accès à votre localisation dans votre navigateur.")
         return None
     except Exception as e:
-        st.warning(f"Could not get location: {str(e)}")
+        st.warning("❌ Impossible d'accéder à votre position. Vérifiez les permissions de votre navigateur.")
         return None
 
 def create_responsive_layout(day_list):
@@ -59,13 +61,7 @@ def create_responsive_layout(day_list):
     # Single expander for both legend and guide
     with st.expander("ℹ️ Guide et légende", expanded=False):
         st.markdown("""
-        La carte affiche votre position (🏠) et les spots de surf (🚩) autour de vous. Pour chaque spot, la couleur indique les conditions de surf :
-
-        • Un spot **vert** 🟢 signale des conditions parfaites pour surfer
-        • Un spot **jaune** 🟡 indique des conditions moyennes mais surfables
-        • Un spot **rouge** 🔴 vous alerte de conditions déconseillées
-
-        Pour plus de détails sur un spot qui vous intéresse, cliquez simplement dessus sur la carte.
+        La carte interactive affiche votre position actuelle (🏠) et les spots de surf à proximité (🚩). Chaque spot est marqué d'un point coloré indiquant la qualité attendue du surf : vert (🟢) pour des conditions idéales avec des vagues propres et puissantes ; jaune (🟡) pour des conditions surfables mais moins constantes ou légèrement agitées ; et rouge (🔴) lorsque les conditions sont défavorables, comme en cas de vent fort, de marées inadaptées ou de risques pour la sécurité. Cliquez sur n'importe quel marqueur pour voir les informations détaillées sur la marée, le vent et la compatibilité de la houle de ce spot. Ce système vous aide à évaluer rapidement quels spots méritent d'être visités près de chez vous, vous faisant gagner du temps et rendant la planification de vos sessions sans effort.
         """)
     
     # Return default values for removed UI elements
@@ -164,6 +160,11 @@ def main():
                 option_prix, option_forecast
             )
             
+            # Add suggestions section before the map
+            st.markdown("---")
+            create_suggestions_section()
+            st.markdown("---")
+            
             st.success(f"Found {len(st.session_state.forecasts)} surf spots near your location")
         except Exception as e:
             st.error(f"Error processing data: {str(e)}")
@@ -171,9 +172,6 @@ def main():
     # Display the map in the map container
     with st.container():
         st.components.v1.html(m._repr_html_(), height=600)
-    
-    # Add suggestions section
-    create_suggestions_section()
     
     # Add footer
     st.markdown("---")
