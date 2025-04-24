@@ -345,25 +345,12 @@ def create_responsive_layout(day_list):
                 # Forecast day selection
                 label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
                 selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
-                
+            
+            with col2:
                 # Country selection
                 label_choix_pays = "Choix des pays pour les spots à afficher"
                 list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
                 multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=f"pays_{st.session_state.run_id}")
-            
-            with col2:
-                # Sliders
-                option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
-                                          key=f"forecast_{st.session_state.run_id}", help="En définissant les prévisions à 0, tous les résultats s'affichent")
-                option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
-                                      key=f"prix_{st.session_state.run_id}", help="En définissant le prix à 0€, tous les résultats s'affichent")
-                option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
-                                            key=f"distance_{st.session_state.run_id}", help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
-                
-                # Color coding selection
-                label_radio_choix_couleur = "Code couleur pour les spots"
-                list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
-                checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
             
             # Submit button
             validation_button = st.button("Soumettre l'adresse", key=None, help=None)
@@ -372,6 +359,12 @@ def create_responsive_layout(day_list):
     with st.expander("Légende de la carte", expanded=False):
         st.markdown(":triangular_flag_on_post: représente un spot de surf")
         st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
+    
+    # Return default values for removed UI elements
+    option_forecast = 0
+    option_prix = 0
+    option_distance_h = 0
+    checkbox_choix_couleur = "🏄‍♂️ Prévisions"
     
     return address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
 
