@@ -308,12 +308,13 @@ def add_spot_markers(m: folium.Map, forecasts: dict, selected_day: str,
         
         st.write(f"Successfully added {added_markers} markers to the map")
 
-def create_main_layout(day_list):
-    """Create the main layout of the application."""
+def create_responsive_layout(day_list):
+    """Create a responsive layout for the application."""
     # Create containers for different sections
     header_container = st.container()
+    filters_container = st.container()
     map_container = st.container()
-    controls_container = st.container()
+    suggestions_container = st.container()
     footer_container = st.container()
     
     with header_container:
@@ -329,47 +330,87 @@ def create_main_layout(day_list):
             st.write("La carte qui s'affiche ci-dessous indique votre position (🏠 en bleu) ainsi que les différents spots en proposant les meilleurs spots (en vert 📗, modifiable ci-dessous dans 'code couleur') et en affichant les informations du spot lorsque vous cliquez dessus.")
             st.write("Vous pouvez affiner les spots proposés en sélectionnant les options avancées et en filtrant sur vos prérequis. Ces choix peuvent porter sur (i) le prix (💸) maximum par aller, (ii) le temps de parcours (⏳) acceptable, (iii) le pays de recherche (🇫🇷) et (iv) les conditions prévues (🏄) des spots recherchés !")
     
-    with controls_container:
-        # Create columns for controls
-        col1, col2, col3 = st.columns([2, 1, 1])
-        
-        with col1:
-            # Address input
-            address = st.text_input("Renseignez votre ville", value='', max_chars=None, key=None, type='default', help=None)
+    with filters_container:
+        # Create a card-like container for filters
+        with st.container():
+            st.markdown("### 🔍 Filtres de recherche")
             
-            # Legend
-            couleur_radio_expander = st.expander("Légende de la carte")
-            with couleur_radio_expander:
-                st.markdown(":triangular_flag_on_post: représente un spot de surf")
-                st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
-                label_radio_choix_couleur = "Vous pouvez choisir ci-dessous un code couleur pour faciliter l'identification des spots en fonction de vos critères (prévisions du spot par défaut)"
+            # Create columns for filters - responsive layout
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                # Address input
+                address = st.text_input("Renseignez votre ville", value='', max_chars=None, key=None, type='default', help=None)
+                
+                # Forecast day selection
+                label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
+                selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
+                
+                # Country selection
+                label_choix_pays = "Choix des pays pour les spots à afficher"
+                list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
+                multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=f"pays_{st.session_state.run_id}")
+            
+            with col2:
+                # Sliders
+                option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
+                                          key=f"forecast_{st.session_state.run_id}", help="En définissant les prévisions à 0, tous les résultats s'affichent")
+                option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
+                                      key=f"prix_{st.session_state.run_id}", help="En définissant le prix à 0€, tous les résultats s'affichent")
+                option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
+                                            key=f"distance_{st.session_state.run_id}", help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
+                
+                # Color coding selection
+                label_radio_choix_couleur = "Code couleur pour les spots"
                 list_radio_choix_couleur = ["🏄‍♂️ Prévisions", "🏁 Distance", "💸 Prix"]
                 checkbox_choix_couleur = st.selectbox(label_radio_choix_couleur, list_radio_choix_couleur)
-        
-        with col2:
-            # Forecast day selection
-            label_daily_forecast = "Jour souhaité pour l'affichage des prévisions de surf"
-            selectbox_daily_forecast = st.selectbox(label_daily_forecast, day_list)
-            
-            # Sliders
-            option_forecast = st.slider("Conditions minimum souhaitées (/10)", min_value=0, max_value=10,
-                                      key=f"forecast_{st.session_state.run_id}", help="En définissant les prévisions à 0, tous les résultats s'affichent")
-            option_prix = st.slider("Prix maximum souhaité (€, pour un aller)", min_value=0, max_value=200,
-                                  key=f"prix_{st.session_state.run_id}", help="En définissant le prix à 0€, tous les résultats s'affichent")
-        
-        with col3:
-            # Country selection
-            label_choix_pays = "Choix des pays pour les spots à afficher"
-            list_pays = ["🇫🇷 France", "🇪🇸 Espagne", "🇮🇹 Italie"]
-            multiselect_pays = st.multiselect(label_choix_pays, list_pays, default=list_pays[0], key=f"pays_{st.session_state.run_id}")
-            
-            option_distance_h = st.slider("Temps de conduite souhaité (heures)", min_value=0, max_value=15,
-                                        key=f"distance_{st.session_state.run_id}", help="En définissant le temps maximal de conduite à 0h, tous les résultats s'affichent")
             
             # Submit button
             validation_button = st.button("Soumettre l'adresse", key=None, help=None)
     
+    # Legend in a collapsible section
+    with st.expander("Légende de la carte", expanded=False):
+        st.markdown(":triangular_flag_on_post: représente un spot de surf")
+        st.markdown("La couleur donne la qualité du spot à partir de vos critères : :green_book: parfait, :orange_book: moyen, :closed_book: déconseillé")
+    
     return address, validation_button, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
+
+def create_suggestions_section():
+    """Create a placeholder section for surf spot suggestions."""
+    st.markdown("### 🏄‍♂️ Suggestions de spots")
+    
+    # Create a grid of suggestion cards
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px;'>
+            <h4>Spot 1</h4>
+            <p>Match: 95%</p>
+            <p>🌊 2-3m</p>
+            <p>⏱️ 2h30</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px;'>
+            <h4>Spot 2</h4>
+            <p>Match: 88%</p>
+            <p>🌊 1-2m</p>
+            <p>⏱️ 1h45</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px;'>
+            <h4>Spot 3</h4>
+            <p>Match: 82%</p>
+            <p>🌊 1-1.5m</p>
+            <p>⏱️ 3h15</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def main():
     """Main application function."""
@@ -380,9 +421,9 @@ def main():
     if 'forecasts' not in st.session_state:
         st.session_state.forecasts = None
     
-    # Create main layout and get inputs
+    # Create responsive layout and get inputs
     (address, validation_button, option_forecast, option_prix, 
-     option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = create_main_layout(day_list)
+     option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = create_responsive_layout(day_list)
     
     # Initialize map with default position
     m = folium.Map(location=base_position, zoom_start=6)
@@ -497,6 +538,9 @@ def main():
     # Display the map in the map container
     with st.container():
         st.components.v1.html(m._repr_html_(), height=600)
+    
+    # Add suggestions section
+    create_suggestions_section()
     
     # Add footer
     st.markdown("---")
