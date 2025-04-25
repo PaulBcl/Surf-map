@@ -631,13 +631,8 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         total_spots = len(spots)
         
         # Get the selected date from the day_list
-        selected_date = datetime.now()  # fallback
-        if day_list and len(day_list) > 0:
-            try:
-                selected_date = datetime.strptime(day_list[0], '%Y-%m-%d')
-                logger.info(f"Using selected date: {selected_date}")
-            except (ValueError, IndexError) as e:
-                logger.warning(f"Could not parse date from day_list, using today: {e}")
+        selected_date = day_list[0]["value"] if day_list and len(day_list) > 0 else datetime.now().strftime('%Y-%m-%d')
+        logger.info(f"Using selected date: {selected_date}")
         
         # Process spots
         processed_spots = []
@@ -649,26 +644,15 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                     progress_bar.progress(current_progress)
                     status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{total_spots})")
                     
-                    # Generate 7-day forecast for the spot
-                    forecast_data = generate_forecast_for_spot(spot)
-                    if not forecast_data:
+                    # Generate forecast for the spot on selected date
+                    forecast = generate_forecast_for_spot(spot, selected_date)
+                    if not forecast:
                         logger.warning(f"No valid forecast data for {spot.get('name', 'Unknown')}, skipping")
-                        continue
-                    
-                    # Find the forecast for the selected date
-                    selected_day_forecast = None
-                    for day in forecast_data:
-                        if day['date'] == selected_date.strftime('%Y-%m-%d'):
-                            selected_day_forecast = [day]  # Wrap in list to maintain existing structure
-                            break
-                    
-                    if not selected_day_forecast:
-                        logger.warning(f"No forecast found for selected date for {spot.get('name', 'Unknown')}, skipping")
                         continue
                     
                     # Add forecast to spot data
                     spot_with_forecast = spot.copy()
-                    spot_with_forecast['forecast'] = selected_day_forecast
+                    spot_with_forecast['forecast'] = forecast
                     
                     # Calculate distance if coordinates provided
                     if coordinates:
@@ -744,12 +728,14 @@ def get_dayList_forecast():
         })
     return days
 
-def generate_forecast_for_spot(spot: dict) -> list:
+def generate_forecast_for_spot(spot: dict, selected_date: str) -> list:
     """
     Generate a complete 7-day forecast for a spot by combining base forecast with conditions analysis.
+    Only generates GPT analysis for the selected date to optimize API usage.
     
     Args:
         spot (dict): The surf spot data dictionary containing location and characteristics
+        selected_date (str): The date to generate detailed analysis for (YYYY-MM-DD format)
         
     Returns:
         list: A 7-day forecast list with each day enriched with conditions analysis and quick summary
@@ -761,14 +747,50 @@ def generate_forecast_for_spot(spot: dict) -> list:
             logger.error(f"Failed to get base forecast for {spot.get('name', 'Unknown')}")
             return None
             
+        # Get Stormglass data once for all days
+        sg_forecasts = get_stormglass_forecast(spot)
+            
         # Enrich each day's forecast with analysis
         for day in forecast_data:
             try:
-                # Add conditions analysis
-                day['conditions_analysis'] = get_conditions_analysis(spot, day['date'])
-                
-                # Add quick summary
-                day['quick_summary'] = get_quick_summary(spot, day)
+                # Only generate GPT analysis for selected date
+                if day['date'] == selected_date:
+                    # Get Stormglass data for current date
+                    forecast_for_day = next((f for f in sg_forecasts if f["date"] == day["date"]), None)
+                    if forecast_for_day:
+                        # Inject wave and wind direction data
+                        day['wave_direction_deg'] = forecast_for_day.get('wave_direction_deg', 270)
+                        day['wind_direction_deg'] = forecast_for_day.get('wind_direction_deg', 90)
+                        
+                        # Check for unsuitable conditions before calling GPT
+                        if (forecast_for_day['wave_height_m'] < 0.3 or 
+                            forecast_for_day['wind_speed_m_s'] > 10):
+                            day['conditions_analysis'] = "Conditions clearly unsuitable: too small or too windy."
+                            day['quick_summary'] = "Not surfable today - waves too small or too windy."
+                        else:
+                            # Add conditions analysis
+                            day['conditions_analysis'] = get_conditions_analysis(spot, day['date'])
+                            # Add quick summary
+                            day['quick_summary'] = get_quick_summary(spot, day)
+                    else:
+                        # Set N/A values if forecast for day is missing
+                        day['wave_direction_deg'] = 'N/A'
+                        day['wind_direction_deg'] = 'N/A'
+                        day['conditions_analysis'] = None
+                        day['quick_summary'] = None
+                else:
+                    # For non-selected dates, only add Stormglass data if available
+                    forecast_for_day = next((f for f in sg_forecasts if f["date"] == day["date"]), None)
+                    if forecast_for_day:
+                        day['wave_direction_deg'] = forecast_for_day.get('wave_direction_deg', 270)
+                        day['wind_direction_deg'] = forecast_for_day.get('wind_direction_deg', 90)
+                    else:
+                        day['wave_direction_deg'] = 'N/A'
+                        day['wind_direction_deg'] = 'N/A'
+                    
+                    # Set empty values for GPT-related fields
+                    day['conditions_analysis'] = None
+                    day['quick_summary'] = None
                 
             except Exception as e:
                 logger.error(f"Error enriching forecast for {spot.get('name', 'Unknown')} on {day.get('date', 'unknown')}: {str(e)}")
