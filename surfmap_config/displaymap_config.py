@@ -1,3 +1,13 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+import streamlit as st
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 """
 return the color following selected criteria
 
