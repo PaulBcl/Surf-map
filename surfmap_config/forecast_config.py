@@ -145,6 +145,26 @@ IMPORTANT:
         logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
         return None
 
+def get_surf_forecast(spot, selected_start_date: str):
+    """
+    Get surf forecast data for a spot using cached GPT responses.
+    """
+    try:
+        spot_data = json.dumps(spot)
+        cached_response = get_cached_gpt_response(
+            spot_name=spot['name'],
+            spot_data=spot_data,
+            forecast_date=selected_start_date
+        )
+        
+        if not cached_response:
+            return None
+            
+        return process_gpt_response(cached_response['response'], spot['name'])
+    except Exception as e:
+        logger.error(f"Error in forecast for {spot.get('name', 'Unknown')}: {str(e)}")
+        return None
+
 @st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
 def get_cached_gpt_response(spot_name: str, spot_data: str, forecast_date: str) -> dict:
     """
@@ -157,6 +177,8 @@ def get_cached_gpt_response(spot_name: str, spot_data: str, forecast_date: str) 
             return None
             
         spot = json.loads(spot_data)
+        today = datetime.strptime(forecast_date, '%Y-%m-%d')
+        
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -166,7 +188,7 @@ You provide accurate, realistic surf forecasts based on:
 - Seasonal conditions
 - Local weather systems
 - Ocean and coastal dynamics"""},
-                {"role": "user", "content": f"""Generate a 7-day forecast for:
+                {"role": "user", "content": f"""Generate a 7-day forecast starting from {forecast_date} for:
 Location: {spot.get('name', 'Unknown')}, {spot.get('region', 'Unknown')}
 Coordinates: {spot.get('latitude', 0)}, {spot.get('longitude', 0)}
 Type: {spot.get('type', 'Unknown')}
@@ -249,35 +271,16 @@ def process_gpt_response(response_text: str, spot_name: str) -> list:
         logger.error(f"Error processing forecast for {spot_name}: {str(e)}")
         return None
 
-def get_surf_forecast(spot):
-    """
-    Get surf forecast data for a spot using cached GPT responses.
-    """
-    try:
-        spot_data = json.dumps(spot)
-        cached_response = get_cached_gpt_response(
-            spot_name=spot['name'],
-            spot_data=spot_data,
-            forecast_date=datetime.now().strftime('%Y-%m-%d')
-        )
-        
-        if not cached_response:
-            return None
-            
-        return process_gpt_response(cached_response['response'], spot['name'])
-    except Exception as e:
-        logger.error(f"Error in forecast for {spot.get('name', 'Unknown')}: {str(e)}")
-        return None
-
 def get_forecasts_batch(spots):
     """
     Process multiple spots using cached responses.
     Returns a list of forecasts in the same order as the input spots.
     """
     forecasts = []
+    current_date = datetime.now().strftime('%Y-%m-%d')
     for spot in spots:
         try:
-            forecast = get_surf_forecast(spot)
+            forecast = get_surf_forecast(spot, current_date)
             forecasts.append(forecast)
         except Exception as e:
             logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
@@ -700,7 +703,7 @@ def generate_forecast_for_spot(spot: dict, selected_date: str) -> list:
         logger.info(f"[generate_forecast_for_spot] Starting for spot: {spot.get('name')} on date: {selected_date}")
         
         # Get base 7-day forecast
-        forecast_data = get_surf_forecast(spot)
+        forecast_data = get_surf_forecast(spot, selected_date)
         logger.info(f"[generate_forecast_for_spot] Base forecast data: {json.dumps(forecast_data, indent=2) if forecast_data else None}")
         
         if not forecast_data:
