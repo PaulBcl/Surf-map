@@ -232,8 +232,13 @@ def process_gpt_response(response_text: str, spot_name: str) -> list:
                 return None
             
             wave_height = day_forecast['wave_height_m']
-            if not all(key in wave_height for key in ['min', 'max', 'average']):
-                logger.error(f"Invalid wave height format for {spot_name}")
+            # Check if wave_height is a dictionary or a direct value
+            if isinstance(wave_height, dict):
+                if not all(key in wave_height for key in ['min', 'max', 'average']):
+                    logger.error(f"Invalid wave height format for {spot_name}")
+                    return None
+            elif not isinstance(wave_height, (int, float)):
+                logger.error(f"Invalid wave height type for {spot_name}")
                 return None
         
         return forecast_data['forecast']
@@ -611,122 +616,46 @@ Keep it to 1-2 sentences max, and be direct about whether it's good or not.
         logger.error(f"Error generating quick summary for {spot['name']}: {str(e)}")
         return "Summary not available."
 
-@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour, hide spinner
-def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None, file_obj = None) -> list:
+def load_forecast_data(address: str, day_list: list, coordinates: list) -> list:
     """
-    Load forecast data for surf spots in the Lisbon area.
-    Only returns spots that have valid forecast data.
-    Args:
-        address: Optional address string
-        day_list: Optional list of days in YYYY-MM-DD format
-        coordinates: Optional [lat, lon] coordinates
-        file_obj: Optional file-like object from st.file_uploader
-    Returns:
-        list: List of processed spots with forecasts
+    Load forecast data for all spots in the specified area.
+    Returns a list of spots with their forecasts.
     """
     try:
         logger.info("Starting to load forecast data")
         logger.info(f"Input - Address: {address}, Day list: {day_list}, Coordinates: {coordinates}")
         
-        # Initialize progress tracking
-        progress_bar = st.progress(0.0)
-        status_text = st.empty()
-        status_text.text("Loading surf spots data...")
-        
-        # Load Lisbon spots
-        spots = load_lisbon_spots(file_obj)
+        # Load spots from JSON file
+        spots = load_lisbon_spots()
         if not spots:
-            logger.error("No spots found in Lisbon area data")
-            status_text.text("No surf spots found in the area")
+            logger.error("No spots found to process")
             return []
+            
+        logger.info(f"Loaded {len(spots)} spots from {address} area data")
         
-        logger.info(f"Loaded {len(spots)} spots from Lisbon area data")
-        total_spots = len(spots)
-        
-        # Get the selected date from the day_list
-        selected_date = day_list[0]["value"] if day_list and len(day_list) > 0 else datetime.now().strftime('%Y-%m-%d')
+        # Get the selected date
+        selected_date = day_list[0] if day_list and len(day_list) > 0 else datetime.now().strftime('%Y-%m-%d')
         logger.info(f"Using selected date: {selected_date}")
         
-        # Process spots
-        processed_spots = []
-        try:
-            for i, spot in enumerate(spots):
-                try:
-                    # Update progress
-                    current_progress = (i + 1) / total_spots
-                    progress_bar.progress(current_progress)
-                    status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{total_spots})")
-                    
-                    # Generate forecast for the spot on selected date
-                    forecast = generate_forecast_for_spot(spot, selected_date)
-                    if not forecast:
-                        logger.warning(f"No valid forecast data for {spot.get('name', 'Unknown')}, skipping")
-                        continue
-                    
-                    # Add forecast to spot data
-                    spot_with_forecast = spot.copy()
-                    spot_with_forecast['forecast'] = forecast
-                    
-                    # Calculate distance if coordinates provided
-                    if coordinates:
-                        from math import radians, sin, cos, sqrt, atan2
-                        
-                        def haversine_distance(lat1, lon1, lat2, lon2):
-                            R = 6371  # Earth's radius in kilometers
-                            
-                            lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-                            dlat = lat2 - lat1
-                            dlon = lon2 - lon1
-                            
-                            a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-                            c = 2 * atan2(sqrt(a), sqrt(1-a))
-                            distance = R * c
-                            
-                            return round(distance, 1)
-                        
-                        try:
-                            distance = haversine_distance(
-                                coordinates[0], coordinates[1],
-                                float(spot['latitude']), float(spot['longitude'])
-                            )
-                            logger.info(f"Distance to {spot.get('name', 'Unknown')}: {distance} km")
-                            spot_with_forecast['distance_km'] = distance
-                        except Exception as e:
-                            logger.error(f"Error calculating distance for {spot.get('name', 'Unknown')}: {str(e)}")
-                            continue
-                    
-                    processed_spots.append(spot_with_forecast)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing spot: {str(e)}")
-                    continue
-            
-        except Exception as e:
-            logger.error(f"Error in batch processing: {str(e)}")
-        
-        # Final status update
-        if processed_spots:
-            status_text.text(f"Successfully analyzed {len(processed_spots)} surf spots")
-            progress_bar.progress(1.0)
-        else:
-            status_text.text("No suitable surf spots found")
-        
-        # Keep the progress bar visible for a moment so users can see completion
-        time.sleep(1)
-        
-        # Clear progress indicators
-        progress_bar.empty()
-        status_text.empty()
+        # Process each spot
+        spots_with_forecast = []
+        for spot in spots:
+            try:
+                # Generate forecast for the spot
+                forecast = generate_forecast_for_spot(spot, selected_date)
                 
-        logger.info(f"Successfully processed {len(processed_spots)} spots")
-        return processed_spots
-            
+                # Create a copy of the spot with forecast
+                spot_with_forecast = spot.copy()
+                spot_with_forecast['forecast'] = forecast
+                
+                spots_with_forecast.append(spot_with_forecast)
+            except Exception as e:
+                logger.error(f"Error processing spot {spot.get('name', 'unknown')}: {str(e)}")
+                continue
+                
+        return spots_with_forecast
     except Exception as e:
         logger.error(f"Error loading forecast data: {str(e)}")
-        if 'status_text' in locals():
-            status_text.text(f"Error: {str(e)}")
-        if 'progress_bar' in locals():
-            progress_bar.empty()
         return []
 
 def get_dayList_forecast():
