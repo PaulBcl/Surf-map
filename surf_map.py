@@ -75,10 +75,11 @@ def create_responsive_layout(day_list):
             help="Si la géolocalisation ne fonctionne pas, entrez votre position manuellement"
         )
     
-    # Filters in sidebar
-    with st.sidebar:
-        st.markdown("### ⚙️ Filtres")
-        
+    # Create a compact filter section with columns
+    st.markdown("### ⚙️ Filtres")
+    filter_col1, filter_col2, filter_col3 = st.columns(3)
+    
+    with filter_col1:
         # Forecast quality filter
         option_forecast = st.slider(
             "Qualité minimum des prévisions",
@@ -88,7 +89,8 @@ def create_responsive_layout(day_list):
             step=1,
             help="Filtrer les spots selon la qualité des prévisions"
         )
-        
+    
+    with filter_col2:
         # Price filter
         option_prix = st.slider(
             "Budget maximum (€)",
@@ -98,7 +100,8 @@ def create_responsive_layout(day_list):
             step=5,
             help="Filtrer les spots selon le coût du trajet"
         )
-        
+    
+    with filter_col3:
         # Distance/time filter
         option_distance_h = st.slider(
             "Temps de trajet maximum (heures)",
@@ -107,21 +110,6 @@ def create_responsive_layout(day_list):
             value=12,
             step=1,
             help="Filtrer les spots selon le temps de trajet"
-        )
-        
-        # Country selection
-        multiselect_pays = st.multiselect(
-            "Pays",
-            ["🇫🇷 France", "🇪🇸 Espagne", "🇵🇹 Portugal"],
-            default=["🇫🇷 France"],
-            help="Sélectionner les pays à afficher"
-        )
-        
-        # Color coding options
-        checkbox_choix_couleur = st.radio(
-            "Colorer les marqueurs selon",
-            ["🏄‍♂️ Prévisions", "⏱️ Distance", "💶 Prix"],
-            help="Choisir le critère de coloration des marqueurs"
         )
     
     # Single expander for both legend and guide
@@ -140,7 +128,7 @@ def create_responsive_layout(day_list):
         - Les prévisions détaillées
         """)
     
-    return address, True, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur
+    return address, True, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast
 
 def create_suggestions_section(forecasts, selected_day):
     """Create a section for surf spot suggestions."""
@@ -179,7 +167,7 @@ def create_suggestions_section(forecasts, selected_day):
             </div>
             """, unsafe_allow_html=True)
 
-def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=0, min_rating=0):
+def add_spot_markers(m, forecasts, selected_day, max_time=0, max_cost=0, min_rating=0):
     """Add markers for surf spots to the map."""
     try:
         logger.info(f"Starting to add markers for {len(forecasts)} spots")
@@ -209,14 +197,8 @@ def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=
                 if rating < min_rating:
                     continue
                     
-                # Determine marker color based on selected criteria
-                if color_by == "🏄‍♂️ Prévisions":
-                    color = displaymap_config.color_rating_forecast(rating)
-                elif color_by == "⏱️ Distance":
-                    color = displaymap_config.color_rating_distance(distance / 60)  # Convert km to hours
-                else:  # "💶 Prix"
-                    cost = distance * 0.15  # Rough estimate of cost per km
-                    color = displaymap_config.color_rating_distance(cost / 20)  # Scale cost to 0-10
+                # Color based on forecast rating
+                color = displaymap_config.color_rating_forecast(rating)
                 
                 # Create popup content
                 wave_height = forecast.get('wave_height_m', {})
@@ -291,7 +273,7 @@ def main():
     
     # Create responsive layout and get inputs
     (address, validation_button, option_forecast, option_prix, 
-     option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = create_responsive_layout(day_list)
+     option_distance_h, selectbox_daily_forecast) = create_responsive_layout(day_list)
     
     # Get user's location
     user_location = get_user_location()
@@ -332,7 +314,6 @@ def main():
                     m=m,
                     forecasts=st.session_state.forecasts,
                     selected_day=selectbox_daily_forecast,
-                    color_by=checkbox_choix_couleur,
                     max_time=option_distance_h,
                     max_cost=option_prix,
                     min_rating=option_forecast
