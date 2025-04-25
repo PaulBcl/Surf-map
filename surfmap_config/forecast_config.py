@@ -663,20 +663,24 @@ def load_forecast_data(address: str, day_list: list, coordinates: list) -> list:
         
         # Process each spot
         spots_with_forecast = []
-        for spot in spots:
-            try:
-                # Generate forecast for the spot
-                forecast = generate_forecast_for_spot(spot, selected_date)
-                
-                # Create a copy of the spot with forecast
-                spot_with_forecast = spot.copy()
-                spot_with_forecast['forecast'] = forecast
-                
-                spots_with_forecast.append(spot_with_forecast)
-            except Exception as e:
-                logger.error(f"Error processing spot {spot.get('name', 'unknown')}: {str(e)}")
-                continue
-                
+        with st.spinner("🔄 Analyzing surf spots..."):
+            progress_text = st.empty()
+            for i, spot in enumerate(spots):
+                try:
+                    progress_text.markdown(f"⏳ Analyzing {spot.get('name', 'Spot')} ({i+1}/{len(spots)})")
+                    # Generate forecast for the spot
+                    forecast = generate_forecast_for_spot(spot, selected_date)
+                    
+                    # Create a copy of the spot with forecast
+                    spot_with_forecast = spot.copy()
+                    spot_with_forecast['forecast'] = forecast
+                    
+                    spots_with_forecast.append(spot_with_forecast)
+                except Exception as e:
+                    logger.error(f"Error processing spot {spot.get('name', 'unknown')}: {str(e)}")
+                    continue
+            progress_text.empty()
+        
         return spots_with_forecast
     except Exception as e:
         logger.error(f"Error loading forecast data: {str(e)}")
@@ -712,7 +716,6 @@ def generate_forecast_for_spot(spot: dict, selected_date: str) -> list:
             
         # Get Stormglass data once for all days
         sg_forecasts = get_stormglass_forecast(spot)
-        logger.info(f"[generate_forecast_for_spot] Stormglass forecasts: {json.dumps(sg_forecasts, indent=2) if sg_forecasts else None}")
             
         # Enrich each day's forecast with analysis
         for day in forecast_data:
