@@ -301,24 +301,69 @@ def calculate_spot_rating(spot, forecast_conditions):
 def load_lisbon_spots(file_obj=None):
     """
     Load surf spots from the Lisbon area JSON file.
+    Args:
+        file_obj: Optional file-like object from st.file_uploader
     """
     try:
-        # Load from default data file
-        json_path = os.path.join("data", "lisbon_area.json")
-        logger.info(f"Loading spots from: {json_path}")
-        
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.loads(f.read())
+        # Check if data is already in session state
+        if 'surf_spots_data' in st.session_state and st.session_state.surf_spots_data is not None:
+            logger.info("Loading spots from session state")
+            return st.session_state.surf_spots_data
+
+        if file_obj is not None:
+            # Handle file uploader object
+            logger.info("Loading spots from uploaded file")
+            try:
+                file_content = file_obj.getvalue().decode('utf-8')
+            except UnicodeDecodeError:
+                logger.error("File encoding error - trying with different encodings")
+                try:
+                    file_content = file_obj.getvalue().decode('latin-1')
+                except:
+                    logger.error("Failed to decode file content")
+                    return []
+        else:
+            # Load from default data file
+            try:
+                # Use streamlit's working directory
+                json_path = os.path.join("data", "lisbon_area.json")
+                logger.info(f"Looking for JSON file at: {json_path}")
+                
+                # Ensure data directory exists
+                os.makedirs("data", exist_ok=True)
+                
+                if not os.path.exists(json_path):
+                    logger.error(f"JSON file not found at: {json_path}")
+                    return []
+                
+                logger.info(f"Loading spots from: {json_path}")
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+            except Exception as e:
+                logger.error(f"Error reading file: {str(e)}")
+                return []
+
+        logger.info(f"File content length: {len(file_content)} bytes")
+        try:
+            data = json.loads(file_content)
+            logger.info(f"JSON structure keys: {list(data.keys())}")
+            spots = data.get('spots', [])
+            logger.info(f"Number of spots found: {len(spots)}")
             
-        spots = data.get('spots', [])
-        logger.info(f"Number of spots found: {len(spots)}")
-        
-        if not spots:
-            logger.error("No spots found in JSON data")
+            if not spots:
+                logger.error("No spots found in JSON data")
+                return []
+            
+            # Store in session state
+            st.session_state.surf_spots_data = spots
+            logger.info(f"Successfully loaded {len(spots)} spots")
+            return spots
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {str(e)}")
+            error_context = file_content[max(0, e.pos-50):min(len(file_content), e.pos+50)]
+            logger.error(f"Error context: ...{error_context}...")
             return []
-        
-        logger.info(f"Successfully loaded {len(spots)} spots")
-        return spots
 
     except Exception as e:
         logger.error(f"Error loading Lisbon spots: {str(e)}")
