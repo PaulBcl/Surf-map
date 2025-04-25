@@ -779,6 +779,7 @@ def get_stormglass_forecast(spot):
     Returns a simplified 7-day daily average forecast list or None on failure.
     """
     try:
+        logger.info(f"[Stormglass] Starting API request for spot: {spot.get('name')}")
         base_url = "https://api.stormglass.io/v2/weather/point"
         lat = spot.get("latitude")
         lon = spot.get("longitude")
@@ -793,6 +794,7 @@ def get_stormglass_forecast(spot):
         }
 
         headers = {"Authorization": STORMGLASS_API_KEY}
+        logger.info(f"[Stormglass] Making request for coordinates: {lat}, {lon}")
         response = httpx.get(base_url, params=params, headers=headers, timeout=10)
 
         if response.status_code != 200:
@@ -800,6 +802,8 @@ def get_stormglass_forecast(spot):
             return None
 
         data = response.json().get("hours", [])
+        logger.info(f"[Stormglass] Received {len(data)} hours of data for {spot.get('name')}")
+        
         if not data:
             logger.warning(f"No Stormglass data returned for {spot.get('name')}")
             return None
@@ -833,6 +837,10 @@ def get_stormglass_forecast(spot):
                 "wind_speed_m_s": round(sum(values["wind_speed"]) / len(values["wind_speed"]), 1),
                 "wind_direction_deg": round(sum(values["wind_direction"]) / len(values["wind_direction"]), 1)
             })
+        
+        logger.info(f"[Stormglass] Successfully processed {len(forecasts)} days of forecasts for {spot.get('name')}")
+        if forecasts:
+            logger.info(f"[Stormglass] Sample forecast data for {spot.get('name')}: {json.dumps(forecasts[0])}")
 
         return forecasts
 
