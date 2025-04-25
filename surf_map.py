@@ -56,8 +56,11 @@ def create_responsive_layout(day_list):
             value=today.date(),
             format="DD/MM/YYYY"
         )
-        # Convert the selected date to the format expected by the rest of the application
-        selectbox_daily_forecast = selected_date.strftime('%A %d').replace('0', ' ').lstrip()
+        # Store both formats: one for display and one for data processing
+        selectbox_daily_forecast = {
+            'display': selected_date.strftime('%A %d').replace('0', ' ').lstrip(),
+            'value': selected_date.strftime('%Y-%m-%d')
+        }
     
     with col2:
         # Location input
@@ -116,35 +119,33 @@ def create_suggestions_section(forecasts, selected_day):
             distance = spot.get('distance_km', 0)
             conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
             
-            # Create the card with enhanced styling
-            st.markdown(f"""
-            <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px; width: 100%;'>
-                <h3>{spot.get('name', 'Unknown Spot')}</h3>
-                <div style='display: flex; gap: 20px; margin-bottom: 10px;'>
-                    <div><strong>Match:</strong> {rating:.0f}/10</div>
-                    <div><strong>📍 Distance:</strong> {distance:.1f} km</div>
-                </div>
+            with st.container():
+                st.markdown(f"### {spot.get('name', 'Unknown Spot')}")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Match:** {rating:.0f}/10")
+                with col2:
+                    st.markdown(f"**📍 Distance:** {distance:.1f} km")
                 
-                <!-- Quick Summary -->
-                <div style='background-color: white; padding: 15px; border-radius: 5px; margin-bottom: 15px;'>
-                    <p>🌬️ Wind: {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s</p>
-                    <p>🌊 Waves: {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</p>
-                    <p>🌊↘ Tide: {forecast.get('tide_state', 'Unknown').title()}</p>
-                </div>
+                # Quick Summary in a container with custom background
+                st.markdown("##### Quick Summary")
+                st.markdown(f"""
+                🌬️ Wind: {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s  
+                🌊 Waves: {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m  
+                🌊↘ Tide: {forecast.get('tide_state', 'Unknown').title()}
+                """)
                 
-                <div style='margin-bottom: 15px;'>
-                    <p><strong>Spot type:</strong> {spot.get('type', 'Unknown')}</p>
-                    <p><strong>Best season:</strong> {spot.get('best_season', 'Unknown')}</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Add Pro Analysis expander
-            with st.expander("🔍 Pro Analysis"):
+                # Spot details
+                st.markdown(f"""
+                **Spot type:** {spot.get('type', 'Unknown')}  
+                **Best season:** {spot.get('best_season', 'Unknown')}
+                """)
+                
+                # Pro Analysis
+                st.markdown("##### 🔍 Pro Analysis")
                 st.markdown(conditions_analysis)
-        
-        # Add visual separator after top 3
-        st.markdown("---")
+                
+                st.markdown("---")
         
     # Display remaining spots with basic info only
     if len(sorted_spots) > 3:
@@ -263,17 +264,17 @@ def main():
                 
                 # Load and process forecasts first
                 if st.session_state.forecasts is None:
-                    # Remove the spinner and let the progress bar from load_forecast_data handle the loading state
+                    # Pass the selected date directly in YYYY-MM-DD format
                     forecasts = forecast_config.load_forecast_data(
                         address=address,
-                        day_list=day_list,
+                        day_list=[selectbox_daily_forecast['value']],  # Use the full date
                         coordinates=[lat, lon]
                     )
                     st.session_state.forecasts = forecasts
                 
                 if st.session_state.forecasts:
                     # Create suggestions section first
-                    create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast)
+                    create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast['display'])
                     
                     # Initialize map centered on the location
                     m = folium.Map(location=[lat, lon], zoom_start=12)
@@ -289,7 +290,7 @@ def main():
                     add_spot_markers(
                         m=m,
                         forecasts=st.session_state.forecasts,
-                        selected_day=selectbox_daily_forecast
+                        selected_day=selectbox_daily_forecast['display']
                     )
                     
                     # Add map controls

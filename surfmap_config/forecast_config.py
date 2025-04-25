@@ -414,7 +414,7 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
     Only returns spots that have valid forecast data.
     Args:
         address: Optional address string
-        day_list: Optional list of days
+        day_list: Optional list of days in YYYY-MM-DD format
         coordinates: Optional [lat, lon] coordinates
         file_obj: Optional file-like object from st.file_uploader
     Returns:
@@ -422,7 +422,7 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
     """
     try:
         logger.info("Starting to load forecast data")
-        logger.info(f"Input - Address: {address}, Coordinates: {coordinates}")
+        logger.info(f"Input - Address: {address}, Day list: {day_list}, Coordinates: {coordinates}")
         
         # Initialize progress tracking
         progress_bar = st.progress(0.0)
@@ -438,6 +438,15 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         
         logger.info(f"Loaded {len(spots)} spots from Lisbon area data")
         total_spots = len(spots)
+        
+        # Get the selected date from the day_list
+        selected_date = datetime.now()  # fallback
+        if day_list and len(day_list) > 0:
+            try:
+                selected_date = datetime.strptime(day_list[0], '%Y-%m-%d')
+                logger.info(f"Using selected date: {selected_date}")
+            except (ValueError, IndexError) as e:
+                logger.warning(f"Could not parse date from day_list, using today: {e}")
         
         # Process each spot
         processed_spots = []
@@ -456,11 +465,15 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                     logger.warning(f"No valid forecast data for {spot.get('name', 'Unknown')}, skipping")
                     continue
                 
+                # Update the forecast date to match selected date
+                if forecast and len(forecast) > 0:
+                    forecast[0]['date'] = selected_date.strftime('%Y-%m-%d')
+                
                 logger.info(f"Got valid forecast for {spot.get('name', 'Unknown')}")
                 
-                # Generate conditions analysis
+                # Generate conditions analysis with correct date
                 try:
-                    conditions_analysis = get_conditions_analysis(spot, forecast[0])  # Pass the first day's forecast
+                    conditions_analysis = get_conditions_analysis(spot, forecast[0])  # Pass the first day's forecast with updated date
                     if conditions_analysis:
                         forecast[0]['conditions_analysis'] = conditions_analysis
                     logger.info(f"Generated conditions analysis for {spot.get('name', 'Unknown')}")
