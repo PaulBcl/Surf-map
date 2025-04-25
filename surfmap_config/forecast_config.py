@@ -13,11 +13,15 @@ import os
 import time
 import asyncio
 import httpx
+import re
 
 def degrees_to_cardinal(degrees: float) -> str:
-    directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-    idx = round(((degrees % 360) / 45)) % 8
-    return directions[idx]
+    try:
+        directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        idx = round(((degrees % 360) / 45)) % 8
+        return directions[idx]
+    except Exception:
+        return "Unknown"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -62,7 +66,7 @@ async def get_surf_forecast_async(spot):
         async with semaphore:
             # Get GPT-generated forecast
             response = await async_client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
 You provide accurate, realistic surf forecasts based on:
@@ -154,7 +158,7 @@ def get_cached_gpt_response(spot_name: str, spot_data: str, forecast_date: str) 
             
         spot = json.loads(spot_data)
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
 You provide accurate, realistic surf forecasts based on:
@@ -210,7 +214,13 @@ def process_gpt_response(response_text: str, spot_name: str) -> list:
             logger.error(f"Invalid forecast format for {spot_name}")
             return None
             
-        forecast_data = json.loads(response_text[start_idx:end_idx])
+        # Clean the JSON string
+        clean_text = response_text[start_idx:end_idx]
+        clean_text = clean_text.replace("```json", "").replace("```", "")
+        clean_text = re.sub(r",\s*}", "}", clean_text)
+        clean_text = re.sub(r",\s*]", "]", clean_text)
+            
+        forecast_data = json.loads(clean_text)
         if not isinstance(forecast_data, dict) or 'forecast' not in forecast_data:
             logger.error(f"Missing forecast data for {spot_name}")
             return None
@@ -406,7 +416,7 @@ Return a short paragraph and end with a 1–5 quality score (e.g., "Overall: 4/5
 """
 
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5,
         )
@@ -570,6 +580,10 @@ def get_quick_summary(spot, forecast):
     Cached for 6 hours based on spot name and forecast date.
     """
     try:
+        # Safely handle wind direction conversion
+        wind_deg = forecast.get('wind_direction_deg')
+        wind_cardinal = degrees_to_cardinal(wind_deg) if isinstance(wind_deg, (float, int)) else "Unknown"
+
         context = f"""
 You're a surf forecaster.
 
@@ -580,14 +594,13 @@ Use the info below:
 - Ideal swell: {spot.get("swell_compatibility", {}).get("ideal_swell_direction", "N/A")} at {spot.get("swell_compatibility", {}).get("ideal_swell_size_m", "N/A")} m
 - Ideal wind: {spot.get("wind_compatibility", {}).get("best_direction", "N/A")}
 - Forecasted swell: {forecast['wave_height_m']} m from {forecast.get('wave_direction_deg', 'N/A')}°
-- Forecasted wind: {forecast['wind_speed_m_s']} m/s from {degrees_to_cardinal(forecast['wind_direction_deg'])}
+- Forecasted wind: {forecast['wind_speed_m_s']} m/s from {wind_cardinal}
 
-Is today good, okay, or bad? Say it clearly in one or two sentences max.
-Avoid detailed surf lingo or tide comments.
+Keep it to 1-2 sentences max, and be direct about whether it's good or not.
 """
 
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[{"role": "user", "content": context}],
             temperature=0.5,
         )
