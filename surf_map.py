@@ -11,6 +11,15 @@ st.set_page_config(
     layout="wide"
 )
 
+# Hide all Streamlit's default messages
+st.set_option('server.showLoadingSpinner', False)
+st.set_option('server.showWarning', False)
+st.set_option('server.displaySpinnerDuringCachedFunction', False)  # Hide cache execution messages
+
+# Hide "Running..." messages
+st.cache_data.clear()
+st.cache_resource.clear()
+
 import folium
 from folium import plugins
 from folium.plugins import MarkerCluster, MiniMap, Draw
@@ -33,7 +42,7 @@ def create_responsive_layout(day_list):
     # Welcome block - full width, simplified
     st.markdown("""
     <div style='text-align: center; margin-bottom: 1.5rem;'>
-        <h1 style='margin-bottom: 1rem; font-size: 1.8rem;'>Welcome to 🌊 Surfmap!</h1>
+        <h1 style='margin-bottom: 1rem; font-size: 1.8rem;'>Welcome to Surfmap! 🌊</h1>
     </div>
     """, unsafe_allow_html=True)
     
@@ -96,35 +105,68 @@ def create_suggestions_section(forecasts, selected_day):
         reverse=True
     )
     
-    # Take top 3 spots
-    top_spots = sorted_spots[:3]
-    
-    # Display each spot in full width
-    for spot in top_spots:
-        forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
-        wave_height = forecast.get('wave_height_m', {})
-        rating = forecast.get('daily_rating', 0)
-        distance = spot.get('distance_km', 0)
-        conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
+    # Create a container for top 3 spots
+    with st.container():
+        st.markdown("#### 🏆 Top Spots for Today")
         
-        st.markdown(f"""
-        <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px; width: 100%;'>
-            <h3>{spot.get('name', 'Unknown Spot')}</h3>
-            <div style='display: flex; gap: 20px; margin-bottom: 10px;'>
-                <div><strong>Match:</strong> {rating:.0f}/10</div>
-                <div><strong>🌊 Waves:</strong> {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</div>
-                <div><strong>📍 Distance:</strong> {distance:.1f} km</div>
+        # Take top 3 spots
+        top_spots = sorted_spots[:3]
+        
+        # Display each of the top 3 spots
+        for spot in top_spots:
+            forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
+            wave_height = forecast.get('wave_height_m', {})
+            rating = forecast.get('daily_rating', 0)
+            distance = spot.get('distance_km', 0)
+            conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
+            
+            # Create the card with enhanced styling
+            st.markdown(f"""
+            <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px; width: 100%;'>
+                <h3>{spot.get('name', 'Unknown Spot')}</h3>
+                <div style='display: flex; gap: 20px; margin-bottom: 10px;'>
+                    <div><strong>Match:</strong> {rating:.0f}/10</div>
+                    <div><strong>📍 Distance:</strong> {distance:.1f} km</div>
+                </div>
+                
+                <!-- Quick Summary -->
+                <div style='background-color: white; padding: 15px; border-radius: 5px; margin-bottom: 15px;'>
+                    <p>🌬️ Wind: {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s</p>
+                    <p>🌊 Waves: {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</p>
+                    <p>🌊↘ Tide: {forecast.get('tide_state', 'Unknown').title()}</p>
+                </div>
+                
+                <div style='margin-bottom: 15px;'>
+                    <p><strong>Spot type:</strong> {spot.get('type', 'Unknown')}</p>
+                    <p><strong>Best season:</strong> {spot.get('best_season', 'Unknown')}</p>
+                </div>
             </div>
-            <div style='margin-bottom: 15px;'>
-                <p><strong>Spot type:</strong> {spot.get('type', 'Unknown')}</p>
-                <p><strong>Best season:</strong> {spot.get('best_season', 'Unknown')}</p>
+            """, unsafe_allow_html=True)
+            
+            # Add Pro Analysis expander
+            with st.expander("🔍 Pro Analysis"):
+                st.markdown(conditions_analysis)
+        
+        # Add visual separator after top 3
+        st.markdown("---")
+        
+    # Display remaining spots with basic info only
+    if len(sorted_spots) > 3:
+        st.markdown("#### Other Nearby Spots")
+        for spot in sorted_spots[3:]:
+            forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
+            rating = forecast.get('daily_rating', 0)
+            distance = spot.get('distance_km', 0)
+            
+            st.markdown(f"""
+            <div style='padding: 15px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 10px; width: 100%;'>
+                <h4>{spot.get('name', 'Unknown Spot')}</h4>
+                <div style='display: flex; gap: 20px;'>
+                    <div><strong>Match:</strong> {rating:.0f}/10</div>
+                    <div><strong>📍 Distance:</strong> {distance:.1f} km</div>
+                </div>
             </div>
-            <div style='background-color: white; padding: 15px; border-radius: 5px;'>
-                <h4>Detailed Conditions Analysis:</h4>
-                <p style='white-space: pre-line;'>{conditions_analysis}</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
 def add_spot_markers(m, forecasts, selected_day):
     """Add markers for surf spots to the map."""
@@ -225,13 +267,13 @@ def main():
                 
                 # Load and process forecasts first
                 if st.session_state.forecasts is None:
-                    with st.spinner('Loading surf spots...'):
-                        forecasts = forecast_config.load_forecast_data(
-                            address=address,
-                            day_list=day_list,
-                            coordinates=[lat, lon]
-                        )
-                        st.session_state.forecasts = forecasts
+                    # Remove the spinner and let the progress bar from load_forecast_data handle the loading state
+                    forecasts = forecast_config.load_forecast_data(
+                        address=address,
+                        day_list=day_list,
+                        coordinates=[lat, lon]
+                    )
+                    st.session_state.forecasts = forecasts
                 
                 if st.session_state.forecasts:
                     # Create suggestions section first

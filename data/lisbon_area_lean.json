@@ -1,0 +1,164 @@
+{
+  "spots": [
+    {
+      "name": "Praia das Maçãs",
+      "latitude": 38.8258,
+      "longitude": -9.4705,
+      "region": "Sintra",
+      "type": "beach break",
+      "orientation": "NW",
+      "best_season": "Autumn–Spring (consistent year-round)",
+      "difficulty": ["beginner", "intermediate"],
+      "wave_description": "Narrow beach with rocky sides and a sandy middle; offers consistent right and left peaks. Generally mellow and safe for all levels, though bigger winter swells can produce faster, wedgy waves off the cliffs.",
+      "access": "Road to village of Praia das Maçãs; parking plentiful (mostly free, small fee in summer). Also reachable by historic tram from Sintra (summer only).",
+      "local_tips": "Best at low tide when the sandbanks are exposed. Friendly local crowd, but the lineup is small – can feel crowded on weekends. Water can be affected by river runoff (after rains).",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Praia-das-Macas",
+        "https://magicseaweed.com/Praia-Das-Macas-Surf-Report/"
+      ],
+      "nearby_lodging": "Surfiberia Surf House (surf lodge, €30–€60/night)",
+      "gear_rental": "Surf Macas School – ~€20/day for board+wetsuit rental",
+      "tide_behavior": {
+        "low":    { "quality": 5, "note": "Optimal – more powerful waves as wedgy lefts form off the cliff." },
+        "rising": { "quality": 4, "note": "Still good – mid tide maintains shape with slightly slower shoulders." },
+        "high":   { "quality": 2, "note": "Full tide fills in the sandbank; waves weaken and break closer to shore." },
+        "falling":{ "quality": 4, "note": "Improving – as water drains, waves pick up size and shape again." }
+      },
+      "wind_compatibility": {
+        "best_direction": "E/NE",
+        "quality": 4,
+        "notes": "Offshore winds from the east keep waves clean. Common NW sea breezes will be onshore and bump up the surf by afternoon."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "NW",
+        "ideal_swell_size_m": [1, 2],
+        "quality": 4,
+        "notes": "Picks up any swell from west or northwest, even small summer swells. Doesn’t hold much above ~2 m (starts closing out)."
+      },
+      "crowd_pressure": {
+        "quality": 2,
+        "notes": "Moderate crowd. Often uncrowded on weekdays; on sunny weekends it can fill up with local surfers and bodyboarders, but vibe stays friendly."
+      }
+    },
+    {
+      "name": "Praia Grande",
+      "latitude": 38.8145,
+      "longitude": -9.4786,
+      "region": "Sintra",
+      "type": "beach break",
+      "orientation": "WNW",
+      "best_season": "Year-round (best in autumn/winter for size)",
+      "difficulty": ["intermediate", "advanced"],
+      "wave_description": "Very consistent, exposed beachbreak with multiple sandbar peaks. Long, slow rollers at low tide turn into faster, hollow shorebreak as the tide pushes in. Can produce impressive tubes in the right conditions (hosts bodyboard championships). Clean water and powerful surf on bigger swells.",
+      "access": "Located in Colares (Sintra). Large clifftop parking and some roadside spots (free). Easy walk down to the wide beach.",
+      "local_tips": "Sensitive to wind due to exposure – early mornings or days with light east winds are best. Handles up to 3–4 m swells before closing out. Some amenities available (cafés, surf school, showers). Watch out for rips near the cliffs when big.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Praia-Grande-Sintra",
+        "https://www.windguru.cz/36264" 
+      ],
+      "nearby_lodging": "Arribas Sintra Hotel (beachfront 3★, ~€80–€120/night)",
+      "gear_rental": "School Praia Grande Surf – ~€20/half-day rental",
+      "tide_behavior": {
+        "low":    { "quality": 3, "note": "Longer, slower rides; workable for less experienced, but can lack power." },
+        "rising": { "quality": 5, "note": "Best – waves steepen and gain speed as tide comes in, offering hollow sections." },
+        "high":   { "quality": 2, "note": "Heavy shorebreak close to the rocks; waves often dump on the sandbank." },
+        "falling":{ "quality": 4, "note": "Still good – retains punch until mid-low tide, with some barreling sections." }
+      },
+      "wind_compatibility": {
+        "best_direction": "E/SE",
+        "quality": 3,
+        "notes": "Needs east or southeast offshore winds to be clean. Frequent northerly winds blow side-on or onshore, making conditions choppy (Praia Grande gets blown out easily if wind picks up)."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "NW to W",
+        "ideal_swell_size_m": [1, 2.5],
+        "quality": 5,
+        "notes": "Open to all north Atlantic swells, so it’s a swell magnet. Performs great with mid-sized NW/W swells (1–2.5 m); can hold bigger but rips become strong and lineup spreads out."
+      },
+      "crowd_pressure": {
+        "quality": 4,
+        "notes": "Popular spot – always some surfers when there are waves. Can get busy on good days year-round, especially since it caters to various skill levels and has multiple peaks. The crowd spreads out along the long beach."
+      }
+    },
+    {
+      "name": "Praia do Guincho",
+      "latitude": 38.7311,
+      "longitude": -9.4742,
+      "region": "Cascais",
+      "type": "beach break",
+      "orientation": "NW",
+      "best_season": "Late spring to autumn (less wind) & winter for size",
+      "difficulty": ["intermediate", "advanced"],
+      "wave_description": "A famed beachbreak known for powerful, wedgy peaks – especially the right-handers rifling off the northern cliffs. One of Lisbon area’s most consistent spots, but also one of the windiest. Offers fast, tubing waves when the wind cooperates, with peaks shifting across a broad sandy bay.",
+      "access": "Located in the Sintra-Cascais Natural Park. Large paid parking lot by the dunes. Accessible by car (~30 min from Cascais) or by bus from Cascais in summer.",
+      "local_tips": "Mid to low tide on a solid NW swell yields the best shape (1–2 m NW swell ideal). Strong afternoon nortada winds are common – surf early or on rare calm days. If Guincho is too blown out or crowded, try the smaller adjacent bay at Praia da Cresmina.",
+      "surf_forecast_link": [
+        "https://www.surfline.com/surf-report/praia-do-guincho/5842041f4e65fad6a7708809",
+        "https://www.windguru.cz/131"
+      ],
+      "nearby_lodging": "Guincho Wayra House (surf hostel, €25–€60/night)",
+      "gear_rental": "Moana Surf School at Guincho – ~€25/day full kit",
+      "tide_behavior": {
+        "low":    { "quality": 4, "note": "Good on moderate NW swells – low tide makes waves pitchier and hollow at the north end." },
+        "rising": { "quality": 5, "note": "Optimal on incoming mid tide; waves line up best with more punch and longer rides." },
+        "high":   { "quality": 2, "note": "Often too full/fat unless swell is large. The shorebreak can become dumpy on high tide." },
+        "falling":{ "quality": 3, "note": "Can still be fun as tide drops, though waves may close out less predictably." }
+      },
+      "wind_compatibility": {
+        "best_direction": "E/SE",
+        "quality": 2,
+        "notes": "Highly wind-exposed. Needs easterly winds (rare here) for clean surf. Even a light N/NW wind will create chop – Guincho often becomes unsurfable by midday due to strong NW onshores."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "NW",
+        "ideal_swell_size_m": [1, 3],
+        "quality": 5,
+        "notes": "Loves mid-to-large NW groundswells – very consistent. Can handle big swells (up to ~3+ m), but extremely powerful then. Smaller SW swells also produce surf but less consistent due to shadowing."
+      },
+      "crowd_pressure": {
+        "quality": 3,
+        "notes": "Despite size, it draws many surfers when good. Summer brings both city surfers and wind/kitesurfers. Crowds are moderate on manageable days (with plenty of peaks to spread out), but on epic calm days expect a packed lineup."
+      }
+    },
+    {
+      "name": "Sesimbra Coast",
+      "latitude": 38.4437,
+      "longitude": -9.0996,
+      "region": "Sesimbra",
+      "type": "rocky reefs & beach (various)",
+      "orientation": "S",
+      "best_season": "Winter (rare swells)",
+      "difficulty": ["advanced"],
+      "wave_description": "Not an area known for surf, but the scenic Sesimbra coastline hides a couple of very rarely breaking spots requiring massive swells and N winds. These include reef breaks on the west side of Sesimbra that only wake up when huge winter surf wraps into the sheltered bay. When they do, expect powerful, ledgy waves (lefts and rights) breaking in crystal clear water beneath cliffs. Otherwise, Sesimbra’s main beach (Praia da California) usually has only small shorebreak due to its south-facing, swell-protected orientation.",
+      "access": "Sesimbra town is ~40 km from Lisbon. Access via car or bus. The rarely-surfed spots are along the coast outside the harbor – one known break is off Forte do Cavalo (west of Sesimbra), accessible by boat or a difficult paddle; another shorebreak can happen east of the harbor on huge south swells. Generally requires local knowledge to pinpoint and safely access when it’s working.",
+      "local_tips": "Unless you’re hunting novelty waves during a monster swell, there’s usually no surf here. On the rare days it fires, ensure strong surfing ability and go with local guidance. N or NE wind is necessary to keep these spots clean. One example: with a giant SW swell and N wind, a slabby right-hander can break near Sesimbra’s west cliffs. It’s essentially for big-wave riders or bodyboarders when everywhere else is maxed out. Otherwise, enjoy Sesimbra for diving, fishing, or drive 20+ minutes to more consistent breaks like Bicas or Lagoa de Albufeira.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Sesimbra",
+        "https://magicseaweed.com/Sesimbra-Surf-Report/4560/"
+      ],
+      "nearby_lodging": "Sesimbra Hotel & Spa (4★, ~€70–€100)",
+      "gear_rental": "None (no established surf shops due to lack of consistent surf)",
+      "tide_behavior": {
+        "low":    { "quality": 3, "note": "If it’s breaking, likely works through most of the tide (the extremely infrequent waves here depend more on swell than tide). Low might expose more hazards on reefs." },
+        "rising": { "quality": 3, "note": "No detailed data – likely similar quality through mid tide. Rising tide might give a slight cushion on shallow reefs." },
+        "high":   { "quality": 3, "note": "If a wave is breaking here, high tide doesn’t necessarily stop it (deep bay). Might even help some reefs break more cleanly." },
+        "falling":{ "quality": 3, "note": "The few known spots here are not very tide sensitive; what matters is having huge swell at all." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N",
+        "quality": 5,
+        "notes": "Absolutely needs North winds to be surfable. South wind is onshore and would destroy any wave. Fortunately, on those rare big swell days, a high-pressure north wind scenario is often what could groom these fluky breaks."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "SW",
+        "ideal_swell_size_m": [4, 6],
+        "quality": 1,
+        "notes": "Only massive swells from SW or very large W swells wrapping around Arrábida will get in. We’re talking 4m+ open ocean swells. Quality is largely unknown except to a few – likely not great (closeouts or unruly) but rideable and novel. Given how seldom these waves appear, they are more curiosity than reliable surf spots."
+      },
+      "crowd_pressure": {
+        "quality": 1,
+        "notes": "No regular surf crowd. On the freak days something breaks, maybe a handful of adventurous locals or bodyboarders will be out. Essentially no crowd – but also no established lineup or safety net (you’re on your own out there next to cliffs)."
+      }
+    }
+  ]
+}

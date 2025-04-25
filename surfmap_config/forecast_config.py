@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 import ast
 import os
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -326,7 +327,7 @@ def load_lisbon_spots(file_obj=None):
             # Load from default data file
             try:
                 # Use streamlit's working directory
-                json_path = os.path.join("data", "lisbon_area.json")
+                json_path = os.path.join("data", "lisbon_area_lean.json")
                 logger.info(f"Looking for JSON file at: {json_path}")
                 
                 # Ensure data directory exists
@@ -406,7 +407,7 @@ def get_spot_forecast(spot):
         logger.error(f"Error generating spot forecast for {spot.get('name', 'unknown')}: {str(e)}")
         return None
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour, hide spinner
 def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None, file_obj = None) -> list:
     """
     Load forecast data for surf spots in the Lisbon area.
@@ -423,27 +424,29 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         logger.info("Starting to load forecast data")
         logger.info(f"Input - Address: {address}, Coordinates: {coordinates}")
         
-        # Initialize progress bar and status text
-        progress_bar = st.progress(0)
+        # Initialize progress tracking
+        progress_bar = st.progress(0.0)
         status_text = st.empty()
+        status_text.text("Loading surf spots data...")
         
         # Load Lisbon spots
         spots = load_lisbon_spots(file_obj)
         if not spots:
             logger.error("No spots found in Lisbon area data")
-            progress_bar.empty()
-            status_text.empty()
+            status_text.text("No surf spots found in the area")
             return []
         
         logger.info(f"Loaded {len(spots)} spots from Lisbon area data")
+        total_spots = len(spots)
         
         # Process each spot
         processed_spots = []
         for i, spot in enumerate(spots):
             try:
-                # Update status
-                status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{len(spots)})")
-                progress_bar.progress((i + 1) / len(spots))
+                # Update progress
+                current_progress = (i + 1) / total_spots
+                progress_bar.progress(current_progress)
+                status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{total_spots})")
                 
                 logger.info(f"Processing spot: {spot.get('name', 'Unknown')}")
                 
@@ -503,6 +506,16 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                 logger.error(f"Error processing spot: {str(e)}")
                 continue
         
+        # Final status update
+        if processed_spots:
+            status_text.text(f"Successfully analyzed {len(processed_spots)} surf spots")
+            progress_bar.progress(1.0)
+        else:
+            status_text.text("No suitable surf spots found")
+        
+        # Keep the progress bar visible for a moment so users can see completion
+        time.sleep(1)
+        
         # Clear progress indicators
         progress_bar.empty()
         status_text.empty()
@@ -512,11 +525,10 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
             
     except Exception as e:
         logger.error(f"Error loading forecast data: {str(e)}")
-        # Ensure progress indicators are cleared even if there's an error
+        if 'status_text' in locals():
+            status_text.text(f"Error: {str(e)}")
         if 'progress_bar' in locals():
             progress_bar.empty()
-        if 'status_text' in locals():
-            status_text.empty()
         return []
 
 def get_dayList_forecast():
