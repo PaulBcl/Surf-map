@@ -223,46 +223,53 @@ def main():
         else:
             coordinates = forecast_config.get_coordinates(address)
             
-        if coordinates:
-            # Initialize map centered on the location
-            m = folium.Map(location=coordinates, zoom_start=12)
-            
-            # Add user location marker
-            folium.Marker(
-                coordinates,
-                popup='Your Location',
-                icon=folium.Icon(color='red', icon='home')
-            ).add_to(m)
-            
-            # Load and process forecasts
-            if st.session_state.forecasts is None:
-                with st.spinner('Loading surf spots...'):
-                    forecasts = forecast_config.load_forecast_data(
-                        address=address,
-                        day_list=day_list,
-                        coordinates=coordinates
+        if coordinates and len(coordinates) == 2:
+            try:
+                # Ensure coordinates are float values
+                lat, lon = float(coordinates[0]), float(coordinates[1])
+                
+                # Initialize map centered on the location
+                m = folium.Map(location=[lat, lon], zoom_start=12)
+                
+                # Add user location marker
+                folium.Marker(
+                    [lat, lon],
+                    popup='Your Location',
+                    icon=folium.Icon(color='red', icon='home')
+                ).add_to(m)
+                
+                # Load and process forecasts
+                if st.session_state.forecasts is None:
+                    with st.spinner('Loading surf spots...'):
+                        forecasts = forecast_config.load_forecast_data(
+                            address=address,
+                            day_list=day_list,
+                            coordinates=[lat, lon]
+                        )
+                        st.session_state.forecasts = forecasts
+                
+                if st.session_state.forecasts:
+                    # Add spot markers
+                    add_spot_markers(
+                        m=m,
+                        forecasts=st.session_state.forecasts,
+                        selected_day=selectbox_daily_forecast
                     )
-                    st.session_state.forecasts = forecasts
-            
-            if st.session_state.forecasts:
-                # Add spot markers
-                add_spot_markers(
-                    m=m,
-                    forecasts=st.session_state.forecasts,
-                    selected_day=selectbox_daily_forecast
-                )
-                
-                # Add map controls
-                plugins.Fullscreen().add_to(m)
-                Draw().add_to(m)
-                
-                # Display the map
-                st_data = st_folium(m, width=1200, height=600)
-                
-                # Create suggestions section
-                create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast)
-            else:
-                st.error("No surf spots found. Please try a different location.")
+                    
+                    # Add map controls
+                    plugins.Fullscreen().add_to(m)
+                    Draw().add_to(m)
+                    
+                    # Display the map
+                    st_data = st_folium(m, width=1200, height=600)
+                    
+                    # Create suggestions section
+                    create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast)
+                else:
+                    st.error("No surf spots found. Please try a different location.")
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error processing coordinates: {str(e)}")
+                st.error("Invalid coordinates received. Please try a different address.")
         else:
             st.error("Could not determine location coordinates. Please try a different address.")
 
