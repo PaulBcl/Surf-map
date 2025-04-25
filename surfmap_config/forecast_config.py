@@ -407,18 +407,28 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         logger.info("Starting to load forecast data")
         logger.info(f"Input - Address: {address}, Coordinates: {coordinates}")
         
+        # Initialize progress bar and status text
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
         # Load Lisbon spots
         spots = load_lisbon_spots(file_obj)
         if not spots:
             logger.error("No spots found in Lisbon area data")
+            progress_bar.empty()
+            status_text.empty()
             return []
         
         logger.info(f"Loaded {len(spots)} spots from Lisbon area data")
         
         # Process each spot
         processed_spots = []
-        for spot in spots:
+        for i, spot in enumerate(spots):
             try:
+                # Update status
+                status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{len(spots)})")
+                progress_bar.progress((i + 1) / len(spots))
+                
                 logger.info(f"Processing spot: {spot.get('name', 'Unknown')}")
                 
                 # Get forecast data using GPT
@@ -476,12 +486,21 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
             except Exception as e:
                 logger.error(f"Error processing spot: {str(e)}")
                 continue
+        
+        # Clear progress indicators
+        progress_bar.empty()
+        status_text.empty()
                 
         logger.info(f"Successfully processed {len(processed_spots)} spots")
         return processed_spots
             
     except Exception as e:
         logger.error(f"Error loading forecast data: {str(e)}")
+        # Ensure progress indicators are cleared even if there's an error
+        if 'progress_bar' in locals():
+            progress_bar.empty()
+        if 'status_text' in locals():
+            status_text.empty()
         return []
 
 def get_dayList_forecast():
