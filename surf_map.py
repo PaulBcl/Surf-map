@@ -75,43 +75,6 @@ def create_responsive_layout(day_list):
             help="Si la géolocalisation ne fonctionne pas, entrez votre position manuellement"
         )
     
-    # Create a compact filter section with columns
-    st.markdown("### ⚙️ Filtres")
-    filter_col1, filter_col2, filter_col3 = st.columns(3)
-    
-    with filter_col1:
-        # Forecast quality filter
-        option_forecast = st.slider(
-            "Qualité minimum des prévisions",
-            min_value=0,
-            max_value=10,
-            value=0,
-            step=1,
-            help="Filtrer les spots selon la qualité des prévisions"
-        )
-    
-    with filter_col2:
-        # Price filter
-        option_prix = st.slider(
-            "Budget maximum (€)",
-            min_value=0,
-            max_value=100,
-            value=100,
-            step=5,
-            help="Filtrer les spots selon le coût du trajet"
-        )
-    
-    with filter_col3:
-        # Distance/time filter
-        option_distance_h = st.slider(
-            "Temps de trajet maximum (heures)",
-            min_value=0,
-            max_value=12,
-            value=12,
-            step=1,
-            help="Filtrer les spots selon le temps de trajet"
-        )
-    
     # Single expander for both legend and guide
     with st.expander("ℹ️ Guide et légende", expanded=False):
         st.markdown("""
@@ -128,7 +91,7 @@ def create_responsive_layout(day_list):
         - Les prévisions détaillées
         """)
     
-    return address, True, option_forecast, option_prix, option_distance_h, selectbox_daily_forecast
+    return address, selectbox_daily_forecast
 
 def create_suggestions_section(forecasts, selected_day):
     """Create a section for surf spot suggestions."""
@@ -167,7 +130,7 @@ def create_suggestions_section(forecasts, selected_day):
             </div>
             """, unsafe_allow_html=True)
 
-def add_spot_markers(m, forecasts, selected_day, max_time=0, max_cost=0, min_rating=0):
+def add_spot_markers(m, forecasts, selected_day):
     """Add markers for surf spots to the map."""
     try:
         logger.info(f"Starting to add markers for {len(forecasts)} spots")
@@ -193,10 +156,6 @@ def add_spot_markers(m, forecasts, selected_day, max_time=0, max_cost=0, min_rat
                 rating = forecast.get('daily_rating', 0)
                 distance = spot.get('distance_km', 0)
                 
-                # Apply filters
-                if rating < min_rating:
-                    continue
-                    
                 # Color based on forecast rating
                 color = displaymap_config.color_rating_forecast(rating)
                 
@@ -246,34 +205,12 @@ def main():
     # Get forecast days
     day_list = forecast_config.get_dayList_forecast()
     
-    # Initialize session states if not exists
+    # Initialize session state for forecasts if not exists
     if 'forecasts' not in st.session_state:
         st.session_state.forecasts = None
-    if 'surf_spots_data' not in st.session_state:
-        st.session_state.surf_spots_data = None
-    if 'uploaded_file' not in st.session_state:
-        st.session_state.uploaded_file = None
-    
-    # File uploader in sidebar
-    with st.sidebar:
-        st.header("Data Configuration")
-        uploaded_file = st.file_uploader("Upload custom surf spots data (JSON)", type=['json'])
-        
-        # Handle file upload changes
-        if uploaded_file is not None and uploaded_file != st.session_state.uploaded_file:
-            logger.info("New file uploaded, clearing session state")
-            st.session_state.uploaded_file = uploaded_file
-            st.session_state.surf_spots_data = None
-            st.session_state.forecasts = None
-        elif uploaded_file is None and st.session_state.uploaded_file is not None:
-            logger.info("File removed, clearing session state")
-            st.session_state.uploaded_file = None
-            st.session_state.surf_spots_data = None
-            st.session_state.forecasts = None
     
     # Create responsive layout and get inputs
-    (address, validation_button, option_forecast, option_prix, 
-     option_distance_h, selectbox_daily_forecast) = create_responsive_layout(day_list)
+    address, selectbox_daily_forecast = create_responsive_layout(day_list)
     
     # Get user's location
     user_location = get_user_location()
@@ -303,8 +240,7 @@ def main():
                     forecasts = forecast_config.load_forecast_data(
                         address=address,
                         day_list=day_list,
-                        coordinates=coordinates,
-                        file_obj=st.session_state.uploaded_file
+                        coordinates=coordinates
                     )
                     st.session_state.forecasts = forecasts
             
@@ -313,10 +249,7 @@ def main():
                 add_spot_markers(
                     m=m,
                     forecasts=st.session_state.forecasts,
-                    selected_day=selectbox_daily_forecast,
-                    max_time=option_distance_h,
-                    max_cost=option_prix,
-                    min_rating=option_forecast
+                    selected_day=selectbox_daily_forecast
                 )
                 
                 # Add map controls
@@ -329,7 +262,7 @@ def main():
                 # Create suggestions section
                 create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast)
             else:
-                st.error("No surf spots found. Please check your data file or try a different location.")
+                st.error("No surf spots found. Please try a different location.")
         else:
             st.error("Could not determine location coordinates. Please try a different address.")
 
