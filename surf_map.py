@@ -119,33 +119,39 @@ def create_suggestions_section(forecasts, selected_day):
             distance = spot.get('distance_km', 0)
             conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
             
-            with st.container():
+            st.markdown("""
+                <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-bottom: 20px;'>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Use columns for the header section
+            col1, col2 = st.columns(2)
+            with col1:
                 st.markdown(f"### {spot.get('name', 'Unknown Spot')}")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"**Match:** {rating:.0f}/10")
-                with col2:
-                    st.markdown(f"**📍 Distance:** {distance:.1f} km")
-                
-                # Quick Summary in a container with custom background
-                st.markdown("##### Quick Summary")
-                st.markdown(f"""
-                🌬️ Wind: {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s  
-                🌊 Waves: {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m  
-                🌊↘ Tide: {forecast.get('tide_state', 'Unknown').title()}
-                """)
-                
-                # Spot details
-                st.markdown(f"""
-                **Spot type:** {spot.get('type', 'Unknown')}  
-                **Best season:** {spot.get('best_season', 'Unknown')}
-                """)
-                
-                # Pro Analysis
-                st.markdown("##### 🔍 Pro Analysis")
+            with col2:
+                st.markdown(f"**Match:** {rating:.0f}/10 | **📍 Distance:** {distance:.1f} km")
+            
+            # Quick Summary section
+            st.markdown("##### Quick Summary")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"🌬️ **Wind**  \n{forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s")
+            with col2:
+                st.markdown(f"🌊 **Waves**  \n{wave_height.get('min', 0)}-{wave_height.get('max', 0)}m")
+            with col3:
+                st.markdown(f"🌊↘ **Tide**  \n{forecast.get('tide_state', 'Unknown').title()}")
+            
+            # Spot details
+            st.markdown(f"""
+            **Spot type:** {spot.get('type', 'Unknown')}  
+            **Best season:** {spot.get('best_season', 'Unknown')}
+            """)
+            
+            # Pro Analysis in expander
+            with st.expander("🔍 Pro Analysis"):
                 st.markdown(conditions_analysis)
-                
-                st.markdown("---")
+            
+            st.markdown("---")
         
     # Display remaining spots with basic info only
     if len(sorted_spots) > 3:
