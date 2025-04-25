@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import streamlit as st
+import pydeck as pdk
 from streamlit_folium import st_folium
 
 # Set page config - MUST BE FIRST STREAMLIT COMMAND
@@ -32,6 +33,101 @@ logger = logging.getLogger(__name__)
 # Create a session state for the reset functionality
 if 'run_id' not in st.session_state:
     st.session_state.run_id = 0
+
+# Default map view settings
+DEFAULT_LATITUDE = 48.8566
+DEFAULT_LONGITUDE = 2.3522
+DEFAULT_ZOOM = 12
+DEFAULT_PITCH = 0
+DEFAULT_BEARING = 0
+
+def get_spot_color(rating):
+    """Get color for spot based on rating."""
+    if rating <= 2:
+        return [0, 255, 0, 200]  # Green
+    elif rating == 3:
+        return [255, 255, 0, 200]  # Yellow
+    else:
+        return [255, 0, 0, 200]  # Red
+
+def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LONGITUDE):
+    """Create a PyDeck map with surf spots."""
+    try:
+        # Prepare data for PyDeck
+        map_data = []
+        for spot in forecasts:
+            forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
+            rating = forecast.get('daily_rating', 0)
+            wave_height = forecast.get('wave_height_m', {})
+            conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
+            quick_summary = forecast.get('quick_summary', 'Summary not available')
+            
+            map_data.append({
+                'name': spot.get('name', 'Unknown Spot'),
+                'latitude': float(spot.get('latitude', 0)),
+                'longitude': float(spot.get('longitude', 0)),
+                'region': spot.get('region', 'Unknown'),
+                'type': spot.get('type', 'Unknown'),
+                'rating': rating,
+                'color': get_spot_color(rating),
+                'tooltip': f"{spot.get('name')}\n"
+                          f"Region: {spot.get('region')}\n"
+                          f"Type: {spot.get('type')}\n"
+                          f"Rating: {rating}/10\n"
+                          f"Summary: {quick_summary}"
+            })
+        
+        # Create DataFrame for PyDeck
+        df = pd.DataFrame(map_data)
+        
+        # Create the scatter plot layer
+        layer = pdk.Layer(
+            'ScatterplotLayer',
+            data=df,
+            get_position=['longitude', 'latitude'],
+            get_color='color',
+            get_radius=100,
+            pickable=True,
+            opacity=0.8,
+            stroked=True,
+            filled=True,
+            radius_scale=6,
+            radius_min_pixels=5,
+            radius_max_pixels=15,
+            line_width_min_pixels=1
+        )
+        
+        # Create the view state
+        view_state = pdk.ViewState(
+            latitude=user_lat,
+            longitude=user_lon,
+            zoom=DEFAULT_ZOOM,
+            pitch=DEFAULT_PITCH,
+            bearing=DEFAULT_BEARING
+        )
+        
+        # Create the deck
+        deck = pdk.Deck(
+            layers=[layer],
+            initial_view_state=view_state,
+            map_style='mapbox://styles/mapbox/light-v9',
+            tooltip={
+                'html': '{tooltip}',
+                'style': {
+                    'backgroundColor': 'white',
+                    'color': 'black',
+                    'fontSize': '0.8em',
+                    'padding': '10px',
+                    'whiteSpace': 'pre-line'
+                }
+            }
+        )
+        
+        return deck
+        
+    except Exception as e:
+        logger.error(f"Error creating PyDeck map: {str(e)}")
+        return None
 
 def create_responsive_layout(day_list):
     """Create a responsive layout for the application."""
@@ -289,29 +385,15 @@ def main():
                     # Create suggestions section first
                     create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast['display'])
                     
-                    # Initialize map centered on the location
-                    m = folium.Map(location=[lat, lon], zoom_start=12)
+                    # Add map header
+                    st.markdown("### 🗺️ Surf Spot Forecast Map")
                     
-                    # Add user location marker
-                    folium.Marker(
-                        [lat, lon],
-                        popup='Your Location',
-                        icon=folium.Icon(color='red', icon='home')
-                    ).add_to(m)
-                    
-                    # Add spot markers
-                    add_spot_markers(
-                        m=m,
-                        forecasts=st.session_state.forecasts,
-                        selected_day=selectbox_daily_forecast['display']
-                    )
-                    
-                    # Add map controls
-                    plugins.Fullscreen().add_to(m)
-                    Draw().add_to(m)
-                    
-                    # Display the map
-                    st_data = st_folium(m, width=1200, height=600)
+                    # Create and display PyDeck map
+                    deck = create_pydeck_map(st.session_state.forecasts, lat, lon)
+                    if deck:
+                        st.pydeck_chart(deck)
+                    else:
+                        st.error("Error creating map visualization")
                 else:
                     st.error("No surf spots found. Please try a different location.")
             except (ValueError, TypeError) as e:
@@ -319,6 +401,13 @@ def main():
                 st.error("Invalid coordinates received. Please try a different address.")
         else:
             st.error("Could not determine location coordinates. Please try a different address.")
+    else:
+        # Display default map centered on Paris
+        if st.session_state.forecasts:
+            st.markdown("### 🗺️ Surf Spot Forecast Map")
+            deck = create_pydeck_map(st.session_state.forecasts)
+            if deck:
+                st.pydeck_chart(deck)
 
 if __name__ == "__main__":
     main()
