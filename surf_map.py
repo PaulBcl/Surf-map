@@ -44,20 +44,31 @@ DEFAULT_BEARING = 0
 
 def get_spot_color(rating):
     """Get color for spot based on rating."""
-    if rating <= 2:
-        return [0, 255, 0, 200]  # Green
-    elif rating == 3:
-        return [255, 255, 0, 200]  # Yellow
-    else:
-        return [255, 0, 0, 200]  # Red
+    if rating >= 8:  # Best spots (green)
+        return [46, 204, 113, 200]
+    elif rating >= 6:  # Good spots (yellow-green)
+        return [241, 196, 15, 200]
+    elif rating >= 4:  # Average spots (orange)
+        return [230, 126, 34, 200]
+    else:  # Poor spots (red)
+        return [231, 76, 60, 200]
 
 def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LONGITUDE):
     """Create a PyDeck map with surf spots."""
     try:
+        # Sort forecasts by rating to identify top 3
+        sorted_forecasts = sorted(
+            forecasts,
+            key=lambda x: float(x.get('forecast', [{}])[0].get('daily_rating', 0) if x.get('forecast') else 0),
+            reverse=True
+        )
+        top_3_names = [spot['name'] for spot in sorted_forecasts[:3]]
+        
         # Prepare data for PyDeck
         map_data = []
         lats = []
         lons = []
+        
         for spot in forecasts:
             forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
             rating = forecast.get('daily_rating', 0)
@@ -70,6 +81,10 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             lats.append(lat)
             lons.append(lon)
             
+            # Determine if this is a top 3 spot
+            is_top_3 = spot['name'] in top_3_names
+            rank = top_3_names.index(spot['name']) + 1 if is_top_3 else None
+            
             map_data.append({
                 'name': spot.get('name', 'Unknown Spot'),
                 'latitude': lat,
@@ -78,7 +93,8 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
                 'type': spot.get('type', 'Unknown'),
                 'rating': rating,
                 'color': get_spot_color(rating),
-                'tooltip': f"{spot.get('name')}\n"
+                'radius': 1000 if is_top_3 else 600,  # Larger radius for top 3
+                'tooltip': f"{'🥇' if rank == 1 else '🥈' if rank == 2 else '🥉' if rank == 3 else ''} {spot.get('name')}\n"
                           f"Region: {spot.get('region')}\n"
                           f"Type: {spot.get('type')}\n"
                           f"Rating: {rating}/10\n"
@@ -92,14 +108,16 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
         # Calculate zoom level based on bounds
         lat_diff = max(lats) - min(lats) if lats else 0
         lon_diff = max(lons) - min(lons) if lons else 0
+        
+        # Adjust zoom calculation for better visibility
         zoom = min(
-            8,  # Max zoom out
+            11,  # Max zoom out
             max(
-                4,  # Min zoom out
+                8,  # Min zoom out
                 round(
                     min(
-                        -math.log2(lat_diff / 2) + 9,
-                        -math.log2(lon_diff / 2) + 9
+                        -math.log2(lat_diff) + 9.5,
+                        -math.log2(lon_diff) + 9.5
                     )
                 )
             )
@@ -114,15 +132,14 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             data=df,
             get_position=['longitude', 'latitude'],
             get_color='color',
-            get_radius=100,
+            get_radius='radius',
             pickable=True,
             opacity=0.8,
             stroked=True,
             filled=True,
-            radius_scale=6,
-            radius_min_pixels=5,
-            radius_max_pixels=15,
-            line_width_min_pixels=1
+            line_width_min_pixels=3,
+            line_width_scale=2,
+            get_line_color=[255, 255, 255, 200],  # White border
         )
         
         # Create the view state with calculated values
@@ -130,8 +147,8 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             latitude=center_lat,
             longitude=center_lon,
             zoom=zoom,
-            pitch=DEFAULT_PITCH,
-            bearing=DEFAULT_BEARING
+            pitch=0,
+            bearing=0
         )
         
         # Create the deck
