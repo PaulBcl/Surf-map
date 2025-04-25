@@ -135,83 +135,132 @@ IMPORTANT:
         return None
 
 @st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
-def get_cached_forecast_data(spot_name: str, spot_data: str, forecast_date: str) -> dict:
+def get_cached_gpt_response(spot_name: str, spot_data: str, forecast_date: str) -> dict:
     """
-    Cached wrapper for forecast data.
-    This function is used to cache the results of async calls.
-    Returns a dictionary containing the forecast data.
+    Cached wrapper for GPT API calls.
+    Returns the raw GPT response for caching.
     """
     try:
-        # Convert the spot_data string back to a dictionary
-        spot = json.loads(spot_data)
-        
-        # Get the current event loop or create a new one if none exists
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-        # Run the async function
-        try:
-            forecast = loop.run_until_complete(get_surf_forecast_async(spot))
-        except RuntimeError:
-            # If we're already in an event loop, create a new one
-            new_loop = asyncio.new_event_loop()
-            forecast = new_loop.run_until_complete(get_surf_forecast_async(spot))
-            new_loop.close()
-            
-        if forecast is None:
+        if not client:
+            logger.error("OpenAI client not initialized")
             return None
             
-        # Convert to a simple dict for caching
-        return {'forecast': forecast}
-        
+        spot = json.loads(spot_data)
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
+You provide accurate, realistic surf forecasts based on:
+- Location and regional patterns
+- Seasonal conditions
+- Local weather systems
+- Ocean and coastal dynamics"""},
+                {"role": "user", "content": f"""Generate a 7-day forecast for:
+Location: {spot.get('name', 'Unknown')}, {spot.get('region', 'Unknown')}
+Coordinates: {spot.get('latitude', 0)}, {spot.get('longitude', 0)}
+Type: {spot.get('type', 'Unknown')}
+Orientation: {spot.get('orientation', 'Unknown')}
+Best Season: {spot.get('best_season', 'Unknown')}
+
+Return forecast data in this format:
+{{
+      "forecast": [
+        {{
+      "date": "YYYY-MM-DD",
+      "wave_height_m": {{ "min": float, "max": float, "average": float }},
+      "wave_period_s": float,
+      "wave_energy_kj_m2": float,
+      "wind_speed_m_s": float,
+      "wind_direction": "direction",
+      "tide_state": "low/rising/high/falling",
+      "daily_rating": float
+    }}
+  ]
+}}
+
+IMPORTANT:
+- Provide realistic values based on current conditions and weather patterns
+- Consider seasonal patterns and local geography
+- All numeric values must be realistic and in metric units
+- Wind directions must be cardinal points (N, NE, E, SE, etc.)
+- Tide states must be one of: low/rising/high/falling
+- Daily rating must be between 0 and 10"""}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        return {'response': response.choices[0].message.content.strip()}
     except Exception as e:
-        logger.error(f"Error in cached forecast for {spot_name}: {str(e)}")
+        logger.error(f"Error getting GPT response for {spot_name}: {str(e)}")
         return None
 
-async def get_forecasts_batch(spots):
+def process_gpt_response(response_text: str, spot_name: str) -> list:
+    """Process the GPT response text into forecast data."""
+    try:
+        start_idx = response_text.find('{')
+        end_idx = response_text.rfind('}') + 1
+        if start_idx == -1 or end_idx <= start_idx:
+            logger.error(f"Invalid forecast format for {spot_name}")
+            return None
+            
+        forecast_data = json.loads(response_text[start_idx:end_idx])
+        if not isinstance(forecast_data, dict) or 'forecast' not in forecast_data:
+            logger.error(f"Missing forecast data for {spot_name}")
+            return None
+        
+        # Validate forecast data
+        for day_forecast in forecast_data['forecast']:
+            if not all(key in day_forecast for key in ['date', 'wave_height_m', 'wave_period_s', 'wind_speed_m_s', 'wind_direction', 'tide_state', 'daily_rating']):
+                logger.error(f"Missing required fields in forecast for {spot_name}")
+                return None
+            
+            wave_height = day_forecast['wave_height_m']
+            if not all(key in wave_height for key in ['min', 'max', 'average']):
+                logger.error(f"Invalid wave height format for {spot_name}")
+                return None
+        
+        return forecast_data['forecast']
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing forecast JSON for {spot_name}: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Error processing forecast for {spot_name}: {str(e)}")
+        return None
+
+def get_surf_forecast(spot):
     """
-    Process multiple spots concurrently with rate limiting.
+    Get surf forecast data for a spot using cached GPT responses.
+    """
+    try:
+        spot_data = json.dumps(spot)
+        cached_response = get_cached_gpt_response(
+            spot_name=spot['name'],
+            spot_data=spot_data,
+            forecast_date=datetime.now().strftime('%Y-%m-%d')
+        )
+        
+        if not cached_response:
+            return None
+            
+        return process_gpt_response(cached_response['response'], spot['name'])
+    except Exception as e:
+        logger.error(f"Error in forecast for {spot.get('name', 'Unknown')}: {str(e)}")
+        return None
+
+def get_forecasts_batch(spots):
+    """
+    Process multiple spots using cached responses.
     Returns a list of forecasts in the same order as the input spots.
     """
     forecasts = []
     for spot in spots:
         try:
-            # Convert spot to JSON string for caching
-            spot_data = json.dumps(spot)
-            # Get forecast using the cached wrapper
-            cached_data = get_cached_forecast_data(
-                spot_name=spot['name'],
-                spot_data=spot_data,
-                forecast_date=datetime.now().strftime('%Y-%m-%d')
-            )
-            
-            # Extract forecast from cached data
-            forecast = cached_data['forecast'] if cached_data else None
+            forecast = get_surf_forecast(spot)
             forecasts.append(forecast)
-            
         except Exception as e:
             logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
             forecasts.append(None)
     return forecasts
-
-def get_surf_forecast(spot):
-    """
-    Synchronous wrapper for backward compatibility.
-    """
-    try:
-        spot_data = json.dumps(spot)
-        cached_data = get_cached_forecast_data(
-            spot_name=spot['name'],
-            spot_data=spot_data,
-            forecast_date=datetime.now().strftime('%Y-%m-%d')
-        )
-        return cached_data['forecast'] if cached_data else None
-    except Exception as e:
-        logger.error(f"Error in sync forecast for {spot.get('name', 'Unknown')}: {str(e)}")
-        return None
 
 def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
     """
