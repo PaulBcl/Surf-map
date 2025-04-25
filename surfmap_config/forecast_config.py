@@ -37,7 +37,6 @@ async def get_surf_forecast_async(spot):
     """
     Async version of get_surf_forecast that gets surf forecast data for the next 7 days using ChatGPT.
     Returns None if no valid forecast can be generated.
-    Cached for 6 hours based on spot name and date.
     """
     try:
         if not async_client:
@@ -136,20 +135,58 @@ IMPORTANT:
         logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
         return None
 
+@st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
+def get_cached_forecast(spot_name: str, spot_data: str, forecast_date: str):
+    """
+    Cached wrapper for forecast data.
+    This function is used to cache the results of async calls.
+    """
+    try:
+        # Convert the spot_data string back to a dictionary
+        spot = json.loads(spot_data)
+        # Run the async function in a new event loop
+        forecast = asyncio.run(get_surf_forecast_async(spot))
+        return forecast
+    except Exception as e:
+        logger.error(f"Error in cached forecast for {spot_name}: {str(e)}")
+        return None
+
 async def get_forecasts_batch(spots):
     """
     Process multiple spots concurrently with rate limiting.
     Returns a list of forecasts in the same order as the input spots.
     """
-    tasks = [get_surf_forecast_async(spot) for spot in spots]
-    return await asyncio.gather(*tasks)
+    forecasts = []
+    for spot in spots:
+        try:
+            # Convert spot to JSON string for caching
+            spot_data = json.dumps(spot)
+            # Get forecast using the cached wrapper
+            forecast = get_cached_forecast(
+                spot_name=spot['name'],
+                spot_data=spot_data,
+                forecast_date=datetime.now().strftime('%Y-%m-%d')
+            )
+            forecasts.append(forecast)
+        except Exception as e:
+            logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
+            forecasts.append(None)
+    return forecasts
 
 def get_surf_forecast(spot):
     """
     Synchronous wrapper for backward compatibility.
-    Uses the async version internally.
     """
-    return asyncio.run(get_surf_forecast_async(spot))
+    try:
+        spot_data = json.dumps(spot)
+        return get_cached_forecast(
+            spot_name=spot['name'],
+            spot_data=spot_data,
+            forecast_date=datetime.now().strftime('%Y-%m-%d')
+        )
+    except Exception as e:
+        logger.error(f"Error in sync forecast for {spot.get('name', 'Unknown')}: {str(e)}")
+        return None
 
 def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
     """
