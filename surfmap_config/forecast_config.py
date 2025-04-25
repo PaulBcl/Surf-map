@@ -373,12 +373,20 @@ def get_conditions_analysis(spot: dict, date: str) -> str:
     Returns a GPT-generated analysis string.
     """
     try:
+        logger.info(f"[get_conditions_analysis] Starting for spot: {spot.get('name')} on date: {date}")
+        
         sg_forecasts = get_stormglass_forecast(spot)
+        logger.info(f"[get_conditions_analysis] Stormglass forecasts received: {json.dumps(sg_forecasts, indent=2) if sg_forecasts else None}")
+        
         if not sg_forecasts:
+            logger.warning(f"[get_conditions_analysis] No Stormglass forecast available for {spot.get('name')}")
             return "Stormglass forecast unavailable. Cannot generate analysis."
 
         forecast_for_day = next((f for f in sg_forecasts if f["date"] == date), None)
+        logger.info(f"[get_conditions_analysis] Forecast for day {date}: {json.dumps(forecast_for_day, indent=2) if forecast_for_day else None}")
+        
         if not forecast_for_day:
+            logger.warning(f"[get_conditions_analysis] No forecast found for date {date}")
             return "No forecast data available for this date. Please check back later or try a different day."
 
         context = f"""
@@ -402,7 +410,7 @@ Here is what you know about the spot:
 
 Here's the forecasted data from Stormglass for this day:
 - Swell height: {forecast_for_day['wave_height_m']} m
-- Swell direction: {forecast_for_day['wave_direction_deg']}°
+- Swell direction: {forecast_for_day.get('wave_direction_deg', 'N/A')}°
 - Wind speed: {forecast_for_day['wind_speed_m_s']} m/s
 - Wind direction: {degrees_to_cardinal(forecast_for_day['wind_direction_deg'])}
 - Tide level: {forecast_for_day.get('tide_height_m', 'N/A')} m
@@ -412,6 +420,7 @@ Give 1–2 surf tips if relevant (e.g., best tide, crowd notes, local insight).
 
 Your answer should be surfer-friendly but based on real analysis.
 """
+        logger.info(f"[get_conditions_analysis] GPT Context prepared for {spot.get('name')}")
 
         prompt = f"""Given the surf spot data and real forecast below, assess how good the conditions will be for surfers on {date}. Include local tips, potential issues, and whether it's worth going.
 Context:
@@ -419,6 +428,7 @@ Context:
 
 Return a short paragraph and end with a 1–5 quality score (e.g., "Overall: 4/5").
 """
+        logger.info(f"[get_conditions_analysis] Sending prompt to GPT for {spot.get('name')}")
 
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -427,11 +437,12 @@ Return a short paragraph and end with a 1–5 quality score (e.g., "Overall: 4/5
         )
 
         logger.info(f"[GPT Raw Output - {spot['name']} on {date}] {response.choices[0].message.content}")
+        logger.info(f"[get_conditions_analysis] GPT Response received for {spot.get('name')}")
 
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        logger.error(f"GPT analysis failed for {spot['name']} on {date}: {e}")
+        logger.error(f"[get_conditions_analysis] GPT analysis failed for {spot.get('name')} on {date}: {e}")
         return "Error generating analysis."
 
 def calculate_spot_rating(spot, forecast_conditions):
@@ -587,9 +598,13 @@ def get_quick_summary(spot, forecast):
     Cached for 6 hours based on spot name and forecast date.
     """
     try:
+        logger.info(f"[get_quick_summary] Starting for spot: {spot.get('name')} on date: {forecast.get('date')}")
+        logger.info(f"[get_quick_summary] Input forecast data: {json.dumps(forecast, indent=2)}")
+
         # Safely handle wind direction conversion
         wind_deg = forecast.get('wind_direction_deg')
         wind_cardinal = degrees_to_cardinal(wind_deg) if isinstance(wind_deg, (float, int)) else "Unknown"
+        logger.info(f"[get_quick_summary] Wind direction: {wind_deg} degrees -> {wind_cardinal}")
 
         context = f"""
 You're a surf forecaster.
@@ -605,6 +620,7 @@ Use the info below:
 
 Keep it to 1-2 sentences max, and be direct about whether it's good or not.
 """
+        logger.info(f"[get_quick_summary] GPT Context prepared: {context}")
 
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -613,11 +629,12 @@ Keep it to 1-2 sentences max, and be direct about whether it's good or not.
         )
 
         logger.info(f"[GPT Raw Output - {spot['name']} on {forecast['date']}] {response.choices[0].message.content}")
+        logger.info(f"[get_quick_summary] GPT Response received for {spot['name']}")
 
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        logger.error(f"Error generating quick summary for {spot['name']}: {str(e)}")
+        logger.error(f"[get_quick_summary] Error generating quick summary for {spot.get('name')}: {str(e)}")
         return "Summary not available."
 
 def load_forecast_data(address: str, day_list: list, coordinates: list) -> list:
@@ -678,29 +695,29 @@ def generate_forecast_for_spot(spot: dict, selected_date: str) -> list:
     """
     Generate a complete 7-day forecast for a spot by combining base forecast with conditions analysis.
     Only generates GPT analysis for the selected date to optimize API usage.
-    
-    Args:
-        spot (dict): The surf spot data dictionary containing location and characteristics
-        selected_date (str): The date to generate detailed analysis for (YYYY-MM-DD format)
-        
-    Returns:
-        list: A 7-day forecast list with each day enriched with conditions analysis and quick summary
     """
     try:
+        logger.info(f"[generate_forecast_for_spot] Starting for spot: {spot.get('name')} on date: {selected_date}")
+        
         # Get base 7-day forecast
         forecast_data = get_surf_forecast(spot)
+        logger.info(f"[generate_forecast_for_spot] Base forecast data: {json.dumps(forecast_data, indent=2) if forecast_data else None}")
+        
         if not forecast_data:
-            logger.error(f"Failed to get base forecast for {spot.get('name', 'Unknown')}")
+            logger.error(f"[generate_forecast_for_spot] Failed to get base forecast for {spot.get('name')}")
             return None
             
         # Get Stormglass data once for all days
         sg_forecasts = get_stormglass_forecast(spot)
+        logger.info(f"[generate_forecast_for_spot] Stormglass forecasts: {json.dumps(sg_forecasts, indent=2) if sg_forecasts else None}")
             
         # Enrich each day's forecast with analysis
         for day in forecast_data:
             try:
                 # Only generate GPT analysis for selected date
                 if day['date'] == selected_date:
+                    logger.info(f"[generate_forecast_for_spot] Processing selected date {selected_date} for {spot.get('name')}")
+                    
                     # Get Stormglass data for current date
                     forecast_for_day = next((f for f in sg_forecasts if f["date"] == day["date"]), None)
                     if forecast_for_day:
@@ -711,15 +728,22 @@ def generate_forecast_for_spot(spot: dict, selected_date: str) -> list:
                         # Check for unsuitable conditions before calling GPT
                         if (forecast_for_day['wave_height_m'] < 0.3 or 
                             forecast_for_day['wind_speed_m_s'] > 10):
+                            logger.info(f"[generate_forecast_for_spot] Unsuitable conditions detected for {spot.get('name')}")
                             day['conditions_analysis'] = "Conditions clearly unsuitable: too small or too windy."
                             day['quick_summary'] = "Not surfable today - waves too small or too windy."
                         else:
                             # Add conditions analysis
+                            logger.info(f"[generate_forecast_for_spot] Getting conditions analysis for {spot.get('name')}")
                             day['conditions_analysis'] = get_conditions_analysis(spot, day['date'])
                             # Add quick summary
+                            logger.info(f"[generate_forecast_for_spot] Getting quick summary for {spot.get('name')}")
                             day['quick_summary'] = get_quick_summary(spot, day)
+                            
+                            logger.info(f"[generate_forecast_for_spot] Analysis and summary added for {spot.get('name')}:")
+                            logger.info(f"Analysis: {day['conditions_analysis']}")
+                            logger.info(f"Summary: {day['quick_summary']}")
                     else:
-                        # Set N/A values if forecast for day is missing
+                        logger.warning(f"[generate_forecast_for_spot] No Stormglass data for {spot.get('name')} on {day['date']}")
                         day['wave_direction_deg'] = 'N/A'
                         day['wind_direction_deg'] = 'N/A'
                         day['conditions_analysis'] = None
@@ -739,14 +763,13 @@ def generate_forecast_for_spot(spot: dict, selected_date: str) -> list:
                     day['quick_summary'] = None
                 
             except Exception as e:
-                logger.error(f"Error enriching forecast for {spot.get('name', 'Unknown')} on {day.get('date', 'unknown')}: {str(e)}")
-                # Continue with next day even if one fails
+                logger.error(f"[generate_forecast_for_spot] Error enriching forecast for {spot.get('name')} on {day.get('date', 'unknown')}: {str(e)}")
                 continue
                 
         return forecast_data
         
     except Exception as e:
-        logger.error(f"Error in generate_forecast_for_spot for {spot.get('name', 'Unknown')}: {str(e)}")
+        logger.error(f"[generate_forecast_for_spot] Error for {spot.get('name', 'Unknown')}: {str(e)}")
         return None
 
 @st.cache_data(ttl=21600)  # Cache for 6 hours
