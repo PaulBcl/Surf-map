@@ -11,9 +11,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Hide default Streamlit spinner during cache
-st.set_option('server.displaySpinnerDuringCachedFunction', False)
-
 
 # Hide "Running..." messages
 st.cache_data.clear()
