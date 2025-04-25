@@ -118,6 +118,7 @@ def create_suggestions_section(forecasts, selected_day):
             rating = forecast.get('daily_rating', 0)
             distance = spot.get('distance_km', 0)
             conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
+            quick_summary = forecast.get('quick_summary', 'Summary not available')
             
             with st.container():
                 # Style the container with CSS
@@ -133,30 +134,27 @@ def create_suggestions_section(forecasts, selected_day):
                     <div class="spot-container"></div>
                 """, unsafe_allow_html=True)
                 
-                # Spot header
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"### {spot.get('name', 'Unknown Spot')}")
-                with col2:
-                    st.markdown(f"**Match:** {rating:.0f}/10 | **📍 Distance:** {distance:.1f} km")
+                # Spot name
+                st.markdown(f"### {spot.get('name', 'Unknown Spot')}")
                 
-                # Quick Summary section
-                st.markdown("##### Quick Summary")
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.markdown(f"🌬️ **Wind**  \n{forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s")
-                with col2:
-                    st.markdown(f"🌊 **Waves**  \n{wave_height.get('min', 0)}-{wave_height.get('max', 0)}m")
-                with col3:
-                    st.markdown(f"🌊↘ **Tide**  \n{forecast.get('tide_state', 'Unknown').title()}")
+                # Create two columns: left for summary, right for quick info
+                left_col, right_col = st.columns([2, 1])
                 
-                # Spot details
-                st.markdown(f"""
-                **Spot type:** {spot.get('type', 'Unknown')}  
-                **Best season:** {spot.get('best_season', 'Unknown')}
-                """)
+                with left_col:
+                    # Display the dedicated quick summary from the API
+                    st.markdown(quick_summary)
                 
-                # Pro Analysis in expander
+                with right_col:
+                    # Quick info in bullet points
+                    st.markdown(f"""
+                    - **Match:** {rating:.0f}/10
+                    - **Distance:** {distance:.1f} km
+                    - **Waves:** {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m
+                    - **Wind:** {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s
+                    - **Tide:** {forecast.get('tide_state', 'Unknown').title()}
+                    """)
+                
+                # Pro Analysis in expander below both columns
                 with st.expander("🔍 Pro Analysis"):
                     st.markdown(conditions_analysis)
                 

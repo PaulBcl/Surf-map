@@ -407,6 +407,41 @@ def get_spot_forecast(spot):
         logger.error(f"Error generating spot forecast for {spot.get('name', 'unknown')}: {str(e)}")
         return None
 
+def get_quick_summary(spot, forecast):
+    """
+    Generate a quick 1-2 sentence summary of why this spot is recommended today.
+    """
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a surf expert helping travelers quickly understand why a spot is good today. Provide a 1-2 sentence summary based on the following data."},
+                {"role": "user", "content": f"""Spot: {spot['name']} ({spot['region']})
+Current conditions for {forecast['date']}:
+- Waves: {forecast['wave_height_m']['min']}-{forecast['wave_height_m']['max']}m
+- Wind: {forecast['wind_direction']} @ {forecast['wind_speed_m_s']} m/s
+- Tide: {forecast['tide_state']}
+
+Spot characteristics:
+- Type: {spot['type']}
+- Best season: {spot['best_season']}
+- Difficulty: {', '.join(spot['difficulty'])}
+- Ideal swell: {spot['swell_compatibility']['ideal_swell_size_m']}m from {spot['swell_compatibility']['ideal_swell_direction']}
+- Best wind: {spot['wind_compatibility']['best_direction']}
+- Best tide: {spot['tide_behavior']['low']['note'] if spot['tide_behavior']['low']['quality'] >= 4 else spot['tide_behavior']['rising']['note']}
+
+Explain in 1-2 sentences why this spot is a good pick today based on these conditions."""}
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content.strip()
+
+    except Exception as e:
+        logger.error(f"Error generating quick summary for {spot['name']}: {str(e)}")
+        return "Summary not available."
+
 @st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour, hide spinner
 def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None, file_obj = None) -> list:
     """
@@ -471,15 +506,22 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                 
                 logger.info(f"Got valid forecast for {spot.get('name', 'Unknown')}")
                 
-                # Generate conditions analysis with correct date
+                # Generate conditions analysis and quick summary for top spots
                 try:
-                    conditions_analysis = get_conditions_analysis(spot, forecast[0])  # Pass the first day's forecast with updated date
+                    conditions_analysis = get_conditions_analysis(spot, forecast[0])
                     if conditions_analysis:
                         forecast[0]['conditions_analysis'] = conditions_analysis
-                    logger.info(f"Generated conditions analysis for {spot.get('name', 'Unknown')}")
+                    
+                    # Generate quick summary (will be used for top 3 spots)
+                    quick_summary = get_quick_summary(spot, forecast[0])
+                    if quick_summary:
+                        forecast[0]['quick_summary'] = quick_summary
+                        
+                    logger.info(f"Generated analysis and summary for {spot.get('name', 'Unknown')}")
                 except Exception as e:
-                    logger.error(f"Error generating conditions analysis for {spot.get('name', 'Unknown')}: {str(e)}")
+                    logger.error(f"Error generating analysis for {spot.get('name', 'Unknown')}: {str(e)}")
                     forecast[0]['conditions_analysis'] = "Unable to generate analysis."
+                    forecast[0]['quick_summary'] = "Summary not available."
                 
                 # Add forecast to spot data
                 spot_with_forecast = spot.copy()
