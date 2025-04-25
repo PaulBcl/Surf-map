@@ -292,31 +292,6 @@ def main():
     # Get forecast days
     day_list = forecast_config.get_dayList_forecast()
     
-    # Initialize session states if not exists
-    if 'forecasts' not in st.session_state:
-        st.session_state.forecasts = None
-    if 'surf_spots_data' not in st.session_state:
-        st.session_state.surf_spots_data = None
-    if 'uploaded_file' not in st.session_state:
-        st.session_state.uploaded_file = None
-    
-    # File uploader in sidebar
-    with st.sidebar:
-        st.header("Data Configuration")
-        uploaded_file = st.file_uploader("Upload custom surf spots data (JSON)", type=['json'])
-        
-        # Handle file upload changes
-        if uploaded_file is not None and uploaded_file != st.session_state.uploaded_file:
-            logger.info("New file uploaded, clearing session state")
-            st.session_state.uploaded_file = uploaded_file
-            st.session_state.surf_spots_data = None
-            st.session_state.forecasts = None
-        elif uploaded_file is None and st.session_state.uploaded_file is not None:
-            logger.info("File removed, clearing session state")
-            st.session_state.uploaded_file = None
-            st.session_state.surf_spots_data = None
-            st.session_state.forecasts = None
-    
     # Create responsive layout and get inputs
     (address, validation_button, option_forecast, option_prix, 
      option_distance_h, selectbox_daily_forecast, multiselect_pays, checkbox_choix_couleur) = create_responsive_layout(day_list)
@@ -344,21 +319,17 @@ def main():
             ).add_to(m)
             
             # Load and process forecasts
-            if st.session_state.forecasts is None:
-                with st.spinner('Loading surf spots...'):
-                    forecasts = forecast_config.load_forecast_data(
-                        address=address,
-                        day_list=day_list,
-                        coordinates=coordinates,
-                        file_obj=st.session_state.uploaded_file
-                    )
-                    st.session_state.forecasts = forecasts
+            forecasts = forecast_config.load_forecast_data(
+                address=address,
+                day_list=day_list,
+                coordinates=coordinates
+            )
             
-            if st.session_state.forecasts:
+            if forecasts:
                 # Add spot markers
                 add_spot_markers(
                     m=m,
-                    forecasts=st.session_state.forecasts,
+                    forecasts=forecasts,
                     selected_day=selectbox_daily_forecast,
                     color_by=checkbox_choix_couleur,
                     max_time=option_distance_h,
@@ -374,7 +345,7 @@ def main():
                 st_data = st_folium(m, width=1200, height=600)
                 
                 # Create suggestions section
-                create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast)
+                create_suggestions_section(forecasts, selectbox_daily_forecast)
             else:
                 st.error("No surf spots found. Please check your data file or try a different location.")
         else:
