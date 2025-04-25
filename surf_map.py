@@ -28,18 +28,6 @@ logger = logging.getLogger(__name__)
 if 'run_id' not in st.session_state:
     st.session_state.run_id = 0
 
-def get_user_location():
-    """Get user's current location using Streamlit's geolocation."""
-    try:
-        # Request location from user
-        location = st.experimental_get_user_location()
-        if location and location['coords']['latitude'] and location['coords']['longitude']:
-            return [location['coords']['latitude'], location['coords']['longitude']]
-        return None
-    except Exception as e:
-        logger.error(f"Error getting user location: {str(e)}")
-        return None
-
 def create_responsive_layout(day_list):
     """Create a responsive layout for the application."""
     # Welcome block - full width, simplified
@@ -212,18 +200,12 @@ def main():
     # Create responsive layout and get inputs
     address, selectbox_daily_forecast = create_responsive_layout(day_list)
     
-    # Get user's location
-    user_location = get_user_location()
-    
     # Process location and load data
     if address:
-        coordinates = None
-        if user_location:
-            coordinates = user_location
-        else:
-            coordinates = forecast_config.get_coordinates(address)
-            
-        if coordinates and len(coordinates) == 2:
+        # Get coordinates from address
+        coordinates = forecast_config.get_coordinates(address)
+        
+        if coordinates and coordinates[0] is not None and coordinates[1] is not None:
             try:
                 # Ensure coordinates are float values
                 lat, lon = float(coordinates[0]), float(coordinates[1])

@@ -29,9 +29,10 @@ def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
     Returns a tuple of (latitude, longitude) or (None, None) if geocoding fails.
     """
     try:
+        from . import api_config  # Import here to avoid circular imports
         result = api_config.get_google_results(address, api_config.gmaps_api_key)
-        if result['success']:
-            return result['latitude'], result['longitude']
+        if result.get('success'):
+            return result.get('latitude'), result.get('longitude')
         else:
             logger.error(f"Geocoding failed for address {address}: {result.get('error_message', 'Unknown error')}")
             return None, None
