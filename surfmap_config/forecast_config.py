@@ -211,28 +211,44 @@ def get_conditions_analysis(spot, forecast):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": """You are a surf spot analysis expert.
-You analyze how well forecasted conditions match a spot's known characteristics.
-Consider all aspects of the spot's behavior to rate the conditions."""},
-                {"role": "user", "content": f"""Analyze these forecasted conditions for {spot['name']}:
+                {"role": "system", "content": "You are a surf spot analysis expert who provides clear, concise assessments of surf conditions."},
+                {"role": "user", "content": f"""Analyze these forecasted conditions for {spot['name']} on {forecast['date']}:
 {json.dumps(forecast, indent=2)}
 
 Based on the spot's characteristics:
 Type: {spot['type']}
 Orientation: {spot['orientation']}
 Best Season: {spot['best_season']}
-Ideal Swell: {spot['swell_compatibility']['ideal_swell_size_m']}m from {spot['swell_compatibility']['ideal_swell_direction']}
-Best Wind: {spot['wind_compatibility']['best_direction']}
-Tide Behavior: {spot['tide_behavior']}
+Difficulty: {', '.join(spot['difficulty'])}
+Wave Description: {spot.get('wave_description', 'No description available')}
 
-Provide a detailed analysis explaining:
-1. How well the wind direction and speed match the spot's preferences
-2. Whether wave height and period are in the ideal range
-3. How the tide state affects the spot
-4. Overall suitability for surfing
-5. Any potential hazards or special considerations
+Swell Compatibility:
+- Ideal Size: {spot['swell_compatibility']['ideal_swell_size_m']}m
+- Best Direction: {spot['swell_compatibility']['ideal_swell_direction']}
+- Quality Rating: {spot['swell_compatibility']['quality']}/5
+- Notes: {spot['swell_compatibility'].get('notes', '')}
 
-Return a concise but informative analysis."""}
+Wind Compatibility:
+- Best Direction: {spot['wind_compatibility']['best_direction']}
+- Quality Rating: {spot['wind_compatibility']['quality']}/5
+- Notes: {spot['wind_compatibility'].get('notes', '')}
+
+Tide Behavior:
+Low: {spot['tide_behavior']['low'].get('note', '')} (Quality: {spot['tide_behavior']['low']['quality']}/5)
+Rising: {spot['tide_behavior']['rising'].get('note', '')} (Quality: {spot['tide_behavior']['rising']['quality']}/5)
+High: {spot['tide_behavior']['high'].get('note', '')} (Quality: {spot['tide_behavior']['high']['quality']}/5)
+Falling: {spot['tide_behavior']['falling'].get('note', '')} (Quality: {spot['tide_behavior']['falling']['quality']}/5)
+
+Local Tips: {spot.get('local_tips', '')}
+
+Explain:
+1. How well wind direction and speed match the spot's preferences.
+2. Whether wave height and period are in the ideal range.
+3. Tide behavior impact.
+4. Suitability for surfing (considering difficulty level).
+5. Brief mention of any hazards or local considerations.
+
+Use concise, user-friendly language."""}
             ],
             max_tokens=500,
             temperature=0.7
