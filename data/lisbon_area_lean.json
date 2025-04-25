@@ -41,6 +41,86 @@
       }
     },
     {
+      "name": "Costa da Caparica (CDS area)",
+      "latitude": 38.6450,
+      "longitude": -9.2370,
+      "region": "Almada",
+      "type": "beach break",
+      "orientation": "WSW",
+      "best_season": "Year-round (best in autumn/winter for swell)",
+      "difficulty": ["beginner", "intermediate", "advanced"],
+      "wave_description": "A 30 km stretch of sandy beach across the Tagus south bank – the most consistent surf zone for Lisbon’s surfers. The northern urban section, known as Caparica or CDS, has a series of jetties that shape multiple peaks. These peaks offer something for everyone: from fast low-tide lefts at Cova do Vapor and Praia do Rio to softer, mellow waves further south. It’s a playground of beachbreak waves that can handle a variety of conditions, though generally smaller and less powerful than Carcavelos.",
+      "access": "Just south of Lisbon (across the 25 de Abril bridge). Easily accessible by car (15–20 min from city), bus, or ferry+bus. Many parking lots along the coast (paid in summer near town). The “CDS” jetties area is near the town of Costa da Caparica; further south beaches accessed via a coastal road or mini-train in summer.",
+      "local_tips": "The jetties provide defined sandbanks – check between them for the best peak on a given day. Low tide produces hollow lefts at Cova do Vapor and by the first piers. Mid to high tide can be better in the central beaches. Pollution can be an issue near the river mouth (Vapor) after rains. In summer, smaller waves cater to surf schools (crowds of learners). If crowds in the town beaches are too much, just drive south along the coast – the further south, the fewer people and the more mellow the vibe (e.g. Praia da Rainha area offers quiet peaks).",
+      "surf_forecast_link": [
+        "https://www.surfline.com/surf-report/costa-da-caparica/584204204e65fad6a77090d0",
+        "https://magicseaweed.com/Costa-Da-Caparica-Surf-Report/2774/"
+      ],
+      "nearby_lodging": "Gota d'Agua Surf Camp (Caparica, €30–€80/night with breakfast)",
+      "gear_rental": "Caparica Surf Center – ~€15 half-day board+wetsuit",
+      "tide_behavior": {
+        "low":    { "quality": 4, "note": "Many spots work even at low tide. Low tide reveals faster waves, especially the lefts at Cova do Vapor and by the first jetty (often hollow and punchy)." },
+        "rising": { "quality": 5, "note": "Mid tide incoming is typically best – waves still have shape but with a bit more slope, peaks become more defined around the jetties." },
+        "high":   { "quality": 3, "note": "Some spots can be fat at full high, especially between groynes where water deepens. Northernmost jetties might still break at high with smaller, clean peelers." },
+        "falling":{ "quality": 5, "note": "Mid tide dropping is also excellent. The sandbanks are well-covered and waves often peak nicely between the jetties, offering both lefts and rights." }
+      },
+      "wind_compatibility": {
+        "best_direction": "NE",
+        "quality": 4,
+        "notes": "Northeast (offshore) is ideal, which is common in the mornings. Caparica is prone to onshore winds by afternoon (NW seabreeze), but the jetties provide slight wind protection. Moderate N winds are side-offshore and manageable. Strong S/SW winds ruin it."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "NW",
+        "ideal_swell_size_m": [1, 2.5],
+        "quality": 5,
+        "notes": "Picks up swell from SW to NW. NW swells wrap into the beach reliably. An ideal day might be a 1.5m NW swell with 12s period, making chest- to head-high peaks up and down the coast. Larger swells (2–3m) still break but tend to close out less between jetties, requiring searching for corners or going to more open stretches with angle."
+      },
+      "crowd_pressure": {
+        "quality": 4,
+        "notes": "Being Lisbon’s “overflow” surf area, Caparica gets crowded, especially at the easily accessible town beaches. The northernmost peaks (São João, Vapor) can be localized and busy. However, the long stretch means you can always find a less crowded peak if you’re willing to walk or drive south. In summer, expect many surf schools in the water (lots of beginners). Overall crowd pressure is high near town and moderate further away."
+      }
+    },
+    {
+      "name": "Praia de Carcavelos",
+      "latitude": 38.6798,
+      "longitude": -9.3353,
+      "region": "Carcavelos (Cascais)",
+      "type": "beach break",
+      "orientation": "SW",
+      "best_season": "Autumn & Winter",
+      "difficulty": ["beginner", "intermediate", "advanced"],
+      "wave_description": "The original and still one of the best Portuguese surf spots. Carcavelos is a legendary beachbreak offering fast, often barreling peaks over shifting sandbars. Beside the fort at the eastern end, cylindrical lefts are the trademark, with occasional rights on offer. Highly consistent and capable of world-class waves, especially on winter swells, it’s a go-to spot for surfers of all levels (small days are friendly; big days produce heavy barrels).",
+      "access": "Located 20 km west of Lisbon city center. Very accessible: Carcavelos train station is ~10 min walk. Large parking lots (paid in summer). Beach has multiple access points along a promenade.",
+      "local_tips": "Works on virtually all tides and is surfable almost year-round (flat only in high summer). Best on a clean mid-sized swell from SW or W for those classic tubes. Can close out when the swell gets too large ( >2.5m). Expect crowds; dawn patrol or less popular peaks toward the west end can be slightly less crowded. Full facilities on site (showers, board rentals, cafes) – but note parking fees and watch for petty theft in the car park.",
+      "surf_forecast_link": [
+        "https://www.surfline.com/surf-report/carcavelos/5901ac0d0d94c40001b4b175",
+        "https://magicseaweed.com/Carcavelos-Surf-Report/74/"
+      ],
+      "nearby_lodging": "Carcavelos Surf Hostel (budget hostel, €20–€40/night)",
+      "gear_rental": "Angels Surf School (on beach) – ~€15–€20 for board and wetsuit",
+      "tide_behavior": {
+        "low":    { "quality": 4, "note": "Low tide frequently produces hollow, fast waves, especially the lefts near the fort. Can be a bit dumpy on smaller swells." },
+        "rising": { "quality": 5, "note": "Mid tide (rising or falling) is ideal – the sandbars work perfectly, offering open shoulders and barrel sections." },
+        "high":   { "quality": 4, "note": "Still surfable and often still good; waves break closer to shore with slightly less punch, but beginners find high tide waves more forgiving." },
+        "falling":{ "quality": 5, "note": "Mid-outgoing remains excellent on a good swell. Barrels often reform on the inside as the tide drains." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N/NE",
+        "quality": 5,
+        "notes": "Carcavelos is best with the prevailing northerly winds which blow offshore here. A light NE wind is also offshore. It’s very sensitive to onshore winds – any south or SW wind will chop it up. Mornings often have calm or offshore conditions (sea breezes tend to pick up from NW later in day)."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "SW",
+        "ideal_swell_size_m": [1, 3],
+        "quality": 5,
+        "notes": "Prefers swells from WSW/SW which roll directly into the bay, lighting up the sandbanks. NW swells also work (with slightly smaller wave heights due to shadowing). Ideal size is 1–2.5 m: at that size, Carcavelos delivers its famous makeable barrels. Bigger swells (3m+) will still break (it’s one of Europe’s top beachbreaks along with Supertubos), but expect heavy closeouts between the better peaks."
+      },
+      "crowd_pressure": {
+        "quality": 5,
+        "notes": "Always crowded when there are waves. As Lisbon’s most popular spot and a consistent wave, Carcavelos draws a crowd from dawn till dusk – everyone from local groms to traveling surfers. There is some localism on the prime peak by the fort, but generally it’s an international crowd and relatively mellow vibe given the numbers. Still, competition for waves is high, especially on prime days."
+      }
+    },
+    {
       "name": "Praia Grande",
       "latitude": 38.8145,
       "longitude": -9.4786,
