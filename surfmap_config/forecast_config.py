@@ -429,6 +429,16 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
                 
                 logger.info(f"Got valid forecast for {spot.get('name', 'Unknown')}")
                 
+                # Generate conditions analysis
+                try:
+                    conditions_analysis = get_conditions_analysis(spot, forecast[0])  # Pass the first day's forecast
+                    if conditions_analysis:
+                        forecast[0]['conditions_analysis'] = conditions_analysis
+                    logger.info(f"Generated conditions analysis for {spot.get('name', 'Unknown')}")
+                except Exception as e:
+                    logger.error(f"Error generating conditions analysis for {spot.get('name', 'Unknown')}: {str(e)}")
+                    forecast[0]['conditions_analysis'] = "Unable to generate analysis."
+                
                 # Add forecast to spot data
                 spot_with_forecast = spot.copy()
                 spot_with_forecast['forecast'] = forecast
