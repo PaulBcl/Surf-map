@@ -1,2 +1,3 @@
-from . import forecast_config
-from . import api_config 
+from .forecast_config import *
+from .api_config import *
+from .displaymap_config import * 
