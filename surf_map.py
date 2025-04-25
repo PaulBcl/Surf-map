@@ -12,7 +12,6 @@ st.set_page_config(
 )
 
 # Hide all Streamlit's default messages
-st.set_option('server.showLoadingSpinner', False)
 st.set_option('server.showWarning', False)
 st.set_option('server.displaySpinnerDuringCachedFunction', False)  # Hide cache execution messages
 
