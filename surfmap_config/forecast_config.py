@@ -4,51 +4,44 @@
 import streamlit as st
 import logging
 import openai
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 import ast
 import os
 import time
+import asyncio
+import httpx
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client
+# Initialize OpenAI clients
 try:
     client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-    logger.info("OpenAI client initialized successfully")
+    async_client = AsyncOpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    logger.info("OpenAI clients initialized successfully")
 except Exception as e:
-    logger.error(f"Error initializing OpenAI client: {str(e)}")
+    logger.error(f"Error initializing OpenAI clients: {str(e)}")
     client = None
+    async_client = None
 
-def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
-    """
-    Convert an address to coordinates using Google Maps Geocoding API.
-    Returns a tuple of (latitude, longitude) or (None, None) if geocoding fails.
-    """
-    try:
-        from . import api_config  # Import here to avoid circular imports
-        result = api_config.get_google_results(address, api_config.gmaps_api_key)
-        if result.get('success'):
-            return result.get('latitude'), result.get('longitude')
-        else:
-            logger.error(f"Geocoding failed for address {address}: {result.get('error_message', 'Unknown error')}")
-            return None, None
-    except Exception as e:
-        logger.error(f"Error geocoding address {address}: {str(e)}")
-        return None, None
+# Create a semaphore to limit concurrent API calls
+MAX_CONCURRENT_CALLS = 5
+semaphore = asyncio.Semaphore(MAX_CONCURRENT_CALLS)
 
-def get_surf_forecast(spot):
+@st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
+async def get_surf_forecast_async(spot):
     """
-    Get surf forecast data for the next 7 days using ChatGPT.
+    Async version of get_surf_forecast that gets surf forecast data for the next 7 days using ChatGPT.
     Returns None if no valid forecast can be generated.
+    Cached for 6 hours based on spot name and date.
     """
     try:
-        if not client:
-            logger.error("OpenAI client not initialized")
+        if not async_client:
+            logger.error("Async OpenAI client not initialized")
             return None
             
         today = datetime.now()
@@ -60,17 +53,19 @@ def get_surf_forecast(spot):
             day = today + timedelta(days=i)
             days.append(day)
         
-        # Get GPT-generated forecast
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
+        # Use semaphore to limit concurrent API calls
+        async with semaphore:
+            # Get GPT-generated forecast
+            response = await async_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
 You provide accurate, realistic surf forecasts based on:
 - Location and regional patterns
 - Seasonal conditions
 - Local weather systems
 - Ocean and coastal dynamics"""},
-                {"role": "user", "content": f"""Generate a 7-day forecast for:
+                    {"role": "user", "content": f"""Generate a 7-day forecast for:
 Location: {spot.get('name', 'Unknown')}, {spot.get('region', 'Unknown')}
 Coordinates: {spot.get('latitude', 0)}, {spot.get('longitude', 0)}
 Type: {spot.get('type', 'Unknown')}
@@ -100,10 +95,10 @@ IMPORTANT:
 - Wind directions must be cardinal points (N, NE, E, SE, etc.)
 - Tide states must be one of: low/rising/high/falling
 - Daily rating must be between 0 and 10"""}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
+                ],
+                max_tokens=1000,
+                temperature=0.7
+            )
         
         # Parse the GPT forecast
         forecast_str = response.choices[0].message.content.strip()
@@ -140,6 +135,38 @@ IMPORTANT:
     except Exception as e:
         logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
         return None
+
+async def get_forecasts_batch(spots):
+    """
+    Process multiple spots concurrently with rate limiting.
+    Returns a list of forecasts in the same order as the input spots.
+    """
+    tasks = [get_surf_forecast_async(spot) for spot in spots]
+    return await asyncio.gather(*tasks)
+
+def get_surf_forecast(spot):
+    """
+    Synchronous wrapper for backward compatibility.
+    Uses the async version internally.
+    """
+    return asyncio.run(get_surf_forecast_async(spot))
+
+def get_coordinates(address: str) -> Tuple[Optional[float], Optional[float]]:
+    """
+    Convert an address to coordinates using Google Maps Geocoding API.
+    Returns a tuple of (latitude, longitude) or (None, None) if geocoding fails.
+    """
+    try:
+        from . import api_config  # Import here to avoid circular imports
+        result = api_config.get_google_results(address, api_config.gmaps_api_key)
+        if result.get('success'):
+            return result.get('latitude'), result.get('longitude')
+        else:
+            logger.error(f"Geocoding failed for address {address}: {result.get('error_message', 'Unknown error')}")
+            return None, None
+    except Exception as e:
+        logger.error(f"Error geocoding address {address}: {str(e)}")
+        return None, None
 
 def analyze_spot_conditions(spot, all_forecasts):
     """
@@ -204,9 +231,11 @@ def analyze_spot_conditions(spot, all_forecasts):
         logger.error(f"Error analyzing spot conditions for {spot['name']}: {str(e)}")
         return []
 
+@st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
 def get_conditions_analysis(spot, forecast):
     """
     Generate a detailed analysis of how well the forecasted conditions match the spot's characteristics.
+    Cached for 6 hours based on spot name and forecast date.
     """
     try:
         response = client.chat.completions.create(
@@ -407,9 +436,11 @@ def get_spot_forecast(spot):
         logger.error(f"Error generating spot forecast for {spot.get('name', 'unknown')}: {str(e)}")
         return None
 
+@st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
 def get_quick_summary(spot, forecast):
     """
     Generate a quick 1-2 sentence summary of why this spot is recommended today.
+    Cached for 6 hours based on spot name and forecast date.
     """
     try:
         response = client.chat.completions.create(
@@ -483,83 +514,88 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
             except (ValueError, IndexError) as e:
                 logger.warning(f"Could not parse date from day_list, using today: {e}")
         
-        # Process each spot
+        # Process spots in batches
         processed_spots = []
-        for i, spot in enumerate(spots):
-            try:
-                # Update progress
-                current_progress = (i + 1) / total_spots
-                progress_bar.progress(current_progress)
-                status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{total_spots})")
-                
-                logger.info(f"Processing spot: {spot.get('name', 'Unknown')}")
-                
-                # Get forecast data using GPT
-                forecast = get_surf_forecast(spot)
-                if not forecast:
-                    logger.warning(f"No valid forecast data for {spot.get('name', 'Unknown')}, skipping")
-                    continue
-                
-                # Update the forecast date to match selected date
-                if forecast and len(forecast) > 0:
-                    forecast[0]['date'] = selected_date.strftime('%Y-%m-%d')
-                
-                logger.info(f"Got valid forecast for {spot.get('name', 'Unknown')}")
-                
-                # Generate conditions analysis and quick summary for top spots
+        try:
+            # Get forecasts for all spots concurrently
+            status_text.text("Fetching forecasts for all spots...")
+            forecasts = asyncio.run(get_forecasts_batch(spots))
+            
+            # Process the results
+            for i, (spot, forecast) in enumerate(zip(spots, forecasts)):
                 try:
-                    conditions_analysis = get_conditions_analysis(spot, forecast[0])
-                    if conditions_analysis:
-                        forecast[0]['conditions_analysis'] = conditions_analysis
+                    # Update progress
+                    current_progress = (i + 1) / total_spots
+                    progress_bar.progress(current_progress)
+                    status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{total_spots})")
                     
-                    # Generate quick summary (will be used for top 3 spots)
-                    quick_summary = get_quick_summary(spot, forecast[0])
-                    if quick_summary:
-                        forecast[0]['quick_summary'] = quick_summary
-                        
-                    logger.info(f"Generated analysis and summary for {spot.get('name', 'Unknown')}")
-                except Exception as e:
-                    logger.error(f"Error generating analysis for {spot.get('name', 'Unknown')}: {str(e)}")
-                    forecast[0]['conditions_analysis'] = "Unable to generate analysis."
-                    forecast[0]['quick_summary'] = "Summary not available."
-                
-                # Add forecast to spot data
-                spot_with_forecast = spot.copy()
-                spot_with_forecast['forecast'] = forecast
-                
-                # Calculate distance if coordinates provided
-                if coordinates:
-                    from math import radians, sin, cos, sqrt, atan2
-                    
-                    def haversine_distance(lat1, lon1, lat2, lon2):
-                        R = 6371  # Earth's radius in kilometers
-                        
-                        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-                        dlat = lat2 - lat1
-                        dlon = lon2 - lon1
-                        
-                        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-                        c = 2 * atan2(sqrt(a), sqrt(1-a))
-                        distance = R * c
-                        
-                        return round(distance, 1)
-                    
-                    try:
-                        distance = haversine_distance(
-                            coordinates[0], coordinates[1],
-                            float(spot['latitude']), float(spot['longitude'])
-                        )
-                        logger.info(f"Distance to {spot.get('name', 'Unknown')}: {distance} km")
-                        spot_with_forecast['distance_km'] = distance
-                    except Exception as e:
-                        logger.error(f"Error calculating distance for {spot.get('name', 'Unknown')}: {str(e)}")
+                    if not forecast:
+                        logger.warning(f"No valid forecast data for {spot.get('name', 'Unknown')}, skipping")
                         continue
-                
-                processed_spots.append(spot_with_forecast)
-                
-            except Exception as e:
-                logger.error(f"Error processing spot: {str(e)}")
-                continue
+                    
+                    # Update the forecast date to match selected date
+                    if forecast and len(forecast) > 0:
+                        forecast[0]['date'] = selected_date.strftime('%Y-%m-%d')
+                    
+                    logger.info(f"Got valid forecast for {spot.get('name', 'Unknown')}")
+                    
+                    # Generate conditions analysis and quick summary for top spots
+                    try:
+                        conditions_analysis = get_conditions_analysis(spot, forecast[0])
+                        if conditions_analysis:
+                            forecast[0]['conditions_analysis'] = conditions_analysis
+                        
+                        # Generate quick summary (will be used for top 3 spots)
+                        quick_summary = get_quick_summary(spot, forecast[0])
+                        if quick_summary:
+                            forecast[0]['quick_summary'] = quick_summary
+                            
+                        logger.info(f"Generated analysis and summary for {spot.get('name', 'Unknown')}")
+                    except Exception as e:
+                        logger.error(f"Error generating analysis for {spot.get('name', 'Unknown')}: {str(e)}")
+                        forecast[0]['conditions_analysis'] = "Unable to generate analysis."
+                        forecast[0]['quick_summary'] = "Summary not available."
+                    
+                    # Add forecast to spot data
+                    spot_with_forecast = spot.copy()
+                    spot_with_forecast['forecast'] = forecast
+                    
+                    # Calculate distance if coordinates provided
+                    if coordinates:
+                        from math import radians, sin, cos, sqrt, atan2
+                        
+                        def haversine_distance(lat1, lon1, lat2, lon2):
+                            R = 6371  # Earth's radius in kilometers
+                            
+                            lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+                            dlat = lat2 - lat1
+                            dlon = lon2 - lon1
+                            
+                            a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+                            c = 2 * atan2(sqrt(a), sqrt(1-a))
+                            distance = R * c
+                            
+                            return round(distance, 1)
+                        
+                        try:
+                            distance = haversine_distance(
+                                coordinates[0], coordinates[1],
+                                float(spot['latitude']), float(spot['longitude'])
+                            )
+                            logger.info(f"Distance to {spot.get('name', 'Unknown')}: {distance} km")
+                            spot_with_forecast['distance_km'] = distance
+                        except Exception as e:
+                            logger.error(f"Error calculating distance for {spot.get('name', 'Unknown')}: {str(e)}")
+                            continue
+                    
+                    processed_spots.append(spot_with_forecast)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing spot: {str(e)}")
+                    continue
+            
+        except Exception as e:
+            logger.error(f"Error in batch processing: {str(e)}")
         
         # Final status update
         if processed_spots:
