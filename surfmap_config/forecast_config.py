@@ -78,8 +78,8 @@ Best Season: {spot.get('best_season', 'Unknown')}
 
 Return forecast data in this format:
 {{
-  "forecast": [
-    {{
+      "forecast": [
+        {{
       "date": "YYYY-MM-DD",
       "wave_height_m": {{ "min": float, "max": float, "average": float }},
       "wave_period_s": float,
@@ -282,49 +282,73 @@ def calculate_spot_rating(spot, forecast_conditions):
         logger.error(f"Error calculating rating for {spot['name']}: {str(e)}")
         return 0.0
 
-def load_lisbon_spots():
-    """Load surf spots from the Lisbon area JSON file."""
+def load_lisbon_spots(file_obj=None):
+    """
+    Load surf spots from the Lisbon area JSON file.
+    Args:
+        file_obj: Optional file-like object from st.file_uploader
+    """
     try:
-        # Get the directory containing this script
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        logger.info(f"Current script directory: {current_dir}")
-        
-        # Go up one level to the project root
-        project_root = os.path.dirname(current_dir)
-        logger.info(f"Project root directory: {project_root}")
-        
-        # Construct the path to the JSON file
-        json_path = os.path.join(project_root, 'lisbon_area.json')
-        logger.info(f"Looking for JSON file at: {json_path}")
-        
-        # Check if file exists
-        if not os.path.exists(json_path):
-            logger.error(f"JSON file not found at: {json_path}")
-            return []
-            
-        logger.info(f"Loading spots from: {json_path}")
-        with open(json_path, 'r', encoding='utf-8') as f:
-            file_content = f.read()
-            logger.info(f"File content length: {len(file_content)} bytes")
+        # Check if data is already in session state
+        if 'surf_spots_data' in st.session_state and st.session_state.surf_spots_data is not None:
+            logger.info("Loading spots from session state")
+            return st.session_state.surf_spots_data
+
+        if file_obj is not None:
+            # Handle file uploader object
+            logger.info("Loading spots from uploaded file")
             try:
-                data = json.loads(file_content)
-                logger.info(f"JSON structure keys: {list(data.keys())}")
-                spots = data.get('spots', [])
-                logger.info(f"Number of spots found: {len(spots)}")
-                if not spots:
-                    logger.error("No spots found in JSON data")
+                file_content = file_obj.getvalue().decode('utf-8')
+            except UnicodeDecodeError:
+                logger.error("File encoding error - trying with different encodings")
+                try:
+                    file_content = file_obj.getvalue().decode('latin-1')
+                except:
+                    logger.error("Failed to decode file content")
                     return []
-                # Log first spot as example
-                if spots:
-                    logger.info(f"Example spot data: {json.dumps(spots[0], indent=2)}")
-                logger.info(f"Successfully loaded {len(spots)} spots")
-                return spots
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decode error: {str(e)}")
-                # Log the problematic part of the JSON
-                error_context = file_content[max(0, e.pos-50):min(len(file_content), e.pos+50)]
-                logger.error(f"Error context: ...{error_context}...")
+        else:
+            # Load from default data file
+            try:
+                # Use streamlit's working directory
+                json_path = os.path.join("data", "lisbon_area.json")
+                logger.info(f"Looking for JSON file at: {json_path}")
+                
+                # Ensure data directory exists
+                os.makedirs("data", exist_ok=True)
+                
+                if not os.path.exists(json_path):
+                    logger.error(f"JSON file not found at: {json_path}")
+                    return []
+                
+                logger.info(f"Loading spots from: {json_path}")
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+            except Exception as e:
+                logger.error(f"Error reading file: {str(e)}")
                 return []
+
+        logger.info(f"File content length: {len(file_content)} bytes")
+        try:
+            data = json.loads(file_content)
+            logger.info(f"JSON structure keys: {list(data.keys())}")
+            spots = data.get('spots', [])
+            logger.info(f"Number of spots found: {len(spots)}")
+            
+            if not spots:
+                logger.error("No spots found in JSON data")
+                return []
+            
+            # Store in session state
+            st.session_state.surf_spots_data = spots
+            logger.info(f"Successfully loaded {len(spots)} spots")
+            return spots
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {str(e)}")
+            error_context = file_content[max(0, e.pos-50):min(len(file_content), e.pos+50)]
+            logger.error(f"Error context: ...{error_context}...")
+            return []
+
     except Exception as e:
         logger.error(f"Error loading Lisbon spots: {str(e)}")
         return []
@@ -367,17 +391,24 @@ def get_spot_forecast(spot):
         return None
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None) -> list:
+def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None, file_obj = None) -> list:
     """
     Load forecast data for surf spots in the Lisbon area.
     Only returns spots that have valid forecast data.
+    Args:
+        address: Optional address string
+        day_list: Optional list of days
+        coordinates: Optional [lat, lon] coordinates
+        file_obj: Optional file-like object from st.file_uploader
+    Returns:
+        list: List of processed spots with forecasts
     """
     try:
         logger.info("Starting to load forecast data")
         logger.info(f"Input - Address: {address}, Coordinates: {coordinates}")
         
         # Load Lisbon spots
-        spots = load_lisbon_spots()
+        spots = load_lisbon_spots(file_obj)
         if not spots:
             logger.error("No spots found in Lisbon area data")
             return []
@@ -435,10 +466,10 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
             except Exception as e:
                 logger.error(f"Error processing spot: {str(e)}")
                 continue
-        
+                
         logger.info(f"Successfully processed {len(processed_spots)} spots")
         return processed_spots
-        
+            
     except Exception as e:
         logger.error(f"Error loading forecast data: {str(e)}")
         return []
@@ -446,8 +477,8 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
 def get_dayList_forecast():
     """Get list of forecast days."""
     today = datetime.now()
-    days = []
-    for i in range(7):
-        day = today + timedelta(days=i)
+        days = []
+        for i in range(7):
+            day = today + timedelta(days=i)
         days.append(day.strftime('%A %d').replace('0', ' ').lstrip())
-    return days
+        return days

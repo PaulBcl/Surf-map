@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Your rule content
+
+Never delete existing feature or content if you're debugging. You should solely focus on understanding the mistake in the code, correct it, and verify that the modification is consistent with other files and there is does not create other issues 
