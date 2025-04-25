@@ -145,13 +145,21 @@ def get_cached_forecast_data(spot_name: str, spot_data: str, forecast_date: str)
         # Convert the spot_data string back to a dictionary
         spot = json.loads(spot_data)
         
-        # Create event loop and run async function
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Get the current event loop or create a new one if none exists
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+        # Run the async function
         try:
             forecast = loop.run_until_complete(get_surf_forecast_async(spot))
-        finally:
-            loop.close()
+        except RuntimeError:
+            # If we're already in an event loop, create a new one
+            new_loop = asyncio.new_event_loop()
+            forecast = new_loop.run_until_complete(get_surf_forecast_async(spot))
+            new_loop.close()
             
         if forecast is None:
             return None
