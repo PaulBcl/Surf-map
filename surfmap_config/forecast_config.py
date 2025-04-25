@@ -369,7 +369,7 @@ def get_spot_forecast(spot):
         return None
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None, file_obj = None) -> list:
+def load_forecast_data(address: str = None, day_list: list = None, coordinates: list = None) -> list:
     """
     Load forecast data for surf spots in the Lisbon area.
     Only returns spots that have valid forecast data.
@@ -377,7 +377,6 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         address: Optional address string
         day_list: Optional list of days
         coordinates: Optional [lat, lon] coordinates
-        file_obj: Optional file-like object from st.file_uploader
     Returns:
         list: List of processed spots with forecasts
     """
@@ -386,7 +385,7 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         logger.info(f"Input - Address: {address}, Coordinates: {coordinates}")
         
         # Load Lisbon spots
-        spots = load_lisbon_spots(file_obj)
+        spots = load_lisbon_spots()
         if not spots:
             logger.error("No spots found in Lisbon area data")
             return []
