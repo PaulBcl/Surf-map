@@ -32,7 +32,6 @@ except Exception as e:
 MAX_CONCURRENT_CALLS = 5
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_CALLS)
 
-@st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
 async def get_surf_forecast_async(spot):
     """
     Async version of get_surf_forecast that gets surf forecast data for the next 7 days using ChatGPT.
@@ -136,17 +135,30 @@ IMPORTANT:
         return None
 
 @st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
-def get_cached_forecast(spot_name: str, spot_data: str, forecast_date: str):
+def get_cached_forecast_data(spot_name: str, spot_data: str, forecast_date: str) -> dict:
     """
     Cached wrapper for forecast data.
     This function is used to cache the results of async calls.
+    Returns a dictionary containing the forecast data.
     """
     try:
         # Convert the spot_data string back to a dictionary
         spot = json.loads(spot_data)
-        # Run the async function in a new event loop
-        forecast = asyncio.run(get_surf_forecast_async(spot))
-        return forecast
+        
+        # Create event loop and run async function
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            forecast = loop.run_until_complete(get_surf_forecast_async(spot))
+        finally:
+            loop.close()
+            
+        if forecast is None:
+            return None
+            
+        # Convert to a simple dict for caching
+        return {'forecast': forecast}
+        
     except Exception as e:
         logger.error(f"Error in cached forecast for {spot_name}: {str(e)}")
         return None
@@ -162,12 +174,16 @@ async def get_forecasts_batch(spots):
             # Convert spot to JSON string for caching
             spot_data = json.dumps(spot)
             # Get forecast using the cached wrapper
-            forecast = get_cached_forecast(
+            cached_data = get_cached_forecast_data(
                 spot_name=spot['name'],
                 spot_data=spot_data,
                 forecast_date=datetime.now().strftime('%Y-%m-%d')
             )
+            
+            # Extract forecast from cached data
+            forecast = cached_data['forecast'] if cached_data else None
             forecasts.append(forecast)
+            
         except Exception as e:
             logger.error(f"Error getting forecast for {spot.get('name', 'Unknown')}: {str(e)}")
             forecasts.append(None)
@@ -179,11 +195,12 @@ def get_surf_forecast(spot):
     """
     try:
         spot_data = json.dumps(spot)
-        return get_cached_forecast(
+        cached_data = get_cached_forecast_data(
             spot_name=spot['name'],
             spot_data=spot_data,
             forecast_date=datetime.now().strftime('%Y-%m-%d')
         )
+        return cached_data['forecast'] if cached_data else None
     except Exception as e:
         logger.error(f"Error in sync forecast for {spot.get('name', 'Unknown')}: {str(e)}")
         return None
