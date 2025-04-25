@@ -476,8 +476,8 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
 def get_dayList_forecast():
     """Get list of forecast days."""
     today = datetime.now()
-        days = []
-        for i in range(7):
-            day = today + timedelta(days=i)
+    days = []
+    for i in range(7):
+        day = today + timedelta(days=i)
         days.append(day.strftime('%A %d').replace('0', ' ').lstrip())
-        return days
+    return days
