@@ -426,6 +426,8 @@ Return a short paragraph and end with a 1–5 quality score (e.g., "Overall: 4/5
             temperature=0.5,
         )
 
+        logger.info(f"[GPT Raw Output - {spot['name']} on {date}] {response.choices[0].message.content}")
+
         return response.choices[0].message.content.strip()
 
     except Exception as e:
@@ -609,6 +611,8 @@ Keep it to 1-2 sentences max, and be direct about whether it's good or not.
             messages=[{"role": "user", "content": context}],
             temperature=0.5,
         )
+
+        logger.info(f"[GPT Raw Output - {spot['name']} on {forecast['date']}] {response.choices[0].message.content}")
 
         return response.choices[0].message.content.strip()
 

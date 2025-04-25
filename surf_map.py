@@ -283,7 +283,10 @@ def create_suggestions_section(forecasts, selected_day):
             
             with left_col:
                 # Display the dedicated quick summary from the API
-                st.markdown(quick_summary)
+                if spot.get("forecast") and spot["forecast"][0].get("summary"):
+                    st.write(spot["forecast"][0]["summary"])
+                else:
+                    st.write("⚠️ GPT returned no summary for this spot.")
             
             with right_col:
                 # Quick info in bullet points
@@ -297,7 +300,10 @@ def create_suggestions_section(forecasts, selected_day):
             
             # Pro Analysis in expander below both columns
             with st.expander("🔍 Pro Analysis"):
-                st.markdown(conditions_analysis)
+                if spot.get("forecast") and spot["forecast"][0].get("analysis"):
+                    st.markdown(spot["forecast"][0]["analysis"])
+                else:
+                    st.write("⚠️ No detailed analysis returned.")
             
             st.markdown("---")
     
