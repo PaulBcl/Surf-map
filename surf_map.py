@@ -186,93 +186,77 @@ def create_responsive_layout(day_list):
     return address, selectbox_daily_forecast
 
 def create_suggestions_section(forecasts, selected_day):
-    """Create a section for surf spot suggestions."""
-    st.markdown("### 🏄‍♂️ Spot Suggestions")
-    
-    if not forecasts:
-        st.warning("No spots found for your criteria")
-        return
+    """Create the suggestions section with surf spot information."""
+    try:
+        if not forecasts:
+            return
+
+        # Sort forecasts by rating
+        sorted_forecasts = sorted(
+            forecasts,
+            key=lambda x: float(x.get('forecast', [{}])[0].get('daily_rating', 0) if x.get('forecast') else 0),
+            reverse=True
+        )
+
+        # Display top 3 spots
+        st.markdown("### 🏆 Top Spots for Today")
         
-    # Sort spots by rating for the selected day
-    sorted_spots = sorted(
-        forecasts,
-        key=lambda x: x.get('forecast', [{}])[0].get('daily_rating', 0) if x.get('forecast') else 0,
-        reverse=True
-    )
-    
-    # Create a container for top 3 spots
-    with st.container():
-        st.markdown("#### 🏆 Top Spots for Today")
-        
-        # Take top 3 spots
-        top_spots = sorted_spots[:3]
-        
-        # Display each of the top 3 spots
-        for spot in top_spots:
-            forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
-            wave_height = forecast.get('wave_height_m', {})
-            rating = forecast.get('daily_rating', 0)
-            distance = spot.get('distance_km', 0)
-            conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
-            quick_summary = forecast.get('quick_summary', 'Summary not available')
-            
-            with st.container():
-                # Style the container with CSS
-                st.markdown("""
-                    <style>
-                        div[data-testid="stVerticalBlock"]:has(> div.spot-container) {
-                            background-color: #f0f2f6;
-                            padding: 20px;
-                            border-radius: 10px;
-                            margin-bottom: 20px;
-                        }
-                    </style>
-                    <div class="spot-container"></div>
-                """, unsafe_allow_html=True)
+        with st.container():
+            # Create three columns for the top spots
+            for i, spot in enumerate(sorted_forecasts[:3]):
+                forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
+                rating = forecast.get('daily_rating', 0)
+                wave_height = forecast.get('wave_height_m', {})
+                conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
+                quick_summary = forecast.get('quick_summary', 'Summary not available')
                 
-                # Spot name
-                st.markdown(f"### {spot.get('name', 'Unknown Spot')}")
-                
-                # Create two columns: left for summary, right for quick info
-                left_col, right_col = st.columns([2, 1])
-                
-                with left_col:
-                    # Display the dedicated quick summary from the API
-                    st.markdown(quick_summary)
-                
-                with right_col:
-                    # Quick info in bullet points
-                    st.markdown(f"""
-                    - **Match:** {rating:.0f}/10
-                    - **Distance:** {distance:.1f} km
-                    - **Waves:** {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m
-                    - **Wind:** {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s
-                    - **Tide:** {forecast.get('tide_state', 'Unknown').title()}
-                    """)
-                
-                # Pro Analysis in expander below both columns
-                with st.expander("🔍 Pro Analysis"):
-                    st.markdown(conditions_analysis)
-                
-                st.markdown("---")
-        
-    # Display remaining spots with basic info only
-    if len(sorted_spots) > 3:
-        st.markdown("#### Other Nearby Spots")
-        for spot in sorted_spots[3:]:
-            forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
-            rating = forecast.get('daily_rating', 0)
-            distance = spot.get('distance_km', 0)
-            
-            st.markdown(f"""
-            <div style='padding: 15px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 10px; width: 100%;'>
-                <h4>{spot.get('name', 'Unknown Spot')}</h4>
-                <div style='display: flex; gap: 20px;'>
-                    <div><strong>Match:</strong> {rating:.0f}/10</div>
-                    <div><strong>📍 Distance:</strong> {distance:.1f} km</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+                st.markdown(
+                    f"""
+                    <div style='background-color: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;'>
+                        <h4 style='margin: 0; color: #1E88E5;'>{spot.get('name', 'Unknown Spot')} {'🥇' if i == 0 else '🥈' if i == 1 else '🥉'}</h4>
+                        <p style='margin: 5px 0;'><strong>Rating:</strong> {rating}/10</p>
+                        <p style='margin: 5px 0;'><strong>Distance:</strong> {spot.get('distance_km', 'N/A')} km</p>
+                        
+                        <div style='background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;'>
+                            <p style='margin: 0; font-weight: bold;'>Quick Summary:</p>
+                            <ul style='margin: 5px 0;'>
+                                <li>🌊 Waves: {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</li>
+                                <li>💨 Wind: {forecast.get('wind_speed_kph', 'N/A')} kph</li>
+                                <li>🌊 Tide: {forecast.get('tide_state', 'N/A')}</li>
+                            </ul>
+                        </div>
+
+                        <div style='margin-top: 10px;'>
+                            <details>
+                                <summary style='cursor: pointer; color: #1E88E5;'>Pro Analysis</summary>
+                                <p style='margin: 10px 0; white-space: pre-line;'>{conditions_analysis}</p>
+                            </details>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        # Display other spots in an expander (limited to 5)
+        if len(sorted_forecasts) > 3:
+            with st.expander("📍 Other Nearby Spots"):
+                for spot in sorted_forecasts[3:8]:  # Display spots 4-8 (5 spots)
+                    forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
+                    rating = forecast.get('daily_rating', 0)
+                    
+                    st.markdown(
+                        f"""
+                        <div style='background-color: white; padding: 10px; border-radius: 5px; margin-bottom: 5px;'>
+                            <p style='margin: 0;'><strong>{spot.get('name', 'Unknown Spot')}</strong></p>
+                            <p style='margin: 0; font-size: 0.9em;'>Rating: {rating}/10 | Distance: {spot.get('distance_km', 'N/A')} km</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+    except Exception as e:
+        logger.error(f"Error creating suggestions section: {str(e)}")
+        st.error("Error displaying surf spot suggestions.")
 
 def add_spot_markers(m, forecasts, selected_day):
     """Add markers for surf spots to the map."""
