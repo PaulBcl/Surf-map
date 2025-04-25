@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from surfmap_config import forecast_config, displaymap_config
 import logging
 import os
+import math
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -55,6 +56,8 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
     try:
         # Prepare data for PyDeck
         map_data = []
+        lats = []
+        lons = []
         for spot in forecasts:
             forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
             rating = forecast.get('daily_rating', 0)
@@ -62,10 +65,15 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
             quick_summary = forecast.get('quick_summary', 'Summary not available')
             
+            lat = float(spot.get('latitude', 0))
+            lon = float(spot.get('longitude', 0))
+            lats.append(lat)
+            lons.append(lon)
+            
             map_data.append({
                 'name': spot.get('name', 'Unknown Spot'),
-                'latitude': float(spot.get('latitude', 0)),
-                'longitude': float(spot.get('longitude', 0)),
+                'latitude': lat,
+                'longitude': lon,
                 'region': spot.get('region', 'Unknown'),
                 'type': spot.get('type', 'Unknown'),
                 'rating': rating,
@@ -76,6 +84,26 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
                           f"Rating: {rating}/10\n"
                           f"Summary: {quick_summary}"
             })
+        
+        # Calculate center and bounds
+        center_lat = sum(lats) / len(lats) if lats else user_lat
+        center_lon = sum(lons) / len(lons) if lons else user_lon
+        
+        # Calculate zoom level based on bounds
+        lat_diff = max(lats) - min(lats) if lats else 0
+        lon_diff = max(lons) - min(lons) if lons else 0
+        zoom = min(
+            8,  # Max zoom out
+            max(
+                4,  # Min zoom out
+                round(
+                    min(
+                        -math.log2(lat_diff / 2) + 9,
+                        -math.log2(lon_diff / 2) + 9
+                    )
+                )
+            )
+        ) if lat_diff and lon_diff else DEFAULT_ZOOM
         
         # Create DataFrame for PyDeck
         df = pd.DataFrame(map_data)
@@ -97,11 +125,11 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             line_width_min_pixels=1
         )
         
-        # Create the view state
+        # Create the view state with calculated values
         view_state = pdk.ViewState(
-            latitude=user_lat,
-            longitude=user_lon,
-            zoom=DEFAULT_ZOOM,
+            latitude=center_lat,
+            longitude=center_lon,
+            zoom=zoom,
             pitch=DEFAULT_PITCH,
             bearing=DEFAULT_BEARING
         )
