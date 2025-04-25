@@ -61,7 +61,7 @@ def get_surf_forecast(spot):
         
         # Get GPT-generated forecast
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": """You are a surf forecasting expert with knowledge of global surf conditions.
 You provide accurate, realistic surf forecasts based on:
@@ -209,7 +209,7 @@ def get_conditions_analysis(spot, forecast):
     """
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": """You are a surf spot analysis expert.
 You analyze how well forecasted conditions match a spot's known characteristics.
