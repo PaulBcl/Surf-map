@@ -188,6 +188,19 @@ def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=
         marker_cluster = MarkerCluster().add_to(m)
         markers_added = 0
         
+        # Get the selected day's index (0-6)
+        today = datetime.now()
+        selected_date = None
+        for i in range(7):
+            day = today + timedelta(days=i)
+            if day.strftime('%A %d').replace('0', ' ').lstrip() == selected_day:
+                selected_date = day.strftime('%Y-%m-%d')
+                break
+        
+        if not selected_date:
+            logger.error(f"Could not find matching date for selected day: {selected_day}")
+            return
+            
         # Process each spot
         for spot in forecasts:
             try:
@@ -201,7 +214,22 @@ def add_spot_markers(m, forecasts, selected_day, color_by, max_time=0, max_cost=
                     continue
                 
                 # Get forecast for selected day
-                forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
+                spot_forecasts = spot.get('forecast', [])
+                if not spot_forecasts:
+                    logger.warning(f"No forecasts found for {spot_name}")
+                    continue
+                    
+                # Find the forecast for the selected date
+                forecast = None
+                for f in spot_forecasts:
+                    if f.get('date') == selected_date:
+                        forecast = f
+                        break
+                        
+                if not forecast:
+                    logger.warning(f"No forecast found for {selected_date} at {spot_name}")
+                    continue
+                    
                 rating = forecast.get('daily_rating', 0)
                 distance = spot.get('distance_km', 0)
                 

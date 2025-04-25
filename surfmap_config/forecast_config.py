@@ -249,25 +249,41 @@ def calculate_spot_rating(spot, forecast_conditions):
     Calculate a spot's rating based on how well current conditions match its ideal characteristics.
     """
     try:
-        # Get spot's ideal conditions
-        ideal_wind = spot['wind_compatibility']['best_direction']
-        ideal_swell = spot['swell_compatibility']
-        tide_behavior = spot['tide_behavior']
+        # Get spot's ideal conditions with defaults if missing
+        wind_compatibility = spot.get('wind_compatibility', {'best_direction': 'N', 'quality': 3})
+        swell_compatibility = spot.get('swell_compatibility', {'ideal_swell_size_m': [1, 2], 'quality': 3})
+        tide_behavior = spot.get('tide_behavior', {'rising': {'quality': 3}})
         
         # Calculate wind rating
-        wind_rating = spot['wind_compatibility']['quality']
+        wind_rating = wind_compatibility.get('quality', 3)
+        if isinstance(wind_compatibility.get('best_direction'), str):
+            ideal_wind = [wind_compatibility['best_direction']]
+        else:
+            ideal_wind = wind_compatibility.get('best_direction', ['N'])
+            
         if forecast_conditions['wind_direction'] not in ideal_wind:
             wind_rating *= 0.5  # Reduce rating if wind direction is not ideal
         
         # Calculate swell rating
-        swell_rating = spot['swell_compatibility']['quality']
+        swell_rating = swell_compatibility.get('quality', 3)
         current_swell = forecast_conditions['wave_height_m']['average']
-        ideal_swell_range = spot['swell_compatibility']['ideal_swell_size_m']
-        if not (ideal_swell_range[0] <= current_swell <= ideal_swell_range[1]):
+        
+        # Handle different formats of ideal_swell_size_m
+        ideal_swell_range = swell_compatibility.get('ideal_swell_size_m', [1, 2])
+        if isinstance(ideal_swell_range, (list, tuple)) and len(ideal_swell_range) >= 2:
+            min_swell, max_swell = ideal_swell_range[0], ideal_swell_range[1]
+        else:
+            min_swell, max_swell = 1, 2  # Default range
+            
+        if not (min_swell <= current_swell <= max_swell):
             swell_rating *= 0.5  # Reduce rating if swell size is outside ideal range
         
         # Calculate tide rating (using rising tide as default if no tide info in forecast)
-        tide_rating = spot['tide_behavior']['rising']['quality']
+        tide_state = forecast_conditions.get('tide_state', 'rising').lower()
+        if tide_state in tide_behavior:
+            tide_rating = tide_behavior[tide_state].get('quality', 3)
+        else:
+            tide_rating = tide_behavior.get('rising', {}).get('quality', 3)
         
         # Calculate overall rating
         overall_rating = (
@@ -279,8 +295,8 @@ def calculate_spot_rating(spot, forecast_conditions):
         return round(overall_rating, 1)
         
     except Exception as e:
-        logger.error(f"Error calculating rating for {spot['name']}: {str(e)}")
-        return 0.0
+        logger.error(f"Error calculating rating for {spot.get('name', 'Unknown')}: {str(e)}")
+        return 3.0  # Return a neutral rating instead of 0 on error
 
 def load_lisbon_spots(file_obj=None):
     """
@@ -356,36 +372,43 @@ def load_lisbon_spots(file_obj=None):
 def get_spot_forecast(spot):
     """
     Generate a forecast for a spot.
-    Returns a forecast in the standard format.
+    Returns a list of forecasts for the next 7 days in the standard format.
     """
     try:
         today = datetime.now()
         ideal_swell = spot['swell_compatibility']['ideal_swell_size_m']
+        forecasts = []
         
-        return {
-            'date': today.strftime('%Y-%m-%d'),
-            'wave_height_m': {
-                'min': float(ideal_swell[0]),
-                'max': float(ideal_swell[1]),
-                'average': sum(ideal_swell) / 2
-            },
-            'wave_period_s': 12.0,
-            'wave_energy_kj_m2': 25.0,
-            'wind_speed_m_s': 5.0,
-            'wind_direction': spot['wind_compatibility']['best_direction'],
-            'tide_state': 'rising',
-            'daily_rating': calculate_spot_rating(spot, {
+        # Generate forecasts for next 7 days
+        for i in range(7):
+            day = today + timedelta(days=i)
+            forecast = {
+                'date': day.strftime('%Y-%m-%d'),
                 'wave_height_m': {
                     'min': float(ideal_swell[0]),
                     'max': float(ideal_swell[1]),
                     'average': sum(ideal_swell) / 2
                 },
                 'wave_period_s': 12.0,
+                'wave_energy_kj_m2': 25.0,
                 'wind_speed_m_s': 5.0,
                 'wind_direction': spot['wind_compatibility']['best_direction'],
-                'tide_state': 'rising'
-            })
-        }
+                'tide_state': 'rising',
+                'daily_rating': calculate_spot_rating(spot, {
+                    'wave_height_m': {
+                        'min': float(ideal_swell[0]),
+                        'max': float(ideal_swell[1]),
+                        'average': sum(ideal_swell) / 2
+                    },
+                    'wave_period_s': 12.0,
+                    'wind_speed_m_s': 5.0,
+                    'wind_direction': spot['wind_compatibility']['best_direction'],
+                    'tide_state': 'rising'
+                })
+            }
+            forecasts.append(forecast)
+            
+        return forecasts
     except Exception as e:
         logger.error(f"Error generating spot forecast for {spot.get('name', 'unknown')}: {str(e)}")
         return None
@@ -477,8 +500,8 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
 def get_dayList_forecast():
     """Get list of forecast days."""
     today = datetime.now()
-        days = []
-        for i in range(7):
-            day = today + timedelta(days=i)
+    days = []
+    for i in range(7):
+        day = today + timedelta(days=i)
         days.append(day.strftime('%A %d').replace('0', ' ').lstrip())
-        return days
+    return days
