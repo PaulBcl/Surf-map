@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 import ast
 from . import api_config
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -282,18 +283,25 @@ def calculate_spot_rating(spot, forecast_conditions):
         return 0.0
 
 def load_lisbon_spots():
-    """
-    Load the Lisbon area surf spots from the JSON file.
-    """
+    """Load surf spots from the Lisbon area JSON file."""
     try:
-        import os
         # Get the directory containing this script
         current_dir = os.path.dirname(os.path.abspath(__file__))
+        logger.info(f"Current script directory: {current_dir}")
+        
         # Go up one level to the project root
         project_root = os.path.dirname(current_dir)
+        logger.info(f"Project root directory: {project_root}")
+        
         # Construct the path to the JSON file
         json_path = os.path.join(project_root, 'lisbon_area.json')
+        logger.info(f"Looking for JSON file at: {json_path}")
         
+        # Check if file exists
+        if not os.path.exists(json_path):
+            logger.error(f"JSON file not found at: {json_path}")
+            return []
+            
         logger.info(f"Loading spots from: {json_path}")
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
