@@ -33,7 +33,7 @@ def create_responsive_layout(day_list):
     # Welcome block - full width, simplified
     st.markdown("""
     <div style='text-align: center; margin-bottom: 1.5rem;'>
-        <h1 style='margin-bottom: 1rem; font-size: 1.8rem;'>Bienvenue dans l'application 🌊 Surfmap !</h1>
+        <h1 style='margin-bottom: 1rem; font-size: 1.8rem;'>Welcome to 🌊 Surfmap!</h1>
     </div>
     """, unsafe_allow_html=True)
     
@@ -42,10 +42,10 @@ def create_responsive_layout(day_list):
     
     with col1:
         # Date selection with calendar
-        st.markdown("#### 📅 Sélectionnez votre journée")
+        st.markdown("#### 📅 Select your day")
         today = datetime.now()
         selected_date = st.date_input(
-            "Choisissez le jour pour vos prévisions",
+            "Choose a day for your forecast",
             min_value=today.date(),
             max_value=today.date() + timedelta(days=6),
             value=today.date(),
@@ -56,37 +56,37 @@ def create_responsive_layout(day_list):
     
     with col2:
         # Location input
-        st.markdown("#### 📍 Votre position")
+        st.markdown("#### 📍 Your location")
         address = st.text_input(
-            "Entrez votre ville ou adresse",
-            placeholder="ex: Biarritz, France",
-            help="Si la géolocalisation ne fonctionne pas, entrez votre position manuellement"
+            "Enter your city or address",
+            placeholder="ex: Lisbon, Portugal",
+            help="If geolocation doesn't work, enter your location manually"
         )
     
     # Single expander for both legend and guide
-    with st.expander("ℹ️ Guide et légende", expanded=False):
+    with st.expander("ℹ️ Guide and legend", expanded=False):
         st.markdown("""
-        La carte interactive affiche votre position actuelle (🏠) et les spots de surf à proximité (🚩). 
-        Chaque spot est marqué d'un point coloré indiquant la qualité attendue du surf :
-        - 🟢 Vert : Conditions idéales avec des vagues propres et puissantes
-        - 🟡 Jaune : Conditions surfables mais moins constantes ou légèrement agitées
-        - 🔴 Rouge : Conditions défavorables (vent fort, marées inadaptées, risques)
+        The interactive map shows your current location (🏠) and nearby surf spots (🚩). 
+        Each spot is marked with a colored dot indicating the expected surf quality:
+        - 🟢 Green: Ideal conditions with clean, powerful waves
+        - 🟡 Yellow: Surfable conditions but less consistent or slightly choppy
+        - 🔴 Red: Unfavorable conditions (strong winds, unsuitable tides, risks)
         
-        Cliquez sur n'importe quel marqueur pour voir les informations détaillées sur :
-        - La marée
-        - Le vent
-        - La compatibilité de la houle
-        - Les prévisions détaillées
+        Click on any marker to see detailed information about:
+        - Tide
+        - Wind
+        - Swell compatibility
+        - Detailed forecast
         """)
     
     return address, selectbox_daily_forecast
 
 def create_suggestions_section(forecasts, selected_day):
     """Create a section for surf spot suggestions."""
-    st.markdown("### 🏄‍♂️ Suggestions de spots")
+    st.markdown("### 🏄‍♂️ Spot Suggestions")
     
     if not forecasts:
-        st.warning("Aucun spot trouvé pour vos critères")
+        st.warning("No spots found for your criteria")
         return
         
     # Sort spots by rating for the selected day
@@ -99,24 +99,32 @@ def create_suggestions_section(forecasts, selected_day):
     # Take top 3 spots
     top_spots = sorted_spots[:3]
     
-    # Create columns for spot cards
-    cols = st.columns(3)
-    
-    for i, spot in enumerate(top_spots):
-        with cols[i]:
-            forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
-            wave_height = forecast.get('wave_height_m', {})
-            rating = forecast.get('daily_rating', 0)
-            distance = spot.get('distance_km', 0)
-            
-            st.markdown(f"""
-            <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px;'>
-                <h4>{spot.get('name', 'Unknown Spot')}</h4>
-                <p>Match: {rating:.0f}/10</p>
-                <p>🌊 {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</p>
-                <p>⏱️ {distance:.1f} km</p>
+    # Display each spot in full width
+    for spot in top_spots:
+        forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
+        wave_height = forecast.get('wave_height_m', {})
+        rating = forecast.get('daily_rating', 0)
+        distance = spot.get('distance_km', 0)
+        conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
+        
+        st.markdown(f"""
+        <div style='padding: 20px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 20px; width: 100%;'>
+            <h3>{spot.get('name', 'Unknown Spot')}</h3>
+            <div style='display: flex; gap: 20px; margin-bottom: 10px;'>
+                <div><strong>Match:</strong> {rating:.0f}/10</div>
+                <div><strong>🌊 Waves:</strong> {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</div>
+                <div><strong>📍 Distance:</strong> {distance:.1f} km</div>
             </div>
-            """, unsafe_allow_html=True)
+            <div style='margin-bottom: 15px;'>
+                <p><strong>Spot type:</strong> {spot.get('type', 'Unknown')}</p>
+                <p><strong>Best season:</strong> {spot.get('best_season', 'Unknown')}</p>
+            </div>
+            <div style='background-color: white; padding: 15px; border-radius: 5px;'>
+                <h4>Detailed Conditions Analysis:</h4>
+                <p style='white-space: pre-line;'>{conditions_analysis}</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 def add_spot_markers(m, forecasts, selected_day):
     """Add markers for surf spots to the map."""
@@ -152,20 +160,25 @@ def add_spot_markers(m, forecasts, selected_day):
                 wind_speed = forecast.get('wind_speed_m_s', 0)
                 wind_direction = forecast.get('wind_direction', 'Unknown')
                 tide_state = forecast.get('tide_state', 'Unknown')
+                conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
                 
                 popup_content = f"""
                 <div style='width: 300px; max-height: 400px; overflow-y: auto;'>
                     <h4>{spot_name}</h4>
-                    <p><strong>Region:</strong> {spot.get('region', 'Unknown')}</p>
-                    <p><strong>Type:</strong> {spot.get('type', 'Unknown')}</p>
-                    <p><strong>Best Season:</strong> {spot.get('best_season', 'Unknown')}</p>
-                    <hr>
-                    <h5>Current Conditions:</h5>
-                    <p>🌊 Wave Height: {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</p>
-                    <p>💨 Wind: {wind_speed}m/s {wind_direction}</p>
-                    <p>🌊 Tide: {tide_state}</p>
-                    <p>⭐ Rating: {rating}/10</p>
-                    <p>📍 Distance: {distance:.1f}km</p>
+                    <div style='margin-bottom: 10px;'>
+                        <strong>Rating:</strong> {rating}/10
+                    </div>
+                    <div style='margin-bottom: 15px;'>
+                        <h5>Current Conditions:</h5>
+                        <p>🌊 Waves: {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m</p>
+                        <p>💨 Wind: {wind_speed}m/s {wind_direction}</p>
+                        <p>🌊 Tide: {tide_state}</p>
+                        <p>📍 Distance: {distance:.1f}km</p>
+                    </div>
+                    <div style='margin-top: 15px;'>
+                        <h5>Conditions Analysis:</h5>
+                        <p style='font-size: 0.9em;'>{conditions_analysis}</p>
+                    </div>
                 </div>
                 """
                 
@@ -210,17 +223,7 @@ def main():
                 # Ensure coordinates are float values
                 lat, lon = float(coordinates[0]), float(coordinates[1])
                 
-                # Initialize map centered on the location
-                m = folium.Map(location=[lat, lon], zoom_start=12)
-                
-                # Add user location marker
-                folium.Marker(
-                    [lat, lon],
-                    popup='Your Location',
-                    icon=folium.Icon(color='red', icon='home')
-                ).add_to(m)
-                
-                # Load and process forecasts
+                # Load and process forecasts first
                 if st.session_state.forecasts is None:
                     with st.spinner('Loading surf spots...'):
                         forecasts = forecast_config.load_forecast_data(
@@ -231,6 +234,19 @@ def main():
                         st.session_state.forecasts = forecasts
                 
                 if st.session_state.forecasts:
+                    # Create suggestions section first
+                    create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast)
+                    
+                    # Initialize map centered on the location
+                    m = folium.Map(location=[lat, lon], zoom_start=12)
+                    
+                    # Add user location marker
+                    folium.Marker(
+                        [lat, lon],
+                        popup='Your Location',
+                        icon=folium.Icon(color='red', icon='home')
+                    ).add_to(m)
+                    
                     # Add spot markers
                     add_spot_markers(
                         m=m,
@@ -244,9 +260,6 @@ def main():
                     
                     # Display the map
                     st_data = st_folium(m, width=1200, height=600)
-                    
-                    # Create suggestions section
-                    create_suggestions_section(st.session_state.forecasts, selectbox_daily_forecast)
                 else:
                     st.error("No surf spots found. Please try a different location.")
             except (ValueError, TypeError) as e:
