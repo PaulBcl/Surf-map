@@ -14,9 +14,16 @@ import time
 import asyncio
 import httpx
 
+def degrees_to_cardinal(degrees: float) -> str:
+    directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    idx = round(((degrees % 360) / 45)) % 8
+    return directions[idx]
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+STORMGLASS_API_KEY = st.secrets["stormglass_api"]
 
 # Initialize OpenAI clients
 try:
@@ -332,7 +339,7 @@ def analyze_spot_conditions(spot, all_forecasts):
             
             # Calculate rating and analysis
             merged_day['daily_rating'] = calculate_spot_rating(spot, merged_day)
-            merged_day['conditions_analysis'] = get_conditions_analysis(spot, merged_day)
+            merged_day['conditions_analysis'] = get_conditions_analysis(spot, merged_day['date'])
             
             merged_forecast.append(merged_day)
         
@@ -343,63 +350,72 @@ def analyze_spot_conditions(spot, all_forecasts):
         return []
 
 @st.cache_data(ttl=21600, show_spinner=False)  # Cache for 6 hours, hide spinner
-def get_conditions_analysis(spot, forecast):
+def get_conditions_analysis(spot: dict, date: str) -> str:
     """
-    Generate a detailed analysis of how well the forecasted conditions match the spot's characteristics.
-    Cached for 6 hours based on spot name and forecast date.
+    Generate an analysis for a specific spot on a specific date using:
+    - Stormglass real forecast data
+    - Static spot metadata
+    Returns a GPT-generated analysis string.
     """
     try:
+        sg_forecasts = get_stormglass_forecast(spot)
+        if not sg_forecasts:
+            return "Stormglass forecast unavailable. Cannot generate analysis."
+
+        forecast_for_day = next((f for f in sg_forecasts if f["date"] == date), None)
+        if not forecast_for_day:
+            return "No forecast data available for this date. Please check back later or try a different day."
+
+        context = f"""
+You're a surf forecasting expert.
+
+Your task is to assess how suitable the surf will be on {date} at {spot['name']} (Portugal), based on:
+- Structural spot features
+- Forecasted swell, wind, and tide conditions
+
+Here is what you know about the spot:
+- Type: {spot.get("type", "N/A")}
+- Orientation: {spot.get("orientation", "N/A")}
+- Best season: {spot.get("best_season", "N/A")}
+- Ideal swell: {spot.get("swell_compatibility", {}).get("ideal_swell_direction", "N/A")} at {spot.get("swell_compatibility", {}).get("ideal_swell_size_m", "N/A")} m
+- Ideal wind: {spot.get("wind_compatibility", {}).get("best_direction", "N/A")}
+- Tide behavior (low): {spot.get("tide_behavior", {}).get("low", {}).get("note", "N/A")}
+- Tide behavior (rising): {spot.get("tide_behavior", {}).get("rising", {}).get("note", "N/A")}
+- Tide behavior (high): {spot.get("tide_behavior", {}).get("high", {}).get("note", "N/A")}
+- Tide behavior (falling): {spot.get("tide_behavior", {}).get("falling", {}).get("note", "N/A")}
+- Crowd: {spot.get("crowd_pressure", {}).get("notes", "N/A")}
+
+Here's the forecasted data from Stormglass for this day:
+- Swell height: {forecast_for_day['wave_height_m']} m
+- Swell direction: {forecast_for_day['wave_direction_deg']}°
+- Wind speed: {forecast_for_day['wind_speed_m_s']} m/s
+- Wind direction: {degrees_to_cardinal(forecast_for_day['wind_direction_deg'])}
+- Tide level: {forecast_for_day.get('tide_height_m', 'N/A')} m
+
+In your answer, explain how the forecast matches (or doesn't match) the spot's ideal conditions. 
+Give 1–2 surf tips if relevant (e.g., best tide, crowd notes, local insight).
+
+Your answer should be surfer-friendly but based on real analysis.
+"""
+
+        prompt = f"""Given the surf spot data and real forecast below, assess how good the conditions will be for surfers on {date}. Include local tips, potential issues, and whether it's worth going.
+Context:
+{context}
+
+Return a short paragraph and end with a 1–5 quality score (e.g., "Overall: 4/5").
+"""
+
         response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a surf spot analysis expert who provides clear, concise assessments of surf conditions."},
-                {"role": "user", "content": f"""Analyze these forecasted conditions for {spot['name']} on {forecast['date']}:
-{json.dumps(forecast, indent=2)}
-
-Based on the spot's characteristics:
-Type: {spot['type']}
-Orientation: {spot['orientation']}
-Best Season: {spot['best_season']}
-Difficulty: {', '.join(spot['difficulty'])}
-Wave Description: {spot.get('wave_description', 'No description available')}
-
-Swell Compatibility:
-- Ideal Size: {spot['swell_compatibility']['ideal_swell_size_m']}m
-- Best Direction: {spot['swell_compatibility']['ideal_swell_direction']}
-- Quality Rating: {spot['swell_compatibility']['quality']}/5
-- Notes: {spot['swell_compatibility'].get('notes', '')}
-
-Wind Compatibility:
-- Best Direction: {spot['wind_compatibility']['best_direction']}
-- Quality Rating: {spot['wind_compatibility']['quality']}/5
-- Notes: {spot['wind_compatibility'].get('notes', '')}
-
-Tide Behavior:
-Low: {spot['tide_behavior']['low'].get('note', '')} (Quality: {spot['tide_behavior']['low']['quality']}/5)
-Rising: {spot['tide_behavior']['rising'].get('note', '')} (Quality: {spot['tide_behavior']['rising']['quality']}/5)
-High: {spot['tide_behavior']['high'].get('note', '')} (Quality: {spot['tide_behavior']['high']['quality']}/5)
-Falling: {spot['tide_behavior']['falling'].get('note', '')} (Quality: {spot['tide_behavior']['falling']['quality']}/5)
-
-Local Tips: {spot.get('local_tips', '')}
-
-Explain:
-1. How well wind direction and speed match the spot's preferences.
-2. Whether wave height and period are in the ideal range.
-3. Tide behavior impact.
-4. Suitability for surfing (considering difficulty level).
-5. Brief mention of any hazards or local considerations.
-
-Use concise, user-friendly language."""}
-            ],
-            max_tokens=500,
-            temperature=0.7
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
         )
-        
+
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        logger.error(f"Error generating conditions analysis for {spot['name']}: {str(e)}")
-        return "Unable to generate detailed analysis."
+        logger.error(f"GPT analysis failed for {spot['name']} on {date}: {e}")
+        return "Error generating analysis."
 
 def calculate_spot_rating(spot, forecast_conditions):
     """
@@ -554,30 +570,28 @@ def get_quick_summary(spot, forecast):
     Cached for 6 hours based on spot name and forecast date.
     """
     try:
+        context = f"""
+You're a surf forecaster.
+
+Give a **short and sharp** summary of the surf quality at {spot['name']} on {forecast['date']}, based on the forecast and spot compatibility.
+
+Use the info below:
+- Spot orientation: {spot.get("orientation", "N/A")}
+- Ideal swell: {spot.get("swell_compatibility", {}).get("ideal_swell_direction", "N/A")} at {spot.get("swell_compatibility", {}).get("ideal_swell_size_m", "N/A")} m
+- Ideal wind: {spot.get("wind_compatibility", {}).get("best_direction", "N/A")}
+- Forecasted swell: {forecast['wave_height_m']} m from {forecast.get('wave_direction_deg', 'N/A')}°
+- Forecasted wind: {forecast['wind_speed_m_s']} m/s from {degrees_to_cardinal(forecast['wind_direction_deg'])}
+
+Is today good, okay, or bad? Say it clearly in one or two sentences max.
+Avoid detailed surf lingo or tide comments.
+"""
+
         response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a surf expert helping travelers quickly understand why a spot is good today. Provide a 1-2 sentence summary based on the following data."},
-                {"role": "user", "content": f"""Spot: {spot['name']} ({spot['region']})
-Current conditions for {forecast['date']}:
-- Waves: {forecast['wave_height_m']['min']}-{forecast['wave_height_m']['max']}m
-- Wind: {forecast['wind_direction']} @ {forecast['wind_speed_m_s']} m/s
-- Tide: {forecast['tide_state']}
-
-Spot characteristics:
-- Type: {spot['type']}
-- Best season: {spot['best_season']}
-- Difficulty: {', '.join(spot['difficulty'])}
-- Ideal swell: {spot['swell_compatibility']['ideal_swell_size_m']}m from {spot['swell_compatibility']['ideal_swell_direction']}
-- Best wind: {spot['wind_compatibility']['best_direction']}
-- Best tide: {spot['tide_behavior']['low']['note'] if spot['tide_behavior']['low']['quality'] >= 4 else spot['tide_behavior']['rising']['note']}
-
-Explain in 1-2 sentences why this spot is a good pick today based on these conditions."""}
-            ],
-            max_tokens=150,
-            temperature=0.7
+            model="gpt-4",
+            messages=[{"role": "user", "content": context}],
+            temperature=0.5,
         )
-        
+
         return response.choices[0].message.content.strip()
 
     except Exception as e:
@@ -625,51 +639,36 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
             except (ValueError, IndexError) as e:
                 logger.warning(f"Could not parse date from day_list, using today: {e}")
         
-        # Process spots in batches
+        # Process spots
         processed_spots = []
         try:
-            # Get forecasts for all spots concurrently
-            status_text.text("Fetching forecasts for all spots...")
-            forecasts = asyncio.run(get_forecasts_batch(spots))
-            
-            # Process the results
-            for i, (spot, forecast) in enumerate(zip(spots, forecasts)):
+            for i, spot in enumerate(spots):
                 try:
                     # Update progress
                     current_progress = (i + 1) / total_spots
                     progress_bar.progress(current_progress)
                     status_text.text(f"Analyzing {spot.get('name', 'Unknown')} ({i+1}/{total_spots})")
                     
-                    if not forecast:
+                    # Generate 7-day forecast for the spot
+                    forecast_data = generate_forecast_for_spot(spot)
+                    if not forecast_data:
                         logger.warning(f"No valid forecast data for {spot.get('name', 'Unknown')}, skipping")
                         continue
                     
-                    # Update the forecast date to match selected date
-                    if forecast and len(forecast) > 0:
-                        forecast[0]['date'] = selected_date.strftime('%Y-%m-%d')
+                    # Find the forecast for the selected date
+                    selected_day_forecast = None
+                    for day in forecast_data:
+                        if day['date'] == selected_date.strftime('%Y-%m-%d'):
+                            selected_day_forecast = [day]  # Wrap in list to maintain existing structure
+                            break
                     
-                    logger.info(f"Got valid forecast for {spot.get('name', 'Unknown')}")
-                    
-                    # Generate conditions analysis and quick summary for top spots
-                    try:
-                        conditions_analysis = get_conditions_analysis(spot, forecast[0])
-                        if conditions_analysis:
-                            forecast[0]['conditions_analysis'] = conditions_analysis
-                        
-                        # Generate quick summary (will be used for top 3 spots)
-                        quick_summary = get_quick_summary(spot, forecast[0])
-                        if quick_summary:
-                            forecast[0]['quick_summary'] = quick_summary
-                            
-                        logger.info(f"Generated analysis and summary for {spot.get('name', 'Unknown')}")
-                    except Exception as e:
-                        logger.error(f"Error generating analysis for {spot.get('name', 'Unknown')}: {str(e)}")
-                        forecast[0]['conditions_analysis'] = "Unable to generate analysis."
-                        forecast[0]['quick_summary'] = "Summary not available."
+                    if not selected_day_forecast:
+                        logger.warning(f"No forecast found for selected date for {spot.get('name', 'Unknown')}, skipping")
+                        continue
                     
                     # Add forecast to spot data
                     spot_with_forecast = spot.copy()
-                    spot_with_forecast['forecast'] = forecast
+                    spot_with_forecast['forecast'] = selected_day_forecast
                     
                     # Calculate distance if coordinates provided
                     if coordinates:
@@ -734,10 +733,121 @@ def load_forecast_data(address: str = None, day_list: list = None, coordinates: 
         return []
 
 def get_dayList_forecast():
-    """Get list of forecast days."""
-    today = datetime.now()
+    """Get list of next 7 days for forecast."""
     days = []
+    today = datetime.now()
     for i in range(7):
         day = today + timedelta(days=i)
-        days.append(day.strftime('%A %d').replace('0', ' ').lstrip())
+        days.append({
+            'display': day.strftime('%A %d').replace('0', ' ').lstrip(),
+            'value': day.strftime('%Y-%m-%d')
+        })
     return days
+
+def generate_forecast_for_spot(spot: dict) -> list:
+    """
+    Generate a complete 7-day forecast for a spot by combining base forecast with conditions analysis.
+    
+    Args:
+        spot (dict): The surf spot data dictionary containing location and characteristics
+        
+    Returns:
+        list: A 7-day forecast list with each day enriched with conditions analysis and quick summary
+    """
+    try:
+        # Get base 7-day forecast
+        forecast_data = get_surf_forecast(spot)
+        if not forecast_data:
+            logger.error(f"Failed to get base forecast for {spot.get('name', 'Unknown')}")
+            return None
+            
+        # Enrich each day's forecast with analysis
+        for day in forecast_data:
+            try:
+                # Add conditions analysis
+                day['conditions_analysis'] = get_conditions_analysis(spot, day['date'])
+                
+                # Add quick summary
+                day['quick_summary'] = get_quick_summary(spot, day)
+                
+            except Exception as e:
+                logger.error(f"Error enriching forecast for {spot.get('name', 'Unknown')} on {day.get('date', 'unknown')}: {str(e)}")
+                # Continue with next day even if one fails
+                continue
+                
+        return forecast_data
+        
+    except Exception as e:
+        logger.error(f"Error in generate_forecast_for_spot for {spot.get('name', 'Unknown')}: {str(e)}")
+        return None
+
+@st.cache_data(ttl=21600)  # Cache for 6 hours
+def get_stormglass_forecast(spot):
+    """
+    Retrieves 7-day hourly surf forecast from Stormglass API for a given spot.
+    Returns a simplified 7-day daily average forecast list or None on failure.
+    """
+    try:
+        base_url = "https://api.stormglass.io/v2/weather/point"
+        lat = spot.get("latitude")
+        lon = spot.get("longitude")
+
+        params = {
+            "lat": lat,
+            "lng": lon,
+            "params": "waveHeight,wavePeriod,windSpeed,windDirection",
+            "source": "noaa",
+            "start": int(time.time()),  # now
+            "end": int(time.time()) + 7 * 86400  # 7 days ahead
+        }
+
+        headers = {"Authorization": STORMGLASS_API_KEY}
+        response = httpx.get(base_url, params=params, headers=headers, timeout=10)
+
+        if response.status_code != 200:
+            logger.error(f"Stormglass API error {response.status_code}: {response.text}")
+            return None
+
+        data = response.json().get("hours", [])
+        if not data:
+            logger.warning(f"No Stormglass data returned for {spot.get('name')}")
+            return None
+
+        # Group by date and calculate daily averages
+        daily_data = {}
+        for hour in data:
+            date = hour["time"][:10]
+            if date not in daily_data:
+                daily_data[date] = {
+                    "wave_height": [],
+                    "wave_period": [],
+                    "wind_speed": [],
+                    "wind_direction": []
+                }
+            sg = daily_data[date]
+            sg["wave_height"].append(hour["waveHeight"]["noaa"])
+            sg["wave_period"].append(hour["wavePeriod"]["noaa"])
+            sg["wind_speed"].append(hour["windSpeed"]["noaa"])
+            sg["wind_direction"].append(hour["windDirection"]["noaa"])
+
+        # Compute daily averages
+        forecasts = []
+        for date, values in daily_data.items():
+            if not all(values.values()):
+                continue
+            forecasts.append({
+                "date": date,
+                "wave_height_m": round(sum(values["wave_height"]) / len(values["wave_height"]), 1),
+                "wave_period_s": round(sum(values["wave_period"]) / len(values["wave_period"]), 1),
+                "wind_speed_m_s": round(sum(values["wind_speed"]) / len(values["wind_speed"]), 1),
+                "wind_direction_deg": round(sum(values["wind_direction"]) / len(values["wind_direction"]), 1)
+            })
+
+        return forecasts
+
+    except Exception as e:
+        logger.error(f"Error in get_stormglass_forecast for {spot.get('name', 'Unknown')}: {str(e)}")
+        return None
+
+if __name__ == "__main__":
+    main()
