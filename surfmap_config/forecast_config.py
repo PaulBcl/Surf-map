@@ -304,13 +304,27 @@ def load_lisbon_spots():
             
         logger.info(f"Loading spots from: {json_path}")
         with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            spots = data.get('spots', [])
-            if not spots:
-                logger.error("No spots found in JSON data")
+            file_content = f.read()
+            logger.info(f"File content length: {len(file_content)} bytes")
+            try:
+                data = json.loads(file_content)
+                logger.info(f"JSON structure keys: {list(data.keys())}")
+                spots = data.get('spots', [])
+                logger.info(f"Number of spots found: {len(spots)}")
+                if not spots:
+                    logger.error("No spots found in JSON data")
+                    return []
+                # Log first spot as example
+                if spots:
+                    logger.info(f"Example spot data: {json.dumps(spots[0], indent=2)}")
+                logger.info(f"Successfully loaded {len(spots)} spots")
+                return spots
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {str(e)}")
+                # Log the problematic part of the JSON
+                error_context = file_content[max(0, e.pos-50):min(len(file_content), e.pos+50)]
+                logger.error(f"Error context: ...{error_context}...")
                 return []
-            logger.info(f"Successfully loaded {len(spots)} spots")
-            return spots
     except Exception as e:
         logger.error(f"Error loading Lisbon spots: {str(e)}")
         return []
