@@ -301,15 +301,11 @@ def create_suggestions_section(forecasts, selected_day):
             
             # Pro Analysis Section
             with st.expander("🔍 Pro Analysis"):
-                if spot.get("forecast"):
-                    analysis = (
-                        spot["forecast"][0].get("analysis")
-                        or spot["forecast"][0].get("conditions_analysis")
-                        or "⚠️ No detailed analysis returned."
-                    )
-                    st.markdown(analysis)
+                analysis = forecast.get("conditions_analysis")
+                if analysis:
+                    st.markdown(analysis, unsafe_allow_html=True)
                 else:
-                    st.write("⚠️ No detailed analysis returned.")
+                    st.warning("⚠️ No detailed analysis returned.")
             
             st.markdown("---")
     

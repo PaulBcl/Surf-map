@@ -717,7 +717,7 @@ def generate_forecast_for_spot(spot: dict, selected_date: str) -> list:
         
         # Get base 7-day forecast
         forecast_data = get_surf_forecast(spot, selected_date)
-        logger.info(f"[generate_forecast_for_spot] Base forecast data: {json.dumps(forecast_data, indent=2) if forecast_data else None}")
+        #logger.info(f"[generate_forecast_for_spot] Base forecast data: {json.dumps(forecast_data, indent=2) if forecast_data else None}")
         
         if not forecast_data:
             logger.error(f"[generate_forecast_for_spot] Failed to get base forecast for {spot.get('name')}")
