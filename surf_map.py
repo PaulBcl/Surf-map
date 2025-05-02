@@ -89,7 +89,8 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
                 'longitude': lon,
                 'region': spot.get('region', 'Unknown'),
                 'type': spot.get('type', 'Unknown'),
-                'forecast': forecast
+                'daily_rating': forecast.get('daily_rating', 0),
+                'summary': forecast.get('summary') or forecast.get('quick_summary', 'No summary available.')
             })
         
         # Calculate center and bounds
@@ -123,11 +124,11 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             data=df,
             get_position=['longitude', 'latitude'],
             get_fill_color="""
-                [forecast[0].daily_rating >= 7.5 ? 0 : forecast[0].daily_rating >= 6 ? 255 : 200,
-                 forecast[0].daily_rating >= 7.5 ? 200 : 140,
-                 forecast[0].daily_rating >= 7.5 ? 0 : 0]
+                [daily_rating >= 7.5 ? 0 : daily_rating >= 6 ? 255 : 200,
+                 daily_rating >= 7.5 ? 200 : 140,
+                 daily_rating >= 7.5 ? 0 : 0]
             """,
-            get_radius="forecast[0].daily_rating * 2000",
+            get_radius="daily_rating * 2000",
             pickable=True,
             opacity=0.8,
             stroked=True,
@@ -152,7 +153,7 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             initial_view_state=view_state,
             map_style="mapbox://styles/mapbox/outdoors-v12",
             tooltip={
-                "html": "<b>{name}</b><br>Rating: {forecast[0].daily_rating}/10<br>{forecast[0].summary}",
+                "html": "<b>{name}</b><br>Rating: {daily_rating}/10<br>{summary}",
                 "style": {
                     "backgroundColor": "white",
                     "color": "black",
