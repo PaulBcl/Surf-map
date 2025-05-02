@@ -307,13 +307,7 @@ def create_suggestions_section(forecasts, selected_day):
                         or spot["forecast"][0].get("conditions_analysis")
                         or "⚠️ No detailed analysis returned."
                     )
-                    st.markdown(f"""
-                        **🌀 Wave & Swell:** {forecast.get('wave_analysis', 'No wave analysis available')}  
-                        **🍃 Wind:** {forecast.get('wind_analysis', 'No wind analysis available')}  
-                        **🌊 Tide Info:** {forecast.get('tide_analysis', 'No tide analysis available')}  
-                        **📈 Crowd & Local Tips:** {forecast.get('crowd_analysis', 'No crowd analysis available')}  
-                        **🧾 Overall:** {rating:.1f}/10
-                    """)
+                    st.markdown(analysis)
                 else:
                     st.write("⚠️ No detailed analysis returned.")
             

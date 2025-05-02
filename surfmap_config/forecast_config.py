@@ -425,11 +425,20 @@ Your answer should be surfer-friendly but based on real analysis.
 """
         logger.info(f"[get_conditions_analysis] GPT Context prepared for {spot.get('name')}")
 
-        prompt = f"""Given the surf spot data and real forecast below, assess how good the conditions will be for surfers on {date}. Include local tips, potential issues, and whether it's worth going.
+        prompt = f"""Given the surf spot data and real forecast below, assess how good the conditions will be for surfers on {date}. 
+Format your response EXACTLY like this, with each section on a new line:
+
+**🌀 Wave & Swell:** [Your wave and swell analysis here]
+**🍃 Wind:** [Your wind analysis here]
+**🌊 Tide Info:** [Your tide analysis here]
+**📈 Crowd & Local Tips:** [Your local insights and crowd expectations. Include local tips, potnetial issues, and whether it's worth going]
+**🧾 Overall:** [X]/10 [Give a final summary to give your final point of view where you balance pros and cons, and main things to keep in mind if choosing to surf there]
+
+Keep each section concise but informative. Include specific numbers and conditions where relevant.
+Do not add any other sections or change the format.
+
 Context:
 {context}
-
-Return a short paragraph and end with a 1–5 quality score (e.g., "Overall: 4/5").
 """
         logger.info(f"[get_conditions_analysis] Sending prompt to GPT for {spot.get('name')}")
 
