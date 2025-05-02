@@ -281,7 +281,11 @@ def create_suggestions_section(forecasts, selected_day):
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                st.markdown(spot["forecast"][0].get("summary") or "⚠️ No summary returned", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="background-color: #eaf4fb; padding: 1rem; border-radius: 0.5rem;">
+                🌊 <strong>Surf Summary:</strong><br>{forecast.get("quick_summary", "⚠️ No summary available.")}
+                </div>
+                """, unsafe_allow_html=True)
             
             with col2:
                 st.markdown(f"🏅 **Match Rating**: {rating}/10")
