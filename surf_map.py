@@ -277,33 +277,23 @@ def create_suggestions_section(forecasts, selected_day):
             # Spot name
             st.markdown(f"### {spot.get('name', 'Unknown Spot')}")
             
-            # Executive Summary
-            st.markdown("""
-                <div style='background-color: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 15px;'>
-                    🌊 **Surf Summary**: {summary}
-                </div>
-            """.format(
-                summary=(
-                    spot["forecast"][0].get("summary")
-                    or spot["forecast"][0].get("quick_summary")
-                    or "⚠️ GPT returned no summary for this spot."
-                ) if spot.get("forecast") else "⚠️ GPT returned no summary for this spot."
-            ), unsafe_allow_html=True)
+            # Create two columns for summary and details
+            col1, col2 = st.columns([2, 1])
             
-            # Forecasted Conditions Block
-            st.markdown(f"""
-                - 🥇 **Match Rating**: {rating:.1f}/10  
-                - 🌊 **Wave Height**: {wave_height.get('min', 0)}–{wave_height.get('max', 0)} m  
-                - 🍃 **Wind**: {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s  
-                - 🕑 **Tide**: {forecast.get('tide_state', 'Unknown').title()}  
-                - 📍 **Distance**: {distance:.1f} km
-            """)
+            with col1:
+                st.markdown(spot["forecast"][0].get("summary") or "⚠️ No summary returned", unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"🏅 **Match Rating**: {rating}/10")
+                st.markdown(f"🌊 **Wave Height**: {wave_height.get('min', 0)}–{wave_height.get('max', 0)} m")
+                st.markdown(f"🍃 **Wind**: {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s")
+                st.markdown(f"🕒 **Tide**: {forecast.get('tide_state', 'Unknown').title()}")
+                st.markdown(f"📍 **Distance**: {distance:.1f} km")
             
             # Pro Analysis Section
             with st.expander("🔍 Pro Analysis"):
-                analysis = forecast.get("conditions_analysis")
-                if analysis:
-                    st.markdown(analysis, unsafe_allow_html=True)
+                if spot.get("forecast") and spot["forecast"][0].get("conditions_analysis"):
+                    st.markdown(spot["forecast"][0].get("conditions_analysis"), unsafe_allow_html=True)
                 else:
                     st.warning("⚠️ No detailed analysis returned.")
             
