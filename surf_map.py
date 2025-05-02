@@ -71,19 +71,17 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
         
         for spot in forecasts:
             forecast = spot.get('forecast', [{}])[0] if spot.get('forecast') else {}
-            rating = forecast.get('daily_rating', 0)
-            wave_height = forecast.get('wave_height_m', {})
-            conditions_analysis = forecast.get('conditions_analysis', 'No analysis available')
-            quick_summary = forecast.get('quick_summary', 'Summary not available')
+            
+            # Log warnings for missing data
+            if not forecast.get('daily_rating'):
+                logger.warning(f"Missing daily_rating for spot: {spot.get('name')}")
+            if not forecast.get('summary'):
+                logger.warning(f"Missing summary for spot: {spot.get('name')}")
             
             lat = float(spot.get('latitude', 0))
             lon = float(spot.get('longitude', 0))
             lats.append(lat)
             lons.append(lon)
-            
-            # Determine if this is a top 3 spot
-            is_top_3 = spot['name'] in top_3_names
-            rank = top_3_names.index(spot['name']) + 1 if is_top_3 else None
             
             map_data.append({
                 'name': spot.get('name', 'Unknown Spot'),
@@ -91,14 +89,7 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
                 'longitude': lon,
                 'region': spot.get('region', 'Unknown'),
                 'type': spot.get('type', 'Unknown'),
-                'rating': rating,
-                'color': get_spot_color(rating),
-                'radius': 1000 if is_top_3 else 600,  # Larger radius for top 3
-                'tooltip': f"{'🥇' if rank == 1 else '🥈' if rank == 2 else '🥉' if rank == 3 else ''} {spot.get('name')}\n"
-                          f"Region: {spot.get('region')}\n"
-                          f"Type: {spot.get('type')}\n"
-                          f"Rating: {rating}/10\n"
-                          f"Summary: {quick_summary}"
+                'forecast': forecast
             })
         
         # Calculate center and bounds
@@ -131,8 +122,12 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
             'ScatterplotLayer',
             data=df,
             get_position=['longitude', 'latitude'],
-            get_color='color',
-            get_radius='radius',
+            get_fill_color="""
+                [forecast[0].daily_rating >= 7.5 ? 0 : forecast[0].daily_rating >= 6 ? 255 : 200,
+                 forecast[0].daily_rating >= 7.5 ? 200 : 140,
+                 forecast[0].daily_rating >= 7.5 ? 0 : 0]
+            """,
+            get_radius="forecast[0].daily_rating * 2000",
             pickable=True,
             opacity=0.8,
             stroked=True,
@@ -155,15 +150,13 @@ def create_pydeck_map(forecasts, user_lat=DEFAULT_LATITUDE, user_lon=DEFAULT_LON
         deck = pdk.Deck(
             layers=[layer],
             initial_view_state=view_state,
-            map_style='mapbox://styles/mapbox/light-v9',
+            map_style="mapbox://styles/mapbox/outdoors-v12",
             tooltip={
-                'html': '{tooltip}',
-                'style': {
-                    'backgroundColor': 'white',
-                    'color': 'black',
-                    'fontSize': '0.8em',
-                    'padding': '10px',
-                    'whiteSpace': 'pre-line'
+                "html": "<b>{name}</b><br>Rating: {forecast[0].daily_rating}/10<br>{forecast[0].summary}",
+                "style": {
+                    "backgroundColor": "white",
+                    "color": "black",
+                    "fontSize": "12px"
                 }
             }
         )
