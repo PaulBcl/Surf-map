@@ -277,42 +277,44 @@ def create_suggestions_section(forecasts, selected_day):
             # Spot name
             st.markdown(f"### {spot.get('name', 'Unknown Spot')}")
             
-            # Create two columns: left for summary, right for quick info
-            left_col, right_col = st.columns([2, 1])
+            # Executive Summary
+            st.markdown("""
+                <div style='background-color: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 15px;'>
+                    🌊 **Surf Summary**: {summary}
+                </div>
+            """.format(
+                summary=(
+                    spot["forecast"][0].get("summary")
+                    or spot["forecast"][0].get("quick_summary")
+                    or "⚠️ GPT returned no summary for this spot."
+                ) if spot.get("forecast") else "⚠️ GPT returned no summary for this spot."
+            ), unsafe_allow_html=True)
             
-            with left_col:
-                # Display the dedicated quick summary from the API
+            # Forecasted Conditions Block
+            st.markdown(f"""
+                - 🥇 **Match Rating**: {rating:.1f}/10  
+                - 🌊 **Wave Height**: {wave_height.get('min', 0)}–{wave_height.get('max', 0)} m  
+                - 🍃 **Wind**: {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s  
+                - 🕑 **Tide**: {forecast.get('tide_state', 'Unknown').title()}  
+                - 📍 **Distance**: {distance:.1f} km
+            """)
+            
+            # Pro Analysis Section
+            with st.expander("🔍 Pro Analysis"):
                 if spot.get("forecast"):
-                    summary = (
-                        spot["forecast"][0].get("summary")
-                        or spot["forecast"][0].get("quick_summary")
-                        or "⚠️ GPT returned no summary for this spot."
+                    analysis = (
+                        spot["forecast"][0].get("analysis")
+                        or spot["forecast"][0].get("conditions_analysis")
+                        or "⚠️ No detailed analysis returned."
                     )
-                    st.write(summary)
+                    st.markdown(f"""
+                        **🌀 Wave & Swell:** {forecast.get('wave_analysis', 'No wave analysis available')}  
+                        **🍃 Wind:** {forecast.get('wind_analysis', 'No wind analysis available')}  
+                        **🌊 Tide Info:** {forecast.get('tide_analysis', 'No tide analysis available')}  
+                        **📈 Crowd & Local Tips:** {forecast.get('crowd_analysis', 'No crowd analysis available')}  
+                        **🧾 Overall:** {rating:.1f}/10
+                    """)
                 else:
-                    st.write("⚠️ GPT returned no summary for this spot.")
-            
-            with right_col:
-                # Quick info in bullet points
-                st.markdown(f"""
-                - **Match:** {rating:.0f}/10
-                - **Distance:** {distance:.1f} km
-                - **Waves:** {wave_height.get('min', 0)}-{wave_height.get('max', 0)}m
-                - **Wind:** {forecast.get('wind_direction', 'Unknown')} @ {forecast.get('wind_speed_m_s', 0)} m/s
-                - **Tide:** {forecast.get('tide_state', 'Unknown').title()}
-                """)
-            
-            # Display detailed analysis
-            if spot.get("forecast"):
-                analysis = (
-                    spot["forecast"][0].get("analysis")
-                    or spot["forecast"][0].get("conditions_analysis")
-                    or "⚠️ No detailed analysis returned."
-                )
-                with st.expander("🔍 Pro Analysis"):
-                    st.write(analysis)
-            else:
-                with st.expander("🔍 Pro Analysis"):
                     st.write("⚠️ No detailed analysis returned.")
             
             st.markdown("---")
