@@ -283,8 +283,13 @@ def create_suggestions_section(forecasts, selected_day):
             
             with left_col:
                 # Display the dedicated quick summary from the API
-                if spot.get("forecast") and spot["forecast"][0].get("summary"):
-                    st.write(spot["forecast"][0]["summary"])
+                if spot.get("forecast"):
+                    summary = (
+                        spot["forecast"][0].get("summary")
+                        or spot["forecast"][0].get("quick_summary")
+                        or "⚠️ GPT returned no summary for this spot."
+                    )
+                    st.write(summary)
                 else:
                     st.write("⚠️ GPT returned no summary for this spot.")
             
@@ -298,11 +303,17 @@ def create_suggestions_section(forecasts, selected_day):
                 - **Tide:** {forecast.get('tide_state', 'Unknown').title()}
                 """)
             
-            # Pro Analysis in expander below both columns
-            with st.expander("🔍 Pro Analysis"):
-                if spot.get("forecast") and spot["forecast"][0].get("analysis"):
-                    st.markdown(spot["forecast"][0]["analysis"])
-                else:
+            # Display detailed analysis
+            if spot.get("forecast"):
+                analysis = (
+                    spot["forecast"][0].get("analysis")
+                    or spot["forecast"][0].get("conditions_analysis")
+                    or "⚠️ No detailed analysis returned."
+                )
+                with st.expander("🔍 Pro Analysis"):
+                    st.write(analysis)
+            else:
+                with st.expander("🔍 Pro Analysis"):
                     st.write("⚠️ No detailed analysis returned.")
             
             st.markdown("---")
