@@ -241,7 +241,13 @@ def create_suggestions_section(forecasts, selected_day):
     # Sort spots by rating for the selected day
     sorted_spots = sorted(
         forecasts,
-        key=lambda x: x.get('forecast', [{}])[0].get('daily_rating', 0) if x.get('forecast') else 0,
+        key=lambda x: (
+            float(x.get('forecast', [{}])[0].get('daily_rating', 0))
+            if x.get('forecast') and x['forecast'][0].get('daily_rating') is not None
+            else float(x.get('match', 0))
+            if x.get('match') is not None
+            else 0
+        ),
         reverse=True
     )
     
