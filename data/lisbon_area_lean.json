@@ -41,86 +41,6 @@
       }
     },
     {
-      "name": "Costa da Caparica (CDS area)",
-      "latitude": 38.6450,
-      "longitude": -9.2370,
-      "region": "Almada",
-      "type": "beach break",
-      "orientation": "WSW",
-      "best_season": "Year-round (best in autumn/winter for swell)",
-      "difficulty": ["beginner", "intermediate", "advanced"],
-      "wave_description": "A 30 km stretch of sandy beach across the Tagus south bank – the most consistent surf zone for Lisbon’s surfers. The northern urban section, known as Caparica or CDS, has a series of jetties that shape multiple peaks. These peaks offer something for everyone: from fast low-tide lefts at Cova do Vapor and Praia do Rio to softer, mellow waves further south. It’s a playground of beachbreak waves that can handle a variety of conditions, though generally smaller and less powerful than Carcavelos.",
-      "access": "Just south of Lisbon (across the 25 de Abril bridge). Easily accessible by car (15–20 min from city), bus, or ferry+bus. Many parking lots along the coast (paid in summer near town). The “CDS” jetties area is near the town of Costa da Caparica; further south beaches accessed via a coastal road or mini-train in summer.",
-      "local_tips": "The jetties provide defined sandbanks – check between them for the best peak on a given day. Low tide produces hollow lefts at Cova do Vapor and by the first piers. Mid to high tide can be better in the central beaches. Pollution can be an issue near the river mouth (Vapor) after rains. In summer, smaller waves cater to surf schools (crowds of learners). If crowds in the town beaches are too much, just drive south along the coast – the further south, the fewer people and the more mellow the vibe (e.g. Praia da Rainha area offers quiet peaks).",
-      "surf_forecast_link": [
-        "https://www.surfline.com/surf-report/costa-da-caparica/584204204e65fad6a77090d0",
-        "https://magicseaweed.com/Costa-Da-Caparica-Surf-Report/2774/"
-      ],
-      "nearby_lodging": "Gota d'Agua Surf Camp (Caparica, €30–€80/night with breakfast)",
-      "gear_rental": "Caparica Surf Center – ~€15 half-day board+wetsuit",
-      "tide_behavior": {
-        "low":    { "quality": 4, "note": "Many spots work even at low tide. Low tide reveals faster waves, especially the lefts at Cova do Vapor and by the first jetty (often hollow and punchy)." },
-        "rising": { "quality": 5, "note": "Mid tide incoming is typically best – waves still have shape but with a bit more slope, peaks become more defined around the jetties." },
-        "high":   { "quality": 3, "note": "Some spots can be fat at full high, especially between groynes where water deepens. Northernmost jetties might still break at high with smaller, clean peelers." },
-        "falling":{ "quality": 5, "note": "Mid tide dropping is also excellent. The sandbanks are well-covered and waves often peak nicely between the jetties, offering both lefts and rights." }
-      },
-      "wind_compatibility": {
-        "best_direction": "NE",
-        "quality": 4,
-        "notes": "Northeast (offshore) is ideal, which is common in the mornings. Caparica is prone to onshore winds by afternoon (NW seabreeze), but the jetties provide slight wind protection. Moderate N winds are side-offshore and manageable. Strong S/SW winds ruin it."
-      },
-      "swell_compatibility": {
-        "ideal_swell_direction": "NW",
-        "ideal_swell_size_m": [1, 2.5],
-        "quality": 5,
-        "notes": "Picks up swell from SW to NW. NW swells wrap into the beach reliably. An ideal day might be a 1.5m NW swell with 12s period, making chest- to head-high peaks up and down the coast. Larger swells (2–3m) still break but tend to close out less between jetties, requiring searching for corners or going to more open stretches with angle."
-      },
-      "crowd_pressure": {
-        "quality": 4,
-        "notes": "Being Lisbon’s “overflow” surf area, Caparica gets crowded, especially at the easily accessible town beaches. The northernmost peaks (São João, Vapor) can be localized and busy. However, the long stretch means you can always find a less crowded peak if you’re willing to walk or drive south. In summer, expect many surf schools in the water (lots of beginners). Overall crowd pressure is high near town and moderate further away."
-      }
-    },
-    {
-      "name": "Praia de Carcavelos",
-      "latitude": 38.6798,
-      "longitude": -9.3353,
-      "region": "Carcavelos (Cascais)",
-      "type": "beach break",
-      "orientation": "SW",
-      "best_season": "Autumn & Winter",
-      "difficulty": ["beginner", "intermediate", "advanced"],
-      "wave_description": "The original and still one of the best Portuguese surf spots. Carcavelos is a legendary beachbreak offering fast, often barreling peaks over shifting sandbars. Beside the fort at the eastern end, cylindrical lefts are the trademark, with occasional rights on offer. Highly consistent and capable of world-class waves, especially on winter swells, it’s a go-to spot for surfers of all levels (small days are friendly; big days produce heavy barrels).",
-      "access": "Located 20 km west of Lisbon city center. Very accessible: Carcavelos train station is ~10 min walk. Large parking lots (paid in summer). Beach has multiple access points along a promenade.",
-      "local_tips": "Works on virtually all tides and is surfable almost year-round (flat only in high summer). Best on a clean mid-sized swell from SW or W for those classic tubes. Can close out when the swell gets too large ( >2.5m). Expect crowds; dawn patrol or less popular peaks toward the west end can be slightly less crowded. Full facilities on site (showers, board rentals, cafes) – but note parking fees and watch for petty theft in the car park.",
-      "surf_forecast_link": [
-        "https://www.surfline.com/surf-report/carcavelos/5901ac0d0d94c40001b4b175",
-        "https://magicseaweed.com/Carcavelos-Surf-Report/74/"
-      ],
-      "nearby_lodging": "Carcavelos Surf Hostel (budget hostel, €20–€40/night)",
-      "gear_rental": "Angels Surf School (on beach) – ~€15–€20 for board and wetsuit",
-      "tide_behavior": {
-        "low":    { "quality": 4, "note": "Low tide frequently produces hollow, fast waves, especially the lefts near the fort. Can be a bit dumpy on smaller swells." },
-        "rising": { "quality": 5, "note": "Mid tide (rising or falling) is ideal – the sandbars work perfectly, offering open shoulders and barrel sections." },
-        "high":   { "quality": 4, "note": "Still surfable and often still good; waves break closer to shore with slightly less punch, but beginners find high tide waves more forgiving." },
-        "falling":{ "quality": 5, "note": "Mid-outgoing remains excellent on a good swell. Barrels often reform on the inside as the tide drains." }
-      },
-      "wind_compatibility": {
-        "best_direction": "N/NE",
-        "quality": 5,
-        "notes": "Carcavelos is best with the prevailing northerly winds which blow offshore here. A light NE wind is also offshore. It’s very sensitive to onshore winds – any south or SW wind will chop it up. Mornings often have calm or offshore conditions (sea breezes tend to pick up from NW later in day)."
-      },
-      "swell_compatibility": {
-        "ideal_swell_direction": "SW",
-        "ideal_swell_size_m": [1, 3],
-        "quality": 5,
-        "notes": "Prefers swells from WSW/SW which roll directly into the bay, lighting up the sandbanks. NW swells also work (with slightly smaller wave heights due to shadowing). Ideal size is 1–2.5 m: at that size, Carcavelos delivers its famous makeable barrels. Bigger swells (3m+) will still break (it’s one of Europe’s top beachbreaks along with Supertubos), but expect heavy closeouts between the better peaks."
-      },
-      "crowd_pressure": {
-        "quality": 5,
-        "notes": "Always crowded when there are waves. As Lisbon’s most popular spot and a consistent wave, Carcavelos draws a crowd from dawn till dusk – everyone from local groms to traveling surfers. There is some localism on the prime peak by the fort, but generally it’s an international crowd and relatively mellow vibe given the numbers. Still, competition for waves is high, especially on prime days."
-      }
-    },
-    {
       "name": "Praia Grande",
       "latitude": 38.8145,
       "longitude": -9.4786,
@@ -198,6 +118,486 @@
       "crowd_pressure": {
         "quality": 3,
         "notes": "Despite size, it draws many surfers when good. Summer brings both city surfers and wind/kitesurfers. Crowds are moderate on manageable days (with plenty of peaks to spread out), but on epic calm days expect a packed lineup."
+      }
+    },
+    {
+      "name": "Monte Estoril (Praia das Moitas)",
+      "latitude": 38.7030,
+      "longitude": -9.4160,
+      "region": "Estoril Coast",
+      "type": "point break",
+      "orientation": "SSE",
+      "best_season": "Winter (needs swell)",
+      "difficulty": ["intermediate"],
+      "wave_description": "Sectiony and uncrowded right-hander breaking off a man-made jetty:. Monte Estoril’s point holds large swells and also amplifies smaller days along the Estoril coast. Tends to have multiple sections and some fat shoulders, but on big west swells it can link up for a long, fun ride.",
+      "access": "In front of Jardins do Estoril (near Monte Estoril train stop). Limited street parking in Estoril town; easy walk from train. Enter the water next to the jetty.",
+      "local_tips": "Works only when other spots are maxing out – check it on big winter days or when nearby breaks are flat. Often affected by onshore west winds due to open exposure. Watch water quality after rains (urban runoff). Usually no crowd – a good option to escape Carcavelos crowds when there’s enough swell.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Monte-Estoril",
+        "https://www.surfline.com/surf-report/monte-estoril/6261a51441423726b566d7d9"
+      ],
+      "nearby_lodging": "Change Surf House Cascais (hostel, ~€30/night)",
+      "gear_rental": "Surf Lisbon (mobile school servicing Estoril) – ~€20/lesson gear",
+      "tide_behavior": {
+        "low":    { "quality": 3, "note": "Works at low, but can be shallow near the jetty rocks." },
+        "rising": { "quality": 4, "note": "Improves with more water – mid tide offers longer connecting sections." },
+        "high":   { "quality": 4, "note": "High tide still surfable; wave fattens a bit but rides remain long when swell is big." },
+        "falling":{ "quality": 4, "note": "Also good on outgoing mid – retains shape until around low." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N/NE",
+        "quality": 3,
+        "notes": "Fairly exposed to westerlies, which are onshore (common in afternoons). Northerly or NE winds are offshore or cross-offshore due to the break’s south-facing angle, keeping the wave cleaner."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "W",
+        "ideal_swell_size_m": [1.5, 4],
+        "quality": 5,
+        "notes": "Requires a substantial swell (needs ~1.5 m+ west) to start breaking. Handles up to double-overhead. Very small swells won’t get in due to partial shadowing by Cabo Raso."
+      },
+      "crowd_pressure": {
+        "quality": 1,
+        "notes": "Usually lightly surfed. Often empty or just a few locals because nearby Carcavelos steals the attention. Even when it’s one of the only spots working, crowd remains low."
+      }
+    },
+    {
+      "name": "Bolina (São João do Estoril)",
+      "latitude": 38.7022,
+      "longitude": -9.3960,
+      "region": "Estoril Coast",
+      "type": "reef point",
+      "orientation": "SW",
+      "best_season": "Winter (infrequent)",
+      "difficulty": ["advanced"],
+      "wave_description": "A high-quality, fast and hollow right-hand reef that unloads with power over a shallow rocky shelf. The westernmost of São João’s trio of reefs, Bolina offers short but intense rides. When a solid swell hits, it can throw a heavy barrel section, hence the nickname “Portuguese Pipeline/Teahupoo” in local circles.",
+      "access": "Next to a small cove in São João do Estoril (signed as Bolina). Park near São João train station or on residential streets; footpath down to the rocky shore. Entry/exit over rocks can be tricky at low tide.",
+      "local_tips": "Only breaks on proper swells – needs a big W/SW swell ~2m+ to light up. Strictly mid tide only for surfability (too shallow at low). Very localized spot with a hardcore bodyboarder crew; not welcoming to outsiders when it’s firing. Not suitable for beginners at all.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Sao-Joao-do-Estoril-Bolina",
+        "https://magicseaweed.com/Sao-Joao-Estoril-Surf-Report/"
+      ],
+      "nearby_lodging": "Hotel Londres (Estoril, 3★, ~€50–€80)",
+      "gear_rental": "No on-site rentals (bring your own gear)",
+      "tide_behavior": {
+        "low":    { "quality": 1, "note": "Too shallow – exposed rock ledge makes it unsurfable (and dangerous) at low tide." },
+        "rising": { "quality": 5, "note": "Best – mid tide rising gives enough water for the wave to barrel but still break hollow." },
+        "high":   { "quality": 2, "note": "Wave fattens and loses punch at high tide; tends not to break unless swell is very large." },
+        "falling":{ "quality": 4, "note": "Mid tide dropping can still be excellent – once it nears low, it becomes sketchy." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N/NE",
+        "quality": 4,
+        "notes": "Fairly sheltered from west winds by surrounding cliffs. Northerly or no wind days are ideal, making the heavy barrel section clean. Strong south winds would blow it out."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "SW",
+        "ideal_swell_size_m": [2, 3.5],
+        "quality": 5,
+        "notes": "Prefers a SW or solid W swell to wrap in and break top to bottom. Needs a significant swell to start working; when on, can handle well overhead sets. Smaller N swells often don’t get in here."
+      },
+      "crowd_pressure": {
+        "quality": 5,
+        "notes": "High local crowd pressure. Bolina is intensely localized, with experienced locals and bodyboarders dominating the lineup. Only a handful of surfers fit on the peak, so expect competition (and respect the pecking order) on the rare days it breaks."
+      }
+    },
+    {
+      "name": "Praia da Poça",
+      "latitude": 38.7020,
+      "longitude": -9.3921,
+      "region": "Estoril Coast",
+      "type": "reef break",
+      "orientation": "S/SW",
+      "best_season": "Winter–Spring",
+      "difficulty": ["advanced"],
+      "wave_description": "A notorious reef break off the São João coast, known for its big, heavy tubes – it’s been nicknamed the “Portuguese Teahupoo”. Produces a wedging left at mid/high tide that can get very hollow, and a shorter right. When a strong swell hits, Poça serves up powerful, board-snapping waves that demand skill and courage.",
+      "access": "Located at São João do Estoril. Park near Fort of São Pedro or train to São João. Short walk on the promenade to the point (east side of Poça beach). Jump off the rocks during a lull to paddle out.",
+      "local_tips": "Best on a mid tide push. **Do not** go right at low tide (exposed rocks make it dangerous). Wait for a solid SW or W swell ~2–3m. This spot is “experts only” for a reason – wipeouts can be gnarly. Local bodyboarders charge it when it’s on. Spectators often watch from the promenade when Poça breaks.",
+      "surf_forecast_link": [
+        "https://surfing-waves.com/atlas/portugal/lisboa/spot/praia_de_poca.html",
+        "https://www.windguru.cz/607302"
+      ],
+      "nearby_lodging": "Somewhere Estoril Guesthouse (budget, ~€40/night)",
+      "gear_rental": "None on site (closest surf shops in Cascais or Carcavelos)",
+      "tide_behavior": {
+        "low":    { "quality": 1, "note": "Too shallow for the left; exposed reef makes the right unsurfable at low." },
+        "rising": { "quality": 4, "note": "On the push from mid to high, the left reels and barrels. Timing the incoming tide is key to catch Poça at its best." },
+        "high":   { "quality": 4, "note": "High tide still allows a heavy take-off on the left, though the inside section can shut down." },
+        "falling":{ "quality": 3, "note": "Okay just after high, but quality drops quickly as tide falls; by mid dropping, becomes sketchy." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N",
+        "quality": 4,
+        "notes": "Fairly wind-protected by headlands. Northerly winds are offshore to cross-offshore, grooming the barrels. Avoid southerly winds which will blow into the wave face."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "SW",
+        "ideal_swell_size_m": [2, 3],
+        "quality": 5,
+        "notes": "Needs a strong SW or W swell to awaken. When a big winter swell arrives from the SW, Poça comes alive with dredging pits. Smaller swells under ~1.5m generally won’t break here."
+      },
+      "crowd_pressure": {
+        "quality": 4,
+        "notes": "Local chargers dominate the lineup on the rare days Poça is firing. It’s not crowded often (because it’s seldom surfable), but when it is on, expect a pack of experienced locals. Intimidating vibe for newcomers."
+      }
+    },
+    {
+      "name": "Praia da Azarujinha",
+      "latitude": 38.7033,
+      "longitude": -9.3890,
+      "region": "Estoril Coast",
+      "type": "reef break",
+      "orientation": "S",
+      "best_season": "Winter",
+      "difficulty": ["intermediate", "advanced"],
+      "wave_description": "A sheltered, classy left-hander in a tiny cove. Azarujinha is the easternmost break of São João do Estoril and offers a peeling left that can get epic on a big winter swell. There’s also a right on the opposite side of the cove at low tide, but the mid tide left is the main attraction – a long, walling wave that’s protected from west winds by cliffs.",
+      "access": "Hidden below seaside cliffs in S. João do Estoril. Access via stairs at Azarujinha beach. Very limited parking on nearby streets (best to walk from Poça area or take train to S. João). Entry from the small sandy beach.",
+      "local_tips": "Because it’s tucked in a cove, it often remains clean when other spots are blown out. Check Azarujinha during winter storms – if Carcavelos is huge and onshore, this spot could be working nicely. Mid tide is ideal; at low, the right becomes surfable but shallow. Can be crowded when it’s on, and a bit of localism and water quality issues are noted.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Azarujinha",
+        "https://surfline.com/surf-report/azarujinha/6261a4dc2d4f2d13f5eeb7e7"
+      ],
+      "nearby_lodging": "Airbnbs in S. João do Estoril (from ~€50/night)",
+      "gear_rental": "None on site (nearest rentals in Carcavelos or Cascais)",
+      "tide_behavior": {
+        "low":    { "quality": 3, "note": "Low tide unveils a shorter right-hander but with very shallow sections. The main left doesn’t fire well at dead low." },
+        "rising": { "quality": 5, "note": "The left starts working as the tide comes in – mid tide rising is when Azarujinha truly shines." },
+        "high":   { "quality": 4, "note": "Still good at high; the left runs along the cove’s cliff nicely, though it may soften a bit on the inside." },
+        "falling":{ "quality": 4, "note": "On a big swell, the left remains surfable through mid tide dropping, until it fades approaching low." }
+      },
+      "wind_compatibility": {
+        "best_direction": "W/NW",
+        "quality": 4,
+        "notes": "This cove is uniquely protected from west winds. Even when nearby breaks are blown out by NW wind, Azarujinha can stay clean. Strong south winds are harmful (blowing directly into the cove)."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "W",
+        "ideal_swell_size_m": [1.5, 3],
+        "quality": 4,
+        "notes": "Needs a decent swell to wrap into the cove. A solid west or large NW swell in winter will produce the long lefts. Too small and it’s flat; too big and it closes out the small bay. Handles up to head-high+ nicely."
+      },
+      "crowd_pressure": {
+        "quality": 3,
+        "notes": "Often busy when it breaks well – a mix of locals and those fleeing wind at other spots. The take-off zone for the left is tight, so expect some jockeying for position. A bit of local edge exists, but generally not as heavy as Bolina/Poça."
+      }
+    },
+    {
+      "name": "São Pedro do Estoril (Bico)",
+      "latitude": 38.6970,
+      "longitude": -9.3660,
+      "region": "Estoril Coast",
+      "type": "point break",
+      "orientation": "WSW",
+      "best_season": "Winter–Spring",
+      "difficulty": ["intermediate"],
+      "wave_description": "A mellow, long right-hander peeling off a rocky point in front of São Pedro do Estoril beach. Known simply as “Bico,” this pointbreak is the most consistent spot in this stretch – it catches the most swell and offers a forgiving take-off with a wall that lines up well for turns. Compared to its neighbor Bafureira, Bico is slower and more beginner-friendly, especially on smaller days.",
+      "access": "At São Pedro do Estoril town. Park at São Pedro beach lot (paid in summer) or use the train (São Pedro station). Walk down to the beach and paddle out near the point on the north end.",
+      "local_tips": "Works from small to medium swells; often the first spot to break when others are flat. Low to mid tide is best for a longer ride. Popular with longboarders due to its softer sections. Watch out for submerged rocks at very low tide on the inside. Usually a friendly vibe, but can get busy with surf schools on small days.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Sao-Pedro-do-Estoril",
+        "https://surfsphere.com/surf-spot/sao-pedro-do-estoril-bico-lisbon"
+      ],
+      "nearby_lodging": "Hotel Vila Galé, Estoril (4★, ~€70–€100)",
+      "gear_rental": "Surf Lisbon van often teaches here – rentals ~€20/day",
+      "tide_behavior": {
+        "low":    { "quality": 4, "note": "Good at low; the point still breaks with workable walls, though inside gets shallow." },
+        "rising": { "quality": 5, "note": "Low-to-mid tide incoming is ideal – the right runs longest and most consistently." },
+        "high":   { "quality": 3, "note": "Still breaks, but fuller tide may shorten the wave. Beginners often prefer the fat high-tide reforms on the beach here." },
+        "falling":{ "quality": 4, "note": "Mid tide outgoing remains quite good. Once near low, it speeds up again with more bite." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N/NE",
+        "quality": 4,
+        "notes": "Bico is moderately protected. North or northeast winds are offshore and groom the wave. Westerly winds sideshore it a bit but the point shape still holds. Southerly winds degrade conditions more."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "W/SW",
+        "ideal_swell_size_m": [1, 2.5],
+        "quality": 5,
+        "notes": "Open to a broad swell window, it picks up SW through NW swells. Performs best on 1–2m west swells which produce nice lined-up rights. Can handle overhead sets, but if too large (over 2.5m) it tends to close out or push wide of the point."
+      },
+      "crowd_pressure": {
+        "quality": 3,
+        "notes": "One of the more crowd-friendly waves on the line – often filled with a mix of longboarders, locals, and surf schools. Gets busy on weekends and small summer days, but the vibe is generally relaxed. Expect a lineup at the main take-off zone, though sets usually have multiple waves to share."
+      }
+    },
+    {
+      "name": "Praia da Bafureira",
+      "latitude": 38.6960,
+      "longitude": -9.3630,
+      "region": "Estoril Coast",
+      "type": "point/reef break",
+      "orientation": "W",
+      "best_season": "Winter (rare)",
+      "difficulty": ["advanced"],
+      "wave_description": "An elusive right point/reef regarded by locals as one of the best waves in the Lisbon region. When it breaks, Bafureira offers a world-class, long right-hander with freight-train speed and barrel sections – earning comparisons to J-Bay. However, it needs a solid swell and the stars to align. It starts working at about 1m and can hold well overhead, breaking fast and hollow off the cliffside before tapering into a long wall.",
+      "access": "Between São Pedro and Parede (below a cliff). Access via a stairway at São Pedro do Estoril beach, then paddle over or via the rocks at Bafureira (at your own risk). There’s a viewpoint on the cliff above. Parking at São Pedro lot or Parede.",
+      "local_tips": "Needs a due west swell to line up perfectly. Check it on large winter swells (2m+ W). Very fickle – often closes out or doesn’t connect unless conditions are just right. Only the lucky (or local) get to score it; as a visitor, don’t expect to catch it at its best. If you do, be respectful – the take-off zone is dominated by local rippers and they won’t yield many waves to outsiders.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Bafureira",
+        "https://surfline.com/surf-report/bafureira/6261a4d8b1b4df084185ce64"
+      ],
+      "nearby_lodging": "Casa da Pergola (Cascais, boutique B&B, ~€90)",
+      "gear_rental": "None (BYO; nearest rentals in Carcavelos)",
+      "tide_behavior": {
+        "low":    { "quality": 2, "note": "Exposed rocks at low tide make it sketchy, and sections may not link." },
+        "rising": { "quality": 5, "note": "Mid tide incoming is prime – enough water over the reef for the long, sectioning right to peel." },
+        "high":   { "quality": 3, "note": "Works at high tide too, but wave can back off slightly on the inside (still very good on a big swell)." },
+        "falling":{ "quality": 4, "note": "Mid tide dropping remains solid. Loses quality as it nears low when the reef begins to show." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N/NE",
+        "quality": 4,
+        "notes": "Relatively sheltered from moderate winds by cliffs. Needs light winds; N or NE are offshore. W winds can cause chop on the face. Because it rarely breaks, locals usually wait for clean wind days to surf it."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "W",
+        "ideal_swell_size_m": [2, 4],
+        "quality": 5,
+        "notes": "Requires a powerful west swell to line up and emulate its potential. Best with long-period W to WNW swell 2–3+ m. Anything less and it may not break; anything more and only part of it will be makeable (closing out sections)."
+      },
+      "crowd_pressure": {
+        "quality": 5,
+        "notes": "Extreme local crowd. “Only the very, very lucky or the locals will ever ride” Bafureira’s best days. When it’s on, expect the lineup to be packed with the local elite. Visitors may find it hard to get waves off the locals, who have this spot wired."
+      }
+    },
+    {
+      "name": "Praia da Parede (Avencas)",
+      "latitude": 38.6880,
+      "longitude": -9.3540,
+      "region": "Estoril Coast",
+      "type": "reef/point break",
+      "orientation": "W",
+      "best_season": "Winter (very rare)",
+      "difficulty": ["expert"],
+      "wave_description": "A mythical right reef point in Parede, touted as the best wave in Lisbon when it breaks. Parede’s wave is a leg-burning, long right that on the rare perfect swell can barrel like a freight train down the line. It needs a strong due-west swell to set up properly and is often compared to a mini J-Bay when it’s firing. Extremely fickle and usually dormant; comes alive only a few times a year, if that.",
+      "access": "In the town of Parede (beach also known as Praia das Avencas). Park near Avencas Beach or take the train to Parede. Access the water via the small beach or rocks at Avencas. The wave breaks outside the natural tide pools area.",
+      "local_tips": "If you happen to see it breaking, jump on it – it’s that rare. Requires massive swell (3m+ W) and ideally N offshore wind. As a visitor, temper expectations: local crew have this spot on lockdown and will take most sets. Many Lisbon surfers have never even seen Parede break; it’s the ultimate unicorn wave of the region.",
+      "surf_forecast_link": [
+        "https://surfline.com/surf-report/parede/6261a5062d4f2d13f5eeb80c",
+        "https://www.surf-forecast.com/breaks/Parede"
+      ],
+      "nearby_lodging": "Hotel Praia Mar, Carcavelos (3★, ~€60)",
+      "gear_rental": "None (BYO gear)",
+      "tide_behavior": {
+        "low":    { "quality": 5, "note": "Fires at low tide – the point/reef is fully exposed to the swell, letting the right reel for a long distance." },
+        "rising": { "quality": 3, "note": "Mid tide it often stops breaking continuously, as the connection can be disrupted (only sections working)." },
+        "high":   { "quality": 1, "note": "Doesn’t break at high tide – the reef is too deep and the wave won’t form." },
+        "falling":{ "quality": 4, "note": "On a big swell, as the tide drops towards low, it will start lining up into those long walls if everything aligns." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N",
+        "quality": 5,
+        "notes": "Needs north or NE wind (offshore) to be clean – which luckily often coincides with big winter swells. Any west/south wind ruins it. Because it’s so rare, locals wait for pristine wind conditions to call it on."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "W",
+        "ideal_swell_size_m": [3, 5],
+        "quality": 5,
+        "notes": "Absolutely requires a due west groundswell of significant size (on the order of 3m+ at 15s) to line up along the reef. Under those once-in-a-blue-moon conditions, it becomes a world-class right-hander. Anything less and it won’t break at all."
+      },
+      "crowd_pressure": {
+        "quality": 5,
+        "notes": "Local exclusive. If you’re not part of the Parede crew, don’t expect to get a wave on the rare day it’s pumping. The lineup will be dominated by a handful of locals who’ve waited all year (or years) for that swell. Spectators usually outnumber surfers when Parede breaks."
+      }
+    },
+    {
+      "name": "Praia de Carcavelos",
+      "latitude": 38.6798,
+      "longitude": -9.3353,
+      "region": "Carcavelos (Cascais)",
+      "type": "beach break",
+      "orientation": "SW",
+      "best_season": "Autumn & Winter",
+      "difficulty": ["beginner", "intermediate", "advanced"],
+      "wave_description": "The original and still one of the best Portuguese surf spots. Carcavelos is a legendary beachbreak offering fast, often barreling peaks over shifting sandbars. Beside the fort at the eastern end, cylindrical lefts are the trademark, with occasional rights on offer. Highly consistent and capable of world-class waves, especially on winter swells, it’s a go-to spot for surfers of all levels (small days are friendly; big days produce heavy barrels).",
+      "access": "Located 20 km west of Lisbon city center. Very accessible: Carcavelos train station is ~10 min walk. Large parking lots (paid in summer). Beach has multiple access points along a promenade.",
+      "local_tips": "Works on virtually all tides and is surfable almost year-round (flat only in high summer). Best on a clean mid-sized swell from SW or W for those classic tubes. Can close out when the swell gets too large ( >2.5m). Expect crowds; dawn patrol or less popular peaks toward the west end can be slightly less crowded. Full facilities on site (showers, board rentals, cafes) – but note parking fees and watch for petty theft in the car park.",
+      "surf_forecast_link": [
+        "https://www.surfline.com/surf-report/carcavelos/5901ac0d0d94c40001b4b175",
+        "https://magicseaweed.com/Carcavelos-Surf-Report/74/"
+      ],
+      "nearby_lodging": "Carcavelos Surf Hostel (budget hostel, €20–€40/night)",
+      "gear_rental": "Angels Surf School (on beach) – ~€15–€20 for board and wetsuit",
+      "tide_behavior": {
+        "low":    { "quality": 4, "note": "Low tide frequently produces hollow, fast waves, especially the lefts near the fort. Can be a bit dumpy on smaller swells." },
+        "rising": { "quality": 5, "note": "Mid tide (rising or falling) is ideal – the sandbars work perfectly, offering open shoulders and barrel sections." },
+        "high":   { "quality": 4, "note": "Still surfable and often still good; waves break closer to shore with slightly less punch, but beginners find high tide waves more forgiving." },
+        "falling":{ "quality": 5, "note": "Mid-outgoing remains excellent on a good swell. Barrels often reform on the inside as the tide drains." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N/NE",
+        "quality": 5,
+        "notes": "Carcavelos is best with the prevailing northerly winds which blow offshore here. A light NE wind is also offshore. It’s very sensitive to onshore winds – any south or SW wind will chop it up. Mornings often have calm or offshore conditions (sea breezes tend to pick up from NW later in day)."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "SW",
+        "ideal_swell_size_m": [1, 3],
+        "quality": 5,
+        "notes": "Prefers swells from WSW/SW which roll directly into the bay, lighting up the sandbanks. NW swells also work (with slightly smaller wave heights due to shadowing). Ideal size is 1–2.5 m: at that size, Carcavelos delivers its famous makeable barrels. Bigger swells (3m+) will still break (it’s one of Europe’s top beachbreaks along with Supertubos), but expect heavy closeouts between the better peaks."
+      },
+      "crowd_pressure": {
+        "quality": 5,
+        "notes": "Always crowded when there are waves. As Lisbon’s most popular spot and a consistent wave, Carcavelos draws a crowd from dawn till dusk – everyone from local groms to traveling surfers. There is some localism on the prime peak by the fort, but generally it’s an international crowd and relatively mellow vibe given the numbers. Still, competition for waves is high, especially on prime days."
+      }
+    },
+    {
+      "name": "Praia de Santo Amaro de Oeiras",
+      "latitude": 38.6852,
+      "longitude": -9.3111,
+      "region": "Oeiras",
+      "type": "point break",
+      "orientation": "SW",
+      "best_season": "Winter (needs huge swell)",
+      "difficulty": ["advanced"],
+      "wave_description": "The first surf spot west of Lisbon city, Santo Amaro is a fickle right point/reef that only breaks with a massive swell. When it does, it’s a sick, long right with fast tubular sections on a big SW swell and an incoming tide. Low consistency and urban water quality make it an occasionally unpleasant, but thrilling, option. Essentially, a long point/jetty setup that can produce multiple barrel sections down the line when it’s on.",
+      "access": "Located in Oeiras, just outside Lisbon. Easy access and parking along Marginal road. The wave breaks along the western end of Santo Amaro beach near a jetty (next to Forte de São João das Maias). Paddle out from the beach.",
+      "local_tips": "Needs a *huge* swell (e.g. >3m SW or W) – otherwise it’s flat. Best on a SW swell, mid-to-high tide incoming. Because it’s city-close, when it breaks it gets very crowded despite poor water quality (the Tagus river outflow means pollution, especially after rain, and this beach is known for the worst water in Lisbon). Rips and rocks are present along the jetty. Always expect a pack of hopeful surfers whenever forecasts hint it might break.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Santo-Amaro",
+        "https://www.windguru.cz/607303"
+      ],
+      "nearby_lodging": "Inatel Oeiras Hotel (budget, ~€50/night)",
+      "gear_rental": "N/A (no rentals; nearest in Carcavelos or Lisbon city surf shops)",
+      "tide_behavior": {
+        "low":    { "quality": 1, "note": "Doesn’t usually start breaking until the tide is mid or higher – needs more water to connect along the reef." },
+        "rising": { "quality": 5, "note": "Incoming mid tide on a big swell is ideal – the sections link up and the point fires on all cylinders." },
+        "high":   { "quality": 4, "note": "High tide still works if the swell is huge, though the wave may back off slightly at the end near the promenade wall." },
+        "falling":{ "quality": 2, "note": "On the drop, it fades quickly. As soon as the tide gets too low, the long ride breaks into separate sections and then stops." }
+      },
+      "wind_compatibility": {
+        "best_direction": "N/NE",
+        "quality": 4,
+        "notes": "Offshore in a north or northeast wind. Being near the river mouth, winds can swirl; but generally if Carcavelos is offshore, Santo Amaro will be too. Wind is usually not the limiting factor – swell and pollution are."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "SW",
+        "ideal_swell_size_m": [3, 5],
+        "quality": 5,
+        "notes": "Requires a giant SW or W swell to break. When Carcavelos is maxed and breaking outside, check Santo Amaro. It thrives on those rare XXL swells, turning into a long righthand point. Smaller swells (under ~2.5–3m) will not wrap into the Oeiras corner enough to surf."
+      },
+      "crowd_pressure": {
+        "quality": 5,
+        "notes": "Always busy when it’s on. Despite inconsistent surf and dirty water, the proximity to Lisbon means every surfer in town shows up for the novelty of surfing Santo Amaro. Expect a dense crowd and competitive lineup, plus curious onlookers lining the promenade."
+      }
+    },
+    {
+      "name": "Costa da Caparica (CDS area)",
+      "latitude": 38.6450,
+      "longitude": -9.2370,
+      "region": "Almada",
+      "type": "beach break",
+      "orientation": "WSW",
+      "best_season": "Year-round (best in autumn/winter for swell)",
+      "difficulty": ["beginner", "intermediate", "advanced"],
+      "wave_description": "A 30 km stretch of sandy beach across the Tagus south bank – the most consistent surf zone for Lisbon’s surfers. The northern urban section, known as Caparica or CDS, has a series of jetties that shape multiple peaks. These peaks offer something for everyone: from fast low-tide lefts at Cova do Vapor and Praia do Rio to softer, mellow waves further south. It’s a playground of beachbreak waves that can handle a variety of conditions, though generally smaller and less powerful than Carcavelos.",
+      "access": "Just south of Lisbon (across the 25 de Abril bridge). Easily accessible by car (15–20 min from city), bus, or ferry+bus. Many parking lots along the coast (paid in summer near town). The “CDS” jetties area is near the town of Costa da Caparica; further south beaches accessed via a coastal road or mini-train in summer.",
+      "local_tips": "The jetties provide defined sandbanks – check between them for the best peak on a given day. Low tide produces hollow lefts at Cova do Vapor and by the first piers. Mid to high tide can be better in the central beaches. Pollution can be an issue near the river mouth (Vapor) after rains. In summer, smaller waves cater to surf schools (crowds of learners). If crowds in the town beaches are too much, just drive south along the coast – the further south, the fewer people and the more mellow the vibe (e.g. Praia da Rainha area offers quiet peaks).",
+      "surf_forecast_link": [
+        "https://www.surfline.com/surf-report/costa-da-caparica/584204204e65fad6a77090d0",
+        "https://magicseaweed.com/Costa-Da-Caparica-Surf-Report/2774/"
+      ],
+      "nearby_lodging": "Gota d'Agua Surf Camp (Caparica, €30–€80/night with breakfast)",
+      "gear_rental": "Caparica Surf Center – ~€15 half-day board+wetsuit",
+      "tide_behavior": {
+        "low":    { "quality": 4, "note": "Many spots work even at low tide. Low tide reveals faster waves, especially the lefts at Cova do Vapor and by the first jetty (often hollow and punchy)." },
+        "rising": { "quality": 5, "note": "Mid tide incoming is typically best – waves still have shape but with a bit more slope, peaks become more defined around the jetties." },
+        "high":   { "quality": 3, "note": "Some spots can be fat at full high, especially between groynes where water deepens. Northernmost jetties might still break at high with smaller, clean peelers." },
+        "falling":{ "quality": 5, "note": "Mid tide dropping is also excellent. The sandbanks are well-covered and waves often peak nicely between the jetties, offering both lefts and rights." }
+      },
+      "wind_compatibility": {
+        "best_direction": "NE",
+        "quality": 4,
+        "notes": "Northeast (offshore) is ideal, which is common in the mornings. Caparica is prone to onshore winds by afternoon (NW seabreeze), but the jetties provide slight wind protection. Moderate N winds are side-offshore and manageable. Strong S/SW winds ruin it."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "NW",
+        "ideal_swell_size_m": [1, 2.5],
+        "quality": 5,
+        "notes": "Picks up swell from SW to NW. NW swells wrap into the beach reliably. An ideal day might be a 1.5m NW swell with 12s period, making chest- to head-high peaks up and down the coast. Larger swells (2–3m) still break but tend to close out less between jetties, requiring searching for corners or going to more open stretches with angle."
+      },
+      "crowd_pressure": {
+        "quality": 4,
+        "notes": "Being Lisbon’s “overflow” surf area, Caparica gets crowded, especially at the easily accessible town beaches. The northernmost peaks (São João, Vapor) can be localized and busy. However, the long stretch means you can always find a less crowded peak if you’re willing to walk or drive south. In summer, expect many surf schools in the water (lots of beginners). Overall crowd pressure is high near town and moderate further away."
+      }
+    },
+    {
+      "name": "Praia da Lagoa de Albufeira",
+      "latitude": 38.5068,
+      "longitude": -9.1813,
+      "region": "Sesimbra/Setúbal",
+      "type": "beach break (with rivermouth influence)",
+      "orientation": "W",
+      "best_season": "Autumn–Spring",
+      "difficulty": ["intermediate"],
+      "wave_description": "A mellow beach break far down the Caparica coast where Lisbon feels distant. Lagoa de Albufeira is known for its tranquil vibe and multiple sandbanks. A small lagoon outlet (rivermouth) helps form better-than-average sandbars, often creating peaky lefts and rights with a bit more shape. Generally offers quiet, fun waves up to about head-high – not as hollow as Caparica’s northern beaches, but consistent and with decent power on a solid swell.",
+      "access": "About 20 km south of Lisbon, past the town of Alfarim. Plenty of parking near the beach or camping sites. Short walk over dunes to reach the ocean. The lagoon itself is adjacent (popular for kitesurfing).",
+      "local_tips": "NW swell and outgoing tide are a great combo here– the draining lagoon can improve the sandbanks and create peelers on the bar. Works on anything from waist-high to a bit overhead; bigger than that and it starts closing out, and crowd may shift to more sheltered spots. In summer it can be crowded with beachgoers and the surf is smaller (but still rideable). Water is cleaner here than closer to Lisbon. If one bank isn’t working, walk along – there are several peaks to choose from along this expansive beach.",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Lagoa-de-Albufeira",
+        "https://magicseaweed.com/Lagoa-de-Albufeira-Surf-Report/890/"
+      ],
+      "nearby_lodging": "Camping Lagoa (campground, €10–€20/tent) or rental cottages in Alfarim (€50–€80)",
+      "gear_rental": "None directly; surf schools from Caparica/Sesimbra sometimes bring students here (must arrange in advance)",
+      "tide_behavior": {
+        "low":    { "quality": 3, "note": "Low tide is okay – waves break farther out on the sandbars, sometimes weak unless swell is strong. The rivermouth bar might start to fire as tide bottoms out." },
+        "rising": { "quality": 4, "note": "Mid tide incoming still offers good shape, but best is actually when tide is dropping (outgoing) because the lagoon outflow sculpts the bars." },
+        "high":   { "quality": 2, "note": "High tide can make waves slow and mushy, especially on smaller swells – a lot of water moving around dulls the peaks." },
+        "falling":{ "quality": 5, "note": "Outgoing mid tide is prime – the combination of NW swell and outgoing flow from the lagoon yields long peaky waves with improved bar shape" }
+      },
+      "wind_compatibility": {
+        "best_direction": "E",
+        "quality": 4,
+        "notes": "Being further south, it benefits from lighter winds. East or NE winds are offshore and ideal. Even a light NW wind doesn’t ruin it due to the slight cove shape, but strong winds (NW or S) will create chop. Generally cleaner conditions than Caparica because it’s more open and less affected by Lisbon’s microclimate."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "W/NW",
+        "ideal_swell_size_m": [1, 2],
+        "quality": 4,
+        "notes": "Needs a bit of swell to get going (0.5m and up). NW swells fill in nicely here. Can be very consistent on medium swells, providing shoulder-high fun. On bigger swells (>2m) it’s still surfable, but tends to close out across the bay – at that point the crowd might shift to nearby sheltered corners or up to Caparica proper."
+      },
+      "crowd_pressure": {
+        "quality": 3,
+        "notes": "Sometimes crowded in summer (with beachgoers and occasional surf camps) but generally much less so than Caparica. In off-season, you might find only a handful of locals or campers surfing. It’s a “mellow vibe” spot – even when there are people out, it’s spread out and friendly. Weekends might see moderate crowds if waves are good and weather is nice."
+      }
+    },
+    {
+      "name": "Praia das Bicas (Meco)",
+      "latitude": 38.4850,
+      "longitude": -9.2000,
+      "region": "Sesimbra",
+      "type": "reef break",
+      "orientation": "W/NW",
+      "best_season": "Winter–Spring",
+      "difficulty": ["intermediate", "advanced"],
+      "wave_description": "A high-quality left reefbreak at the far southern end of the Caparica coast. Breaking below cliffs near Aldeia do Meco, Bicas is a fickle gem: it reels off fast and hollow lefts when a solid W-NW swell hits. The wave can hold a good deal of size and gets heavy, but it’s inconsistent and often empty. Essentially, it’s an “off-the-beaten-path” heavy wave for those willing to seek it out.",
+      "access": "By car via local roads to Aldeia do Meco (Sesimbra). A rough road leads to Praia das Bicas parking on the clifftop. It’s a bit isolated – no public transport directly. A steep trail/path descends the cliff to the beach. No lifeguards or facilities here.",
+      "local_tips": "Needs a solid NW or W swell (at least ~1.5m+) to start breaking properly. Mid tide is safest; at low tide the reef boils and it’s sketchy. Be prepared for a challenging paddle if it’s big – strong rips and sidewash can occur. Almost always uncrowded, as many surfers opt for more accessible beaches. Good campsite options nearby make it a fun day trip if you have a car. Watch for rocks and don’t surf it alone on big days (it’s remote).",
+      "surf_forecast_link": [
+        "https://www.surf-forecast.com/breaks/Praia-das-Bicas",
+        "https://surfline.com/surf-report/bicas/6261a49b2d4f2d13f5eeb6f2"
+      ],
+      "nearby_lodging": "Campimeco (campground near Meco, €5–€15) or small guesthouses in Meco (~€60/night)",
+      "gear_rental": "None (bring your own; nearest rentals in Sesimbra town or Caparica)",
+      "tide_behavior": {
+        "low":    { "quality": 2, "note": "Very shallow and dangerous at low – the left becomes shorter and the take-off can be over exposed reef." },
+        "rising": { "quality": 4, "note": "As the tide fills in, the left starts working better. Mid tide rising provides the best shape and steepness." },
+        "high":   { "quality": 3, "note": "High tide covers the reef – the wave still breaks but can be a bit softer and shorter. Big swells still throw at high though." },
+        "falling":{ "quality": 4, "note": "Mid dropping tide is also good until it approaches low. So essentially a mid-tide window (on either side) is ideal." }
+      },
+      "wind_compatibility": {
+        "best_direction": "E",
+        "quality": 4,
+        "notes": "The cliff offers some wind protection from N/NW breezes. Easterly (land breeze) is offshore and makes for clean barrels. Due to its orientation, even a light north wind is side-offshore and usually okay. Strong south or SW winds will blow it out."
+      },
+      "swell_compatibility": {
+        "ideal_swell_direction": "W/NW",
+        "ideal_swell_size_m": [1.5, 3],
+        "quality": 4,
+        "notes": "It’s positioned to catch NW swells quite well. A 2m NW swell can produce solid head-high+ lefts. It can hold up to a couple meters overhead, but waves become very challenging then. Doesn’t really work on small south swells – it’s reliant on North Atlantic energy."
+      },
+      "crowd_pressure": {
+        "quality": 1,
+        "notes": "Rarely surfed. You might be alone or with just a friend in the lineup most days. Sometimes a few locals or adventurous surfers show up when conditions align, but generally crowd is minimal due to the spot’s remoteness and fickle nature."
       }
     },
     {
